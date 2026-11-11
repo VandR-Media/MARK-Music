@@ -225,7 +225,7 @@ private fun MarkApp() {
                     modifier = Modifier.size(92.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                    Text("Твоя музыка. Твой ритм.", color = Color.White,
+                    Text("Feel the sound. See the music.", color = Color.White,
                         fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     Text("MARK AUDIO", fontSize = 11.sp, color = CYAN, letterSpacing = 2.sp)
                     Text("Feel the sound. See the music.", fontSize = 9.sp, color = SUBTLE, maxLines = 1)
@@ -235,7 +235,7 @@ private fun MarkApp() {
                 }
             }
             Spacer(Modifier.height(22.dp))
-            Text("Твоя музыка. Твой ритм.", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+            Text("Feel the sound. See the music.", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
             Text("${songs.size} композиций на устройстве", color = SUBTLE, fontSize = 13.sp)
             Spacer(Modifier.height(19.dp))
             if (!audioAllowed) {
