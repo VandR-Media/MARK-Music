@@ -9,7 +9,7 @@
     <application
         android:allowBackup="false"
         android:label="MARK Music"
-        android:icon="@drawable/mark_launcher"
+        android:icon="@drawable/mark_logo"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true">

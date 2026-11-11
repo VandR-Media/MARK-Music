@@ -188,7 +188,8 @@ private fun MarkApp() {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { showPlayer = false }) { Text("‹  Медиатека", color = CYAN) }
                 Spacer(Modifier.weight(1f))
-                Text("MARK", color = Color.White, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
+                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Music",
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
             }
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(Modifier.height(6.dp))
@@ -220,13 +221,13 @@ private fun MarkApp() {
         } else {
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Image(BrandArtwork.logo, contentDescription = "Логотип MARK Music",
-                    modifier = Modifier.size(76.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
+                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Music",
+                    modifier = Modifier.size(92.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("MARK", fontWeight = FontWeight.Black, fontSize = 31.sp,
-                        letterSpacing = 3.sp, color = Color.White)
-                    Text("M U S I C", fontSize = 12.sp, color = CYAN, letterSpacing = 3.sp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                    Text("Твоя музыка. Твой ритм.", color = Color.White,
+                        fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text("MARK MUSIC", fontSize = 11.sp, color = CYAN, letterSpacing = 2.sp)
                 }
                 Surface(shape = CircleShape, color = PANEL, onClick = { refresh++ }) {
                     Text("↻", Modifier.padding(horizontal = 17.dp, vertical = 11.dp), fontSize = 26.sp, color = CYAN)
@@ -348,26 +349,14 @@ private fun MarkApp() {
             containerColor = Color(0xFF14284B)
         )
     }
-    if (showWelcome) WelcomeScreen()
+    if (showWelcome) WelcomeScreen(ctx)
 }
 
 @Composable
-private fun WelcomeScreen() {
-    Box(Modifier.fillMaxSize()) {
-        Image(BrandArtwork.welcome, contentDescription = "Музыкальное приветствие MARK",
-            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-            listOf(Color(0x3310183A), Color(0x5510183A), Color(0xCC08132B)))))
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 28.dp, vertical = 54.dp),
-            horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("MARK", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
-            Text("M U S I C", color = CYAN, fontSize = 15.sp, letterSpacing = 5.sp)
-            Spacer(Modifier.height(20.dp))
-            Text("Добро пожаловать!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(24.dp))
-            CircularProgressIndicator(color = CYAN, trackColor = VIOLET.copy(alpha = 0.35f),
-                strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
-        }
+private fun WelcomeScreen(context: Context) {
+    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        Image(BrandArtwork.logo(context), contentDescription = "Официальный логотип MARK Music",
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
     }
 }
 
