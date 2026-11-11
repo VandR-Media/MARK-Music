@@ -1,4 +1,4 @@
-name: Android debug APK
+name: MARK Audio Android APK
 on:
   pull_request:
   workflow_dispatch:
@@ -21,14 +21,14 @@ jobs:
           gradle-version: '8.13'
       - name: Install Android SDK platform
         run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
-      - name: Unit tests and Android debug APK
+      - name: Unit tests and signed debug APK
         run: |
           set -o pipefail
           gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Music-build-diagnostics
+          name: MARK-Audio-v0.2.0
           path: |
             build.log
             app/build/reports/tests/testDebugUnitTest/**
