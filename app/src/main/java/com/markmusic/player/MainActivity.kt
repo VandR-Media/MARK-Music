@@ -188,7 +188,7 @@ private fun MarkApp() {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { showPlayer = false }) { Text("‹  Медиатека", color = CYAN) }
                 Spacer(Modifier.weight(1f))
-                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Music",
+                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Audio",
                     modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
             }
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -221,13 +221,14 @@ private fun MarkApp() {
         } else {
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Music",
+                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Audio",
                     modifier = Modifier.size(92.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                     Text("Твоя музыка. Твой ритм.", color = Color.White,
                         fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text("MARK MUSIC", fontSize = 11.sp, color = CYAN, letterSpacing = 2.sp)
+                    Text("MARK AUDIO", fontSize = 11.sp, color = CYAN, letterSpacing = 2.sp)
+                    Text("Feel the sound. See the music.", fontSize = 9.sp, color = SUBTLE, maxLines = 1)
                 }
                 Surface(shape = CircleShape, color = PANEL, onClick = { refresh++ }) {
                     Text("↻", Modifier.padding(horizontal = 17.dp, vertical = 11.dp), fontSize = 26.sp, color = CYAN)
@@ -242,7 +243,7 @@ private fun MarkApp() {
                     Column(Modifier.padding(22.dp)) {
                         Text("Найдём твою музыку", fontSize = 21.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
-                        Text("Разреши доступ к аудиофайлам. MARK Music не отправляет их в интернет.", color = SUBTLE)
+                        Text("Разреши доступ к аудиофайлам. MARK Audio не отправляет их в интернет.", color = SUBTLE)
                         Spacer(Modifier.height(14.dp))
                         Button(onClick = { audioLauncher.launch(permission) }) { Text("Открыть медиатеку") }
                     }
@@ -355,8 +356,12 @@ private fun MarkApp() {
 @Composable
 private fun WelcomeScreen(context: Context) {
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Image(BrandArtwork.logo(context), contentDescription = "Официальный логотип MARK Music",
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(BrandArtwork.logo(context), contentDescription = "Официальный логотип MARK Audio",
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
+            Text("Feel the sound. See the music.", color = Color.White, fontSize = 13.sp,
+                fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
+        }
     }
 }
 
