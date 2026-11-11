@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
@@ -54,17 +56,17 @@ import com.markmusic.player.visual.VisualStyle
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
-private val CYAN = Color(0xFF61EFF4)
-private val VIOLET = Color(0xFFB68DFF)
-private val BG = Color(0xFF080B1B)
-private val PANEL = Color(0xFF171B35)
-private val SUBTLE = Color(0xFFB7BDD5)
+private val CYAN = Color(0xFF50DFFF)
+private val VIOLET = Color(0xFFB65CFF)
+private val BG = Color(0xFF0B1730)
+private val PANEL = Color(0xCC14284B)
+private val SUBTLE = Color(0xFFD2DCF5)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(8, 11, 27)
-        window.navigationBarColor = android.graphics.Color.rgb(8, 11, 27)
+        window.statusBarColor = android.graphics.Color.rgb(11, 23, 48)
+        window.navigationBarColor = android.graphics.Color.rgb(11, 23, 48)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = CYAN, secondary = VIOLET,
@@ -86,6 +88,9 @@ private fun MarkApp() {
     var captureAllowed by remember { mutableStateOf(ctx.hasPermission(Manifest.permission.RECORD_AUDIO)) }
     val audioLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { audioAllowed = it }
     val captureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { captureAllowed = it }
+    var showWelcome by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) { delay(2600); showWelcome = false }
+
     var songs by remember { mutableStateOf(emptyList<Track>()) }
     var loading by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
@@ -175,9 +180,10 @@ private fun MarkApp() {
         showPlayer = true
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(
-        Brush.verticalGradient(listOf(Color(0xFF14152E), BG, BG))
-    ).systemBarsPadding().padding(horizontal = 18.dp)) {
+    Column(modifier = Modifier.fillMaxSize().drawBehind {
+        drawImage(BrandArtwork.appBackground, dstSize = IntSize(size.width.toInt(), size.height.toInt()), alpha = 0.58f)
+        drawRect(Brush.verticalGradient(listOf(Color(0xB30B1730), Color(0xD90B1730), Color(0xF20B1730))))
+    }.systemBarsPadding().padding(horizontal = 18.dp)) {
         if (showPlayer && current != null) {
             Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { showPlayer = false }) { Text("‹  Медиатека", color = CYAN) }
@@ -214,8 +220,11 @@ private fun MarkApp() {
         } else {
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Image(BrandArtwork.logo, contentDescription = "Логотип MARK Music",
+                    modifier = Modifier.size(76.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("MARK", fontWeight = FontWeight.Black, fontSize = 37.sp,
+                    Text("MARK", fontWeight = FontWeight.Black, fontSize = 31.sp,
                         letterSpacing = 3.sp, color = Color.White)
                     Text("M U S I C", fontSize = 12.sp, color = CYAN, letterSpacing = 3.sp)
                 }
@@ -309,7 +318,10 @@ private fun MarkApp() {
             onDismissRequest = { showEffects = false },
             title = { Text("Выбери свою вселенную") },
             text = {
-                Box(Modifier.heightIn(max = 470.dp)) {
+                Box(Modifier.heightIn(max = 470.dp).clip(RoundedCornerShape(20.dp))) {
+                    Image(BrandArtwork.dialogBackground, contentDescription = null,
+                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.36f)
+                    Box(Modifier.fillMaxSize().background(Color(0x99101A36)))
                     LazyVerticalGrid(GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(VisualStyle.entries.toList()) { item ->
@@ -333,8 +345,29 @@ private fun MarkApp() {
                 }
             },
             confirmButton = { TextButton(onClick = { showEffects = false }) { Text("Закрыть") } },
-            containerColor = Color(0xFF171B35)
+            containerColor = Color(0xFF14284B)
         )
+    }
+    if (showWelcome) WelcomeScreen()
+}
+
+@Composable
+private fun WelcomeScreen() {
+    Box(Modifier.fillMaxSize()) {
+        Image(BrandArtwork.welcome, contentDescription = "Музыкальное приветствие MARK",
+            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+            listOf(Color(0x3310183A), Color(0x5510183A), Color(0xCC08132B)))))
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 28.dp, vertical = 54.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("MARK", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
+            Text("M U S I C", color = CYAN, fontSize = 15.sp, letterSpacing = 5.sp)
+            Spacer(Modifier.height(20.dp))
+            Text("Добро пожаловать!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(24.dp))
+            CircularProgressIndicator(color = CYAN, trackColor = VIOLET.copy(alpha = 0.35f),
+                strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
+        }
     }
 }
 
