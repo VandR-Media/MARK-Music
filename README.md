@@ -18,3 +18,5 @@ MARK Music — офлайн-аудиоплеер для Android на Kotlin, п�
 Kotlin 2.2.20, Android Gradle Plugin 8.11.1, Gradle 8.13, Media3 1.11.1, Jetpack Compose, AndroidX. minSdk 26 / targetSdk 35 / compileSdk 36.
 
 Исходный код — ранняя тестовая версия, без утверждений о пройденной сборке до проверки GitHub Actions.
+
+Статус: автоматическая сборка и тесты запускаются для Pull Request; APK выдаётся только после успешной проверки.
