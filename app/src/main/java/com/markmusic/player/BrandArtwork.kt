@@ -16,6 +16,7 @@ internal object BrandArtwork {
         BitmapFactory.decodeResource(context.resources, R.drawable.mark_logo).asImageBitmap()
 
     val appBackground: ImageBitmap by lazy { renderBackground().asImageBitmap() }
+    val dialogBackground: ImageBitmap get() = appBackground
 
     private fun renderBackground(): Bitmap {
         val bmp = Bitmap.createBitmap(640, 900, Bitmap.Config.ARGB_8888)
