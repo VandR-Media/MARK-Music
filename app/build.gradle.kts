@@ -20,8 +20,22 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/brand-res"))
     testOptions { unitTests.isReturnDefaultValues = true }
 }
+
+val generateBrandLogo by tasks.registering {
+    val encodedLogo = layout.projectDirectory.file("src/main/assets/mark_audio_logo.webp.b64")
+    val generatedLogo = layout.buildDirectory.file("generated/brand-res/drawable-nodpi/mark_logo.webp")
+    inputs.file(encodedLogo)
+    outputs.file(generatedLogo)
+    doLast {
+        val target = generatedLogo.get().asFile
+        target.parentFile.mkdirs()
+        target.writeBytes(java.util.Base64.getDecoder().decode(encodedLogo.asFile.readText().trim()))
+    }
+}
+tasks.named("preBuild").configure { dependsOn(generateBrandLogo) }
 dependencies {
     val media3 = "1.11.1"
     implementation(platform("androidx.compose:compose-bom:2025.09.00"))
