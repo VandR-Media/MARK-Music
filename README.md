@@ -20,3 +20,6 @@ Kotlin 2.2.20, Android Gradle Plugin 8.11.1, Gradle 8.13, Media3 1.11.1, Jetpack
 Исходный код — ранняя тестовая версия, без утверждений о пройденной сборке до проверки GitHub Actions.
 
 Статус: автоматическая сборка и тесты запускаются для Pull Request; APK выдаётся только после успешной проверки.
+
+
+Branding 0.2.0: approved MARK Audio logo and tagline — Feel the sound. See the music.
