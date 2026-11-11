@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -18,7 +20,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     buildFeatures { compose = true }
     sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/brand-res"))
     testOptions { unitTests.isReturnDefaultValues = true }
@@ -32,7 +34,7 @@ val generateBrandLogo by tasks.registering {
     doLast {
         val target = generatedLogo.get().asFile
         target.parentFile.mkdirs()
-        target.writeBytes(java.util.Base64.getDecoder().decode(encodedLogo.asFile.readText().trim()))
+        target.writeBytes(Base64.getDecoder().decode(encodedLogo.asFile.readText().trim()))
     }
 }
 tasks.named("preBuild").configure { dependsOn(generateBrandLogo) }
