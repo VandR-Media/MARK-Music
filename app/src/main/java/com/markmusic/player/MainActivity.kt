@@ -101,7 +101,7 @@ private fun MarkApp() {
     var themeKey by remember { mutableStateOf(prefs.getString("theme", "COSMIC_BLUE") ?: "COSMIC_BLUE") }
     val palette = markPalette(themeKey)
     var favoriteIds by remember {
-        mutableStateOf(prefs.getStringSet("favorites", emptySet())?.mapNotNull { it.toLongOrNull() }?.toSet().orEmpty())
+        mutableStateOf(prefs.getStringSet("favorites", mutableSetOf())?.mapNotNull { it.toLongOrNull() }?.toSet().orEmpty())
     }
     var style by remember {
         mutableStateOf(runCatching { VisualStyle.valueOf(prefs.getString("effect", "PULSE") ?: "PULSE") }
