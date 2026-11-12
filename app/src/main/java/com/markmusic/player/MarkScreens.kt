@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -229,14 +230,20 @@ internal fun MarkPlaylistScreen(
         Text("Музыка, собранная по твоему настроению", color = Color(0xFFB9C9E8), fontSize = 12.sp)
         Spacer(Modifier.height(18.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-            item { PlaylistTile("♥", "Любимые треки", "${favorites.size} треков", palette.secondary) {} }
-            item { PlaylistTile("✦", "Недавно добавленные", "${recent.size} треков", palette.accent) {} }
+            item { PlaylistTile("♥", "Любимые треки", "${favorites.size} треков", palette.secondary) {
+                if (favorites.isNotEmpty()) onPlay(favorites, favorites.first())
+            } }
+            item { PlaylistTile("✦", "Недавно добавленные", "${recent.size} треков", palette.accent) {
+                if (recent.isNotEmpty()) onPlay(recent, recent.first())
+            } }
             item { Spacer(Modifier.height(4.dp)); Text("Любимые треки", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
             if (favorites.isEmpty()) {
                 item { EmptyHint("Нажимай на сердечко в плеере, чтобы собирать здесь любимую музыку") }
             } else {
                 items(favorites, key = { it.id }) { track -> LibraryTrackRow(track, palette) { onPlay(favorites, track) } }
             }
+            item { Spacer(Modifier.height(8.dp)); Text("Недавно добавленные", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+            items(recent, key = { "recent-${it.id}" }) { track -> LibraryTrackRow(track, palette) { onPlay(recent, track) } }
         }
     }
 }
