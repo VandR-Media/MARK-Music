@@ -20,7 +20,8 @@ data class Track(
     val album: String,
     val albumId: Long,
     val durationMs: Long,
-    val folder: String
+    val folder: String,
+    val dateAddedSeconds: Long = 0L
 )
 
 object MusicLibrary {
@@ -32,7 +33,8 @@ object MusicLibrary {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.DURATION
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DATE_ADDED
         )
         if (Build.VERSION.SDK_INT >= 29) projection += MediaStore.Audio.Media.RELATIVE_PATH
         else projection += MediaStore.Audio.Media.DATA
@@ -40,7 +42,7 @@ object MusicLibrary {
         context.contentResolver.query(
             collection, projection.toTypedArray(),
             "${MediaStore.Audio.Media.IS_MUSIC} != 0", null,
-            "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+            "${MediaStore.Audio.Media.DATE_ADDED} DESC, ${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
         )?.use { cursor ->
             fun col(key: String) = cursor.getColumnIndexOrThrow(key)
             val idIndex = col(MediaStore.Audio.Media._ID)
@@ -49,6 +51,7 @@ object MusicLibrary {
             val albumIndex = col(MediaStore.Audio.Media.ALBUM)
             val albumIdIndex = col(MediaStore.Audio.Media.ALBUM_ID)
             val durationIndex = col(MediaStore.Audio.Media.DURATION)
+            val dateAddedIndex = col(MediaStore.Audio.Media.DATE_ADDED)
             val pathIndex = if (Build.VERSION.SDK_INT < 29) col(MediaStore.Audio.Media.DATA) else -1
             val relIndex = if (Build.VERSION.SDK_INT >= 29) col(MediaStore.Audio.Media.RELATIVE_PATH) else -1
             while (cursor.moveToNext()) {
@@ -64,7 +67,8 @@ object MusicLibrary {
                     album = cursor.getString(albumIndex).orEmpty().ifBlank { "Без альбома" },
                     albumId = cursor.getLong(albumIdIndex),
                     durationMs = cursor.getLong(durationIndex),
-                    folder = folder.ifBlank { "Другие папки" }
+                    folder = folder.ifBlank { "Другие папки" },
+                    dateAddedSeconds = cursor.getLong(dateAddedIndex)
                 ))
             }
         }
