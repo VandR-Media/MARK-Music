@@ -1,8 +1,6 @@
 package com.markmusic.player.visual
 
-import android.media.audiofx.Visualizer
-import android.os.Handler
-import android.os.Looper
+import com.markmusic.player.audio.AudioSpectrumBus
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -30,49 +28,15 @@ private val PINK = Color(0xFFFF76C5)
 private val GOLD = Color(0xFFFFD38A)
 private val BASE = Color(0xFF0A0D1F)
 
-/** Отображение собственного FFT аудиосессии; микрофон не записывается. */
+/** Audio-reactive visualizations from the player's decoded PCM, without microphone permission. */
 @Composable
 fun MusicVisualizer(
     style: VisualStyle,
-    audioSessionId: Int,
-    capturePermitted: Boolean,
     playing: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var bins by remember { mutableStateOf(List(64) { 0f }) }
+    val latest by AudioSpectrumBus.spectrum.collectAsState()
     var phase by remember { mutableFloatStateOf(0f) }
-    DisposableEffect(audioSessionId, capturePermitted) {
-        val main = Handler(Looper.getMainLooper())
-        var active = true
-        val visualizer = if (capturePermitted && audioSessionId > 0) {
-            try {
-                Visualizer(audioSessionId).apply {
-                    enabled = false
-                    captureSize = Visualizer.getCaptureSizeRange()[1].coerceAtMost(1024)
-                    setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
-                        override fun onWaveFormDataCapture(v: Visualizer?, w: ByteArray?, r: Int) = Unit
-                        override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, r: Int) {
-                            if (fft == null || fft.size < 8) return
-                            val values = List(64) { index ->
-                                val i = (2.0 + (fft.size / 2.0 - 3) * (index / 63.0).pow(1.7))
-                                    .toInt().coerceIn(1, fft.size / 2 - 1) * 2
-                                val real = fft[i].toInt().toFloat()
-                                val imaginary = fft[i + 1].toInt().toFloat()
-                                (sqrt(real * real + imaginary * imaginary) / 95f).coerceIn(0f, 1f)
-                            }
-                            main.post { if (active) bins = values }
-                        }
-                    }, Visualizer.getMaxCaptureRate() / 2, false, true)
-                    enabled = true
-                }
-            } catch (_: Exception) { null }
-        } else null
-        if (visualizer == null) bins = List(64) { 0f }
-        onDispose {
-            active = false
-            try { visualizer?.enabled = false; visualizer?.release() } catch (_: Exception) { }
-        }
-    }
     LaunchedEffect(playing) {
         while (true) {
             if (playing) phase += 0.024f
@@ -81,7 +45,7 @@ fun MusicVisualizer(
     }
     Canvas(modifier) {
         drawRect(BASE)
-        render(style, bins, phase)
+        render(style, if (playing) latest else List(64) { 0f }, phase)
     }
 }
 
