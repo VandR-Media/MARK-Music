@@ -50,11 +50,14 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 internal fun MarkHomeScreen(
     logo: ImageBitmap,
     songs: List<Track>,
+    audioAllowed: Boolean,
     favoritesCount: Int,
     current: Track?,
     playing: Boolean,
     palette: MarkPalette,
     onSearch: () -> Unit,
+    onRefresh: () -> Unit,
+    onRequestPermission: () -> Unit,
     onOpenThemes: () -> Unit,
     onOpenLibrary: (Int) -> Unit,
     onOpenPlaylists: () -> Unit,
@@ -75,7 +78,9 @@ internal fun MarkHomeScreen(
                     Text("AUDIO PLAYER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = palette.accent, letterSpacing = 2.1.sp)
                 }
                 HeaderAction("⌕", "Поиск", onSearch, palette)
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(6.dp))
+                HeaderAction("↻", "Обновить", onRefresh, palette)
+                Spacer(Modifier.width(6.dp))
                 HeaderAction("⚙", "Оформление", onOpenThemes, palette)
             }
         }
@@ -83,6 +88,20 @@ internal fun MarkHomeScreen(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Твоя музыка. Твои правила.", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 Text("${songs.size} композиций уже ждут тебя", fontSize = 13.sp, color = Color(0xFFB9C9E8))
+            }
+        }
+        if (!audioAllowed) {
+            item {
+                Surface(color = Color(0xCC17294A), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("Открой свою музыкальную вселенную", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("Разреши доступ к аудиофайлам, чтобы MARK Audio собрал треки, альбомы и папки на телефоне. Музыка остаётся на устройстве.",
+                            color = Color(0xFFB9C9E8), fontSize = 12.sp)
+                        Button(onClick = onRequestPermission, colors = ButtonDefaults.buttonColors(containerColor = palette.accent)) {
+                            Text("Найти музыку", color = Color(0xFF07152D), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
         item {
