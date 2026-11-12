@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -20,6 +19,12 @@ internal object AudioSpectrumBus : TeeAudioProcessor.AudioBufferSink {
     @Volatile private var channels = 2
     @Volatile private var encoding = C.ENCODING_PCM_16BIT
     @Volatile private var lastPublishNs = 0L
+    private val cosTable = Array(64) { k ->
+        DoubleArray(256) { i -> cos(2.0 * PI * (k + 1) * i / 256.0) }
+    }
+    private val sinTable = Array(64) { k ->
+        DoubleArray(256) { i -> sin(2.0 * PI * (k + 1) * i / 256.0) }
+    }
 
     override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
         channels = channelCount.coerceAtLeast(1)
@@ -47,14 +52,11 @@ internal object AudioSpectrumBus : TeeAudioProcessor.AudioBufferSink {
         // 64 frequency bands from the decoded PCM, not from microphone audio.
         val values = FloatArray(64)
         for (bin in 0 until 64) {
-            val k = bin + 1
             var re = 0.0
             var im = 0.0
-            val step = 2.0 * PI * k / 256.0
             for (i in 0 until 256) {
-                val phase = step * i
-                re += samples[i] * cos(phase)
-                im -= samples[i] * sin(phase)
+                re += samples[i] * cosTable[bin][i]
+                im -= samples[i] * sinTable[bin][i]
             }
             values[bin] = (sqrt(re * re + im * im) / 16.0).toFloat().coerceIn(0f, 1f)
         }
