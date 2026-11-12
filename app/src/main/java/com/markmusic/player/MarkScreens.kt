@@ -67,15 +67,15 @@ internal fun MarkHomeScreen(
     val recent = remember(songs) { songs.sortedByDescending { it.dateAddedSeconds }.take(12) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 14.dp, bottom = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Image(logo, null, Modifier.size(54.dp).clip(RoundedCornerShape(17.dp)), contentScale = ContentScale.Crop)
+                Image(logo, null, Modifier.size(45.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop)
                 Spacer(Modifier.width(11.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("MARK", fontSize = 25.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = 1.2.sp)
+                    Text("MARK", fontSize = 21.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = 1.2.sp)
                     Text("AUDIO PLAYER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = palette.accent, letterSpacing = 2.1.sp)
                 }
                 HeaderAction("⌕", "Поиск", onSearch, palette)
@@ -87,17 +87,17 @@ internal fun MarkHomeScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Твоя музыка. Твои правила.", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("${songs.size} композиций уже ждут тебя", fontSize = 13.sp, color = Color(0xFFB9C9E8))
+                Text("Твоя музыка. Твои правила.", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text("${songs.size} композиций уже ждут тебя", fontSize = 11.sp, color = Color(0xFFB9C9E8))
             }
         }
         if (!audioAllowed) {
             item {
-                Surface(color = Color(0xCC17294A), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("Открой свою музыкальную вселенную", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Surface(color = Color(0xCC17294A), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().border(1.dp, palette.accent.copy(alpha = .25f), RoundedCornerShape(18.dp))) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("Открой свою музыкальную вселенную", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Text("Разреши доступ к аудиофайлам, чтобы MARK Audio собрал треки, альбомы и папки на телефоне. Музыка остаётся на устройстве.",
-                            color = Color(0xFFB9C9E8), fontSize = 12.sp)
+                            color = Color(0xFFB9C9E8), fontSize = 11.sp, lineHeight = 15.sp)
                         Button(onClick = onRequestPermission, colors = ButtonDefaults.buttonColors(containerColor = palette.accent)) {
                             Text("Найти музыку", color = Color(0xFF07152D), fontWeight = FontWeight.Bold)
                         }
@@ -300,12 +300,12 @@ internal fun MarkPlayerScreen(
             TextButton(onClick = onEffects) { Text("✧", color = palette.accent, fontSize = 23.sp) }
         }
         Spacer(Modifier.height(8.dp))
-        MarkCover(track, Modifier.fillMaxWidth(.78f).aspectRatio(1f).clip(RoundedCornerShape(28.dp)))
-        Spacer(Modifier.height(18.dp))
+        MarkCover(track, Modifier.fillMaxWidth(.65f).aspectRatio(1f).clip(RoundedCornerShape(24.dp)).border(1.dp, palette.accent.copy(alpha = .45f), RoundedCornerShape(24.dp)))
+        Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(track.title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(track.artist, color = Color(0xFFB9C9E8), fontSize = 14.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -315,8 +315,8 @@ internal fun MarkPlayerScreen(
                 }
             }
         }
-        Spacer(Modifier.height(14.dp))
-        MusicVisualizer(style, playing, Modifier.fillMaxWidth().height(142.dp).clip(RoundedCornerShape(24.dp)))
+        Spacer(Modifier.height(8.dp))
+        MusicVisualizer(style, playing, Modifier.fillMaxWidth().height(94.dp).clip(RoundedCornerShape(18.dp)))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(style.label, color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -380,14 +380,14 @@ internal fun MarkMiniPlayer(
 @Composable
 internal fun MarkBottomNavigation(selected: Int, palette: MarkPalette, onSelect: (Int) -> Unit) {
     val items = listOf("⌂" to "Главная", "▦" to "Медиатека", "♫" to "Плеер", "♡" to "Плейлисты")
-    Surface(color = palette.panel, shape = RoundedCornerShape(23.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 5.dp)) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceAround) {
+    Surface(color = palette.panel, shape = RoundedCornerShape(23.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp).border(1.dp, palette.accent.copy(alpha = .24f), RoundedCornerShape(23.dp))) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.SpaceAround) {
             items.forEachIndexed { index, pair ->
                 Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { onSelect(index) }.padding(vertical = 5.dp),
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { onSelect(index) }.padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(pair.first, color = if (selected == index) palette.accent else Color(0xFF9BAECD), fontSize = 22.sp)
+                    Text(pair.first, color = if (selected == index) palette.accent else Color(0xFF9BAECD), fontSize = 20.sp)
                     Text(pair.second, color = if (selected == index) palette.accent else Color(0xFF9BAECD),
                         fontSize = 9.sp, fontWeight = if (selected == index) FontWeight.Bold else FontWeight.Normal)
                 }
@@ -453,33 +453,36 @@ internal fun MarkWelcomeScreen(welcomeArtwork: ImageBitmap, palette: MarkPalette
         })
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(15.dp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+            verticalArrangement = Arrangement.spacedBy(11.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
         ) {
             Image(
                 welcomeArtwork, contentDescription = "Приветственный экран MARK Audio",
-                modifier = Modifier.fillMaxWidth(.82f).aspectRatio(1f),
+                modifier = Modifier.fillMaxWidth(.89f).aspectRatio(1f)
+                    .clip(RoundedCornerShape(36.dp))
+                    .border(1.5.dp, Brush.linearGradient(listOf(palette.accent, palette.secondary, palette.accent)), RoundedCornerShape(36.dp)),
                 contentScale = ContentScale.Fit
             )
-            Text("Добро пожаловать!", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Добро пожаловать!", color = Color.White, fontSize = 19.sp,
+                fontWeight = FontWeight.Medium, letterSpacing = .15.sp)
             Text("Feel the sound. See the music.", color = palette.accent,
-                fontSize = 13.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.1.sp)
+                fontSize = 11.sp, fontWeight = FontWeight.Normal, letterSpacing = .15.sp)
         }
     }
 }
 
 @Composable
 private fun HeaderAction(symbol: String, description: String, onClick: () -> Unit, palette: MarkPalette) {
-    Surface(onClick = onClick, color = palette.panel, shape = CircleShape, modifier = Modifier.size(42.dp)) {
-        Box(contentAlignment = Alignment.Center) { Text(symbol, color = palette.accent, fontSize = 23.sp) }
+    Surface(onClick = onClick, color = palette.panel, shape = CircleShape, modifier = Modifier.size(36.dp)) {
+        Box(contentAlignment = Alignment.Center) { Text(symbol, color = palette.accent, fontSize = 20.sp) }
     }
 }
 
 @Composable
 private fun CategoryTile(symbol: String, title: String, count: String, tint: Color, modifier: Modifier, onClick: () -> Unit) {
     Surface(onClick = onClick, color = Color(0xAA17294A), shape = RoundedCornerShape(17.dp), modifier = modifier) {
-        Column(Modifier.padding(vertical = 12.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(symbol, color = tint, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        Column(Modifier.padding(vertical = 10.dp, horizontal = 3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(symbol, color = tint, fontSize = 21.sp, fontWeight = FontWeight.Bold)
             Text(title, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text(count, color = Color(0xFF9BAECD), fontSize = 9.sp)
         }
@@ -489,7 +492,7 @@ private fun CategoryTile(symbol: String, title: String, count: String, tint: Col
 @Composable
 private fun SectionHeading(title: String, action: String, palette: MarkPalette, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(title, Modifier.weight(1f), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 6.dp)) {
             Text(action, color = palette.accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
@@ -555,7 +558,7 @@ private fun PlayerControl(symbol: String, fontSize: Int, primary: Boolean, palet
     Surface(
         onClick = onClick, shape = CircleShape,
         color = if (primary) palette.accent else palette.panel,
-        modifier = Modifier.size(if (primary) 76.dp else 54.dp)
+        modifier = Modifier.size(if (primary) 66.dp else 49.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(symbol, color = if (primary) Color(0xFF07152D) else Color.White, fontSize = fontSize.sp, fontWeight = FontWeight.Bold)
