@@ -196,24 +196,28 @@ private fun MarkApp() {
     ) {
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             when (navTab) {
-                0 -> MarkHomeScreen(
-                    logo = BrandArtwork.logo(ctx), songs = songs, audioAllowed = audioAllowed,
-                    onRefresh = { refresh++ },
-                    onRequestPermission = { audioLauncher.launch(permission) },
-                    favoritesCount = songs.count { favoriteIds.contains(it.id) },
-                    current = current, playing = playing, palette = palette,
-                    onSearch = { navTab = 1 },
-                    onOpenThemes = { showThemes = true },
-                    onOpenLibrary = { category -> tab = category; query = ""; navTab = 1 },
-                    onOpenPlaylists = { navTab = 3 },
-                    onPlay = { queue, selected -> playQueue(queue, selected) }
-                )
-                1 -> MarkLibraryScreen(
-                    songs = filtered, query = query, onQueryChange = { query = it },
-                    category = tab, onCategoryChange = { tab = it },
-                    loading = loading, error = libraryError, palette = palette,
-                    onPlay = { queue, selected -> playQueue(queue, selected) }
-                )
+                0 -> Box(Modifier.weight(1f)) {
+                    MarkHomeScreen(
+                        logo = BrandArtwork.logo(ctx), songs = songs, audioAllowed = audioAllowed,
+                        onRefresh = { refresh++ },
+                        onRequestPermission = { audioLauncher.launch(permission) },
+                        favoritesCount = songs.count { favoriteIds.contains(it.id) },
+                        current = current, playing = playing, palette = palette,
+                        onSearch = { navTab = 1 },
+                        onOpenThemes = { showThemes = true },
+                        onOpenLibrary = { category -> tab = category; query = ""; navTab = 1 },
+                        onOpenPlaylists = { navTab = 3 },
+                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                    )
+                }
+                1 -> Box(Modifier.weight(1f)) {
+                    MarkLibraryScreen(
+                        songs = filtered, query = query, onQueryChange = { query = it },
+                        category = tab, onCategoryChange = { tab = it },
+                        loading = loading, error = libraryError, palette = palette,
+                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                    )
+                }
                 2 -> {
                     if (current != null) {
                         MarkPlayerScreen(
@@ -245,12 +249,14 @@ private fun MarkApp() {
                         }
                     }
                 }
-                else -> MarkPlaylistScreen(
-                    favorites = songs.filter { favoriteIds.contains(it.id) },
-                    recent = songs.sortedByDescending { it.dateAddedSeconds }.take(12),
-                    palette = palette,
-                    onPlay = { queue, selected -> playQueue(queue, selected) }
-                )
+                else -> Box(Modifier.weight(1f)) {
+                    MarkPlaylistScreen(
+                        favorites = songs.filter { favoriteIds.contains(it.id) },
+                        recent = songs.sortedByDescending { it.dateAddedSeconds }.take(12),
+                        palette = palette,
+                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                    )
+                }
             }
             if (navTab != 2) {
                 if (current != null) {
