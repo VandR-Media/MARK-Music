@@ -197,7 +197,9 @@ private fun MarkApp() {
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             when (navTab) {
                 0 -> MarkHomeScreen(
-                    logo = BrandArtwork.logo(ctx), songs = songs,
+                    logo = BrandArtwork.logo(ctx), songs = songs, audioAllowed = audioAllowed,
+                    onRefresh = { refresh++ },
+                    onRequestPermission = { audioLauncher.launch(permission) },
                     favoritesCount = songs.count { favoriteIds.contains(it.id) },
                     current = current, playing = playing, palette = palette,
                     onSearch = { navTab = 1 },
