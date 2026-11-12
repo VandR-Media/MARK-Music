@@ -45,7 +45,6 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.markmusic.player.audio.AudioSessionBus
 import com.markmusic.player.audio.PlaybackService
 import com.markmusic.player.library.LibraryGrouping
 import com.markmusic.player.library.MusicLibrary
@@ -85,9 +84,7 @@ private fun MarkApp() {
         else Manifest.permission.READ_EXTERNAL_STORAGE
     }
     var audioAllowed by remember { mutableStateOf(ctx.hasPermission(permission)) }
-    var captureAllowed by remember { mutableStateOf(ctx.hasPermission(Manifest.permission.RECORD_AUDIO)) }
     val audioLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { audioAllowed = it }
-    val captureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { captureAllowed = it }
     var showWelcome by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { delay(2600); showWelcome = false }
 
@@ -165,7 +162,6 @@ private fun MarkApp() {
             delay(350)
         }
     }
-    val sessionId by AudioSessionBus.sessionId.collectAsState()
     val current = songs.firstOrNull { it.id.toString() == mediaId }
     val filtered = remember(songs, query) {
         songs.filter { "${it.title} ${it.artist} ${it.album} ${it.folder}".contains(query, ignoreCase = true) }
@@ -199,7 +195,7 @@ private fun MarkApp() {
                     fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(current.artist, color = SUBTLE, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(16.dp))
-                MusicVisualizer(style, sessionId, captureAllowed, playing,
+                MusicVisualizer(style, playing,
                     Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(28.dp)))
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -208,11 +204,6 @@ private fun MarkApp() {
                         Text("Визуализация звука", color = SUBTLE, fontSize = 12.sp)
                     }
                     OutlinedButton(onClick = { showEffects = true }) { Text("20 эффектов") }
-                }
-                if (!captureAllowed) {
-                    TextButton(onClick = { captureLauncher.launch(Manifest.permission.RECORD_AUDIO) }) {
-                        Text("Разрешить реакцию эффектов на музыку", color = CYAN, fontSize = 12.sp)
-                    }
                 }
                 if (playerError != null) Text(playerError.orEmpty(), color = Color(0xFFFFA4A4), fontSize = 12.sp)
                 SeekAndControls(controller, position, duration, playing)
