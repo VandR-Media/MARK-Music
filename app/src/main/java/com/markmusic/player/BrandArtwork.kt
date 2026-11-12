@@ -14,6 +14,9 @@ internal object BrandArtwork {
     fun logo(context: Context): ImageBitmap =
         android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.mark_logo).asImageBitmap()
 
+    fun welcome(context: Context): ImageBitmap =
+        android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.mark_welcome).asImageBitmap()
+
     val appBackground: ImageBitmap by lazy { renderBackground().asImageBitmap() }
     val dialogBackground: ImageBitmap get() = appBackground
 
