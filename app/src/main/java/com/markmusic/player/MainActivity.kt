@@ -320,19 +320,7 @@ private fun MarkApp() {
             containerColor = Color(0xFF14284B)
         )
     }
-    if (showWelcome) MarkWelcomeScreen(BrandArtwork.logo(ctx), palette)
-}
-
-@Composable
-private fun WelcomeScreen(context: Context) {
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(BrandArtwork.logo(context), contentDescription = "Официальный логотип MARK Audio",
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
-            Text("Feel the sound. See the music.", color = Color.White, fontSize = 13.sp,
-                fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
-        }
-    }
+    if (showWelcome) MarkWelcomeScreen(BrandArtwork.welcome(ctx), palette)
 }
 
 @Composable
