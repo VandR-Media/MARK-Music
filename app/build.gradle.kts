@@ -20,10 +20,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     buildFeatures { compose = true }
     sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/brand-res"))
     testOptions { unitTests.isReturnDefaultValues = true }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 val generateBrandLogo by tasks.registering {
