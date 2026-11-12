@@ -218,7 +218,7 @@ private fun MarkApp() {
                         onPlay = { queue, selected -> playQueue(queue, selected) }
                     )
                 }
-                2 -> {
+                2 -> Box(Modifier.weight(1f)) {
                     if (current != null) {
                         MarkPlayerScreen(
                             track = current, style = style, playing = playing,
