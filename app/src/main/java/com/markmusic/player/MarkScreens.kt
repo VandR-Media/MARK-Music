@@ -434,26 +434,36 @@ internal fun MarkThemeDialog(selected: String, onSelect: (String) -> Unit, onDis
 }
 
 @Composable
-internal fun MarkWelcomeScreen(logo: ImageBitmap, palette: MarkPalette) {
+internal fun MarkWelcomeScreen(welcomeArtwork: ImageBitmap, palette: MarkPalette) {
     Box(
-        Modifier.fillMaxSize().background(Brush.linearGradient(listOf(palette.start, palette.end))),
+        Modifier.fillMaxSize().background(
+            Brush.linearGradient(listOf(Color(0xFF030714), palette.start, palette.end, Color(0xFF050816)))
+        ),
         contentAlignment = Alignment.Center
     ) {
         Box(Modifier.fillMaxSize().drawBehind {
-            val max = size.minDimension
-            drawCircle(palette.accent.copy(alpha = .12f), max * .42f, center)
-            drawCircle(palette.secondary.copy(alpha = .10f), max * .32f, center, style = androidx.compose.ui.graphics.drawscope.Stroke(max * .025f))
-            repeat(42) { i ->
+            repeat(54) { i ->
                 val x = (i * 79 % size.width.toInt().coerceAtLeast(1)).toFloat()
                 val y = (i * 131 % size.height.toInt().coerceAtLeast(1)).toFloat()
-                drawCircle(Color.White.copy(alpha = .32f), if (i % 5 == 0) 2f else 1f, Offset(x, y))
+                drawCircle(Color.White.copy(alpha = .28f), if (i % 6 == 0) 1.8f else .9f, Offset(x, y))
             }
+            drawCircle(palette.accent.copy(alpha = .13f), size.minDimension * .42f,
+                Offset(size.width * .5f, size.height * .48f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(size.minDimension * .018f))
         })
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(logo, null, Modifier.fillMaxWidth(.68f).aspectRatio(1f), contentScale = ContentScale.Fit)
-            Spacer(Modifier.height(18.dp))
-            Text("MARK AUDIO", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
-            Text("FEEL THE SOUND. SEE THE MUSIC.", color = palette.accent, fontSize = 9.sp, letterSpacing = 1.8.sp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(15.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+        ) {
+            Image(
+                welcomeArtwork, contentDescription = "Приветственный экран MARK Audio",
+                modifier = Modifier.fillMaxWidth(.82f).aspectRatio(1f),
+                contentScale = ContentScale.Fit
+            )
+            Text("Добро пожаловать!", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Feel the sound. See the music.", color = palette.accent,
+                fontSize = 13.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.1.sp)
         }
     }
 }
