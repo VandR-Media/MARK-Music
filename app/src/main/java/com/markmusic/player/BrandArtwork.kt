@@ -9,7 +9,7 @@ import android.graphics.LinearGradient
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 
-/** Approved MARK Audio logo is shared by the launcher, app header and welcome screen. */
+/** Approved MARK Audio logo and separate approved welcome artwork. */
 internal object BrandArtwork {
     fun logo(context: Context): ImageBitmap =
         android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.mark_logo).asImageBitmap()
