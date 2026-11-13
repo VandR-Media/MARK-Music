@@ -23,7 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -135,7 +135,7 @@ internal fun Modifier.floatingGlassMotion(
         translationY = (lift + angle.y * 10f * depth) * unit
         rotationY = (-angle.x * 6f * depth).coerceIn(-5f, 5f)
         rotationX = (angle.y * 5f * depth).coerceIn(-4f, 4f)
-        cameraDistance = 16f * density
+        cameraDistance = 64f * density
         // Deliberately NO shadowElevation: that made black rectangles under nav icons.
     }
 }
