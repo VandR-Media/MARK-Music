@@ -21,7 +21,8 @@ data class Track(
     val albumId: Long,
     val durationMs: Long,
     val folder: String,
-    val dateAddedSeconds: Long = 0L
+    val dateAddedSeconds: Long = 0L,
+    val isMusic: Boolean = true
 )
 
 object MusicLibrary {
@@ -34,14 +35,16 @@ object MusicLibrary {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DATE_ADDED
+            MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.Audio.Media.IS_MUSIC,
+            MediaStore.Audio.Media.DISPLAY_NAME
         )
         if (Build.VERSION.SDK_INT >= 29) projection += MediaStore.Audio.Media.RELATIVE_PATH
         else projection += MediaStore.Audio.Media.DATA
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         context.contentResolver.query(
             collection, projection.toTypedArray(),
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0", null,
+            null, null,
             "${MediaStore.Audio.Media.DATE_ADDED} DESC, ${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
         )?.use { cursor ->
             fun col(key: String) = cursor.getColumnIndexOrThrow(key)
@@ -52,6 +55,8 @@ object MusicLibrary {
             val albumIdIndex = col(MediaStore.Audio.Media.ALBUM_ID)
             val durationIndex = col(MediaStore.Audio.Media.DURATION)
             val dateAddedIndex = col(MediaStore.Audio.Media.DATE_ADDED)
+            val musicIndex = col(MediaStore.Audio.Media.IS_MUSIC)
+            val nameIndex = col(MediaStore.Audio.Media.DISPLAY_NAME)
             val pathIndex = if (Build.VERSION.SDK_INT < 29) col(MediaStore.Audio.Media.DATA) else -1
             val relIndex = if (Build.VERSION.SDK_INT >= 29) col(MediaStore.Audio.Media.RELATIVE_PATH) else -1
             while (cursor.moveToNext()) {
@@ -59,21 +64,52 @@ object MusicLibrary {
                 val path = if (pathIndex >= 0) cursor.getString(pathIndex).orEmpty() else ""
                 val folder = if (relIndex >= 0) cursor.getString(relIndex).orEmpty().trimEnd('/')
                     else path.substringBeforeLast('/', "")
+                val title = cursor.getString(titleIndex).orEmpty().ifBlank { "Без названия" }
+                val displayName = cursor.getString(nameIndex).orEmpty()
+                val lower = "${displayName} ${title} ${folder}".lowercase()
+                val likelyVoice = listOf(
+                    "voice message", "voice_", "voice-", "голосовое", "запись разговора",
+                    "recordings/", "recording_", "whatsapp audio", "telegram audio",
+                    "ptt-", "opus_audio", "диктофон", "audio message"
+                ).any { lower.contains(it) }
+                val isMusic = cursor.getInt(musicIndex) != 0 && !likelyVoice
                 songs.add(Track(
                     id = id,
                     uri = ContentUris.withAppendedId(collection, id),
-                    title = cursor.getString(titleIndex).orEmpty().ifBlank { "Без названия" },
+                    title = title,
                     artist = cursor.getString(artistIndex).orEmpty().ifBlank { "Неизвестный исполнитель" },
                     album = cursor.getString(albumIndex).orEmpty().ifBlank { "Без альбома" },
                     albumId = cursor.getLong(albumIdIndex),
                     durationMs = cursor.getLong(durationIndex),
                     folder = folder.ifBlank { "Другие папки" },
-                    dateAddedSeconds = cursor.getLong(dateAddedIndex)
+                    dateAddedSeconds = cursor.getLong(dateAddedIndex),
+                    isMusic = isMusic
                 ))
             }
         }
         songs
     }
+    suspend fun folderImage(context: Context, folder: String): ImageBitmap? = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < 29) return@withContext null
+        runCatching {
+            val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            val normalized = folder.trimEnd('/') + "/"
+            context.contentResolver.query(
+                collection,
+                arrayOf(MediaStore.Images.Media._ID),
+                "${MediaStore.Images.Media.RELATIVE_PATH} = ?",
+                arrayOf(normalized),
+                "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                val uri = ContentUris.withAppendedId(collection, cursor.getLong(0))
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input)?.asImageBitmap()
+                }
+            }
+        }.getOrNull()
+    }
+
     suspend fun embeddedCover(context: Context, uri: Uri): ImageBitmap? = withContext(Dispatchers.IO) {
         val retriever = MediaMetadataRetriever()
         try {
