@@ -62,6 +62,7 @@ internal fun NeonGlass(
     content: @Composable BoxScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(radius)
+    val glassDepth = LocalGlassDepth.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val tap = if (onClick == null) Modifier else Modifier.clickable(
@@ -70,7 +71,8 @@ internal fun NeonGlass(
     val motion = Modifier.floatingGlassMotion(pressed, palette.accent, depth = if (onClick == null) .55f else 1f)
     Box(
         modifier.then(motion)
-            .shadow(if (pressed) 4.dp else 15.dp, shape, ambientColor = palette.accent.copy(alpha = .30f),
+            .shadow(if (pressed) 3.dp else (4f + glassDepth * 11f).dp, shape,
+                ambientColor = palette.accent.copy(alpha = .12f + glassDepth * .18f),
                 spotColor = palette.secondary.copy(alpha = .27f))
             .clip(shape)
             .background(Brush.verticalGradient(listOf(
@@ -79,13 +81,15 @@ internal fun NeonGlass(
             .drawWithContent {
                 drawContent()
                 drawRect(Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = .19f), Color.Transparent, palette.secondary.copy(alpha = .055f)),
+                    listOf(Color.White.copy(alpha = .07f + glassDepth * .12f), Color.Transparent,
+                        palette.secondary.copy(alpha = .02f + glassDepth * .04f)),
                     start = Offset.Zero, end = Offset(size.width, size.height)
                 ))
             }
             .border(1.dp, Brush.linearGradient(listOf(
-                Color.White.copy(alpha = .67f), palette.accent.copy(alpha = .56f),
-                palette.secondary.copy(alpha = .32f)
+                Color.White.copy(alpha = .33f + glassDepth * .27f),
+                palette.accent.copy(alpha = .24f + glassDepth * .32f),
+                palette.secondary.copy(alpha = .13f + glassDepth * .18f)
             )), shape)
             .then(tap)
     ) {
@@ -153,6 +157,7 @@ internal fun NeonIconTile(
 ) {
     val scale by animateFloatAsState(if (selected) 1.05f else 1f, label = "neon-icon-scale")
     val shape = RoundedCornerShape(17.dp)
+    val glassDepth = LocalGlassDepth.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val tap = if (onClick == null) Modifier else Modifier.clickable(
@@ -171,13 +176,14 @@ internal fun NeonIconTile(
     val motion = Modifier.floatingGlassMotion(pressed, color, depth = if (selected) 1.15f else .8f)
     Box(
         modifier.size(size).scale(scale).then(motion)
-            .shadow(if (selected) 19.dp else 11.dp, shape,
+            .shadow((3f + glassDepth * if (selected) 16f else 8f).dp, shape,
                 ambientColor = color.copy(alpha = .65f),
                 spotColor = color.copy(alpha = .72f))
             .clip(shape)
             .background(Brush.linearGradient(listOf(
-                Color.White.copy(alpha = .40f), color.copy(alpha = .83f),
-                color.copy(alpha = .55f), Color(0x99101D49)
+                Color.White.copy(alpha = .20f + glassDepth * .20f),
+                color.copy(alpha = .65f + glassDepth * .12f),
+                color.copy(alpha = .38f + glassDepth * .17f), Color(0x99101D49)
             )))
             .border(1.dp, Brush.linearGradient(listOf(
                 Color.White.copy(alpha = .88f), color.copy(alpha = .85f),
@@ -216,12 +222,13 @@ internal fun NeonRoundButton(
     primary: Boolean = false
 ) {
     val shape = CircleShape
+    val glassDepth = LocalGlassDepth.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     Box(
         Modifier.size(size)
             .floatingGlassMotion(pressed, color)
-            .shadow(if (pressed) 3.dp else if (primary) 20.dp else 11.dp, shape,
+            .shadow(if (pressed) 3.dp else (3f + glassDepth * if (primary) 17f else 8f).dp, shape,
                 ambientColor = color.copy(alpha = .60f), spotColor = color.copy(alpha = .50f))
             .clip(shape)
             .background(Brush.linearGradient(listOf(
@@ -245,11 +252,12 @@ internal fun NeonPill(
     icon: String? = null
 ) {
     val shape = RoundedCornerShape(24.dp)
+    val glassDepth = LocalGlassDepth.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     Row(
         modifier.floatingGlassMotion(pressed, palette.accent)
-            .shadow(if (pressed) 3.dp else 12.dp, shape, ambientColor = palette.accent.copy(alpha = .40f),
+            .shadow(if (pressed) 3.dp else (3f + glassDepth * 9f).dp, shape, ambientColor = palette.accent.copy(alpha = .40f),
                 spotColor = palette.accent.copy(alpha = .40f))
             .clip(shape)
             .background(Brush.horizontalGradient(listOf(
