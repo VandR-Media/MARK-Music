@@ -8,7 +8,7 @@ if [[ $# -ne 2 ]]; then
   echo "Usage: MARK_AUDIO_KEYSTORE=<path> MARK_AUDIO_STORE_PASSWORD=<hidden> MARK_AUDIO_KEY_PASSWORD=<hidden> $0 <aligned-unsigned.apk> <signed.apk>" >&2
   exit 2
 fi
-: "${MARK_AUDIO_KEYSTORE:?Set MARK_AUDIO_KEYSTORE to the existing 0.6.1 release keystore path}"
+: "${MARK_AUDIO_KEYSTORE:?Set MARK_AUDIO_KEYSTORE to the new MARK Audio release keystore path}"
 : "${MARK_AUDIO_STORE_PASSWORD:?Set MARK_AUDIO_STORE_PASSWORD privately}"
 : "${MARK_AUDIO_KEY_PASSWORD:?Set MARK_AUDIO_KEY_PASSWORD privately}"
 
@@ -53,9 +53,9 @@ for scheme in v1 v2 v3; do
   }
 done
 # Do not accidentally ship an update signed with a new or incorrect key.
-fingerprint='a3ee91c8551d520fefbf5b807cce3be5dcc04d3eb01f3d6184083752c72fc5b5'
+fingerprint='f02b5efb88a28dddccca3148bc88b472365e76bb345a8a750b09482cd686858d'
 printf '%s\n' "$report" | grep -Fqi "Signer #1 certificate SHA-256 digest: $fingerprint" || {
-  echo 'ERROR: signing certificate does not match MARK Audio 0.6.1 release' >&2
+  echo 'ERROR: signing certificate does not match new MARK Audio release key' >&2
   exit 1
 }
 
