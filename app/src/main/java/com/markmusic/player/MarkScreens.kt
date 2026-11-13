@@ -484,41 +484,61 @@ internal fun MarkBottomNavigation(selected: Int, palette: MarkPalette, onSelect:
 }
 @Composable
 internal fun MarkThemeDialog(selected: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
+    val activePalette = markPalette(selected)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Оформление", color = Color.White) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                NeonIconTile("effects", activePalette.accent, size = 48.dp)
+                Column {
+                    Text("Оформление", color = Color.White, fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold)
+                    NeonScript("Моя музыкальная вселенная", activePalette.secondary, size = 13)
+                }
+            }
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text("Темы интерфейса", color = Color(0xFFB9C9E8), fontSize = 12.sp)
-                MARK_PALETTES.forEach { palette ->
-                    Surface(
-                        onClick = { onSelect(palette.key) },
-                        shape = RoundedCornerShape(16.dp),
-                        color = palette.start,
-                        border = androidx.compose.foundation.BorderStroke(
-                            if (selected == palette.key) 2.dp else 1.dp,
-                            if (selected == palette.key) palette.accent else Color(0xFF526589)
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(62.dp)
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(11.dp)
+            ) {
+                MARK_PALETTES.forEach { theme ->
+                    NeonGlass(
+                        theme,
+                        Modifier.fillMaxWidth().height(71.dp),
+                        radius = 22.dp,
+                        onClick = { onSelect(theme.key) }
                     ) {
-                        Box(
-                            Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(palette.start, palette.end, palette.accent.copy(alpha = .3f)))).padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.CenterStart
+                        Row(
+                            Modifier.fillMaxSize()
+                                .background(Brush.horizontalGradient(listOf(
+                                    theme.start, theme.end, theme.accent.copy(alpha = .33f)
+                                )))
+                                .padding(horizontal = 15.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(palette.title, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
-                                if (selected == palette.key) Text("✓", color = palette.accent, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                            NeonIconTile("wave", theme.accent, size = 37.dp,
+                                selected = theme.key == selected)
+                            Spacer(Modifier.width(12.dp))
+                            Text(theme.title, Modifier.weight(1f),
+                                color = Color.White, fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold)
+                            if (selected == theme.key) {
+                                NeonGlyph("heart", theme.accent, size = 25.dp)
                             }
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Готово") } },
-        containerColor = Color(0xFF14213B)
+        confirmButton = {
+            NeonPill("Готово", activePalette, onClick = onDismiss)
+        },
+        shape = RoundedCornerShape(31.dp),
+        containerColor = Color(0xFF101D40)
     )
 }
-
 @Composable
 internal fun MarkWelcomeScreen(welcomeArtwork: ImageBitmap, palette: MarkPalette) {
     Box(
@@ -549,10 +569,9 @@ internal fun MarkWelcomeScreen(welcomeArtwork: ImageBitmap, palette: MarkPalette
                     .border(1.5.dp, Brush.linearGradient(listOf(palette.accent, palette.secondary, palette.accent)), RoundedCornerShape(36.dp)),
                 contentScale = ContentScale.Fit
             )
-            Text("Добро пожаловать!", color = Color.White, fontSize = 19.sp,
-                fontWeight = FontWeight.Medium, letterSpacing = .15.sp)
-            Text("Feel the sound. See the music.", color = palette.accent,
-                fontSize = 11.sp, fontWeight = FontWeight.Normal, letterSpacing = .15.sp)
+            NeonScript("Добро пожаловать!", Color.White, size = 29, center = true)
+            NeonScript("Feel the sound. See the music.",
+                palette.accent, size = 19, center = true)
         }
     }
 }
@@ -579,9 +598,9 @@ private fun CategoryTile(symbol: String, title: String, count: String, tint: Col
 @Composable
 private fun SectionHeading(title: String, action: String, palette: MarkPalette, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(title, Modifier.weight(1f), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
         TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 6.dp)) {
-            Text(action, color = palette.accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(action, color = palette.accent, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
