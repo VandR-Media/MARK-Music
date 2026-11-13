@@ -48,7 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.5.2-APKs
+          name: MARK-Audio-v0.6.0-APKs
           path: |
             build.log
             app/build/reports/tests/testDebugUnitTest/**

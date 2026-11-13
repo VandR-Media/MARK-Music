@@ -12,8 +12,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.5.2"
+        versionCode = 8
+        versionName = "0.6.0"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -58,6 +58,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.media3:media3-exoplayer:$media3")

@@ -187,9 +187,9 @@ private fun MarkApp() {
     Box(
         modifier = Modifier.fillMaxSize().drawBehind {
             drawRect(Brush.linearGradient(listOf(palette.start, palette.end)))
-            drawCircle(palette.accent.copy(alpha = .07f), size.minDimension * .48f,
+            drawCircle(palette.accent.copy(alpha = .17f), size.minDimension * .48f,
                 androidx.compose.ui.geometry.Offset(size.width * .92f, size.height * .12f))
-            drawCircle(palette.secondary.copy(alpha = .07f), size.minDimension * .36f,
+            drawCircle(palette.secondary.copy(alpha = .14f), size.minDimension * .36f,
                 androidx.compose.ui.geometry.Offset(size.width * .02f, size.height * .78f))
             drawRect(Brush.verticalGradient(listOf(Color(0x22051020), Color(0xB8051024))))
         }.systemBarsPadding()
@@ -239,13 +239,22 @@ private fun MarkApp() {
                             onNext = { controller?.seekToNextMediaItem() }
                         )
                     } else {
-                        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center) {
-                            Text("♫", color = palette.accent, fontSize = 54.sp)
-                            Text("Выбери музыку", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                            Text("Запусти любой трек из медиатеки", color = SUBTLE, fontSize = 13.sp)
-                            Spacer(Modifier.height(14.dp))
-                            Button(onClick = { navTab = 1 }) { Text("Открыть медиатеку") }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            NeonGlass(palette, Modifier.fillMaxWidth(), radius = 30.dp) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(26.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    NeonIconTile("music", palette.secondary, size = 86.dp, selected = true)
+                                    NeonScript("Почувствуй музыку!", palette.accent, size = 25, center = true)
+                                    Text("Запусти любой трек из медиатеки — и космос оживёт в такт музыке.",
+                                        color = NeonSubtle, fontSize = 13.sp,
+                                        textAlign = TextAlign.Center, lineHeight = 19.sp)
+                                    NeonPill("Открыть медиатеку", palette,
+                                        onClick = { navTab = 1 }, icon = "library")
+                                }
+                            }
                         }
                     }
                 }
