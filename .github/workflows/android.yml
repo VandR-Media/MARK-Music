@@ -19,46 +19,67 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
-      - name: Install Android SDK platform
+      - name: Install Android SDK platform and official signing tools
         run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
-      - name: Verify full-resolution approved artwork (no legacy resources)
+      - name: Verify approved high-resolution artwork
         run: |
+          set -euo pipefail
           test ! -e app/src/main/assets/mark_audio_logo.webp.b64
           test ! -e app/src/main/assets/mark_welcome.webp.b64
           test ! -e app/src/main/res/drawable/mark_logo.xml
           test ! -e app/src/main/res/drawable/mark_launcher.xml
-          test -s app/src/main/res/drawable-nodpi/mark_logo.jpg
-          test -s app/src/main/res/drawable-nodpi/mark_welcome.jpg
           python3 - <<'PY'
           from pathlib import Path
+          from PIL import Image
           for name in ("mark_logo.jpg", "mark_welcome.jpg"):
-              raw = (Path("app/src/main/res/drawable-nodpi") / name).read_bytes()
-              assert len(raw) > 400000, f"{name}: unexpectedly low resolution or truncated"
-              assert raw.startswith(bytes.fromhex("ffd8")) and raw.endswith(bytes.fromhex("ffd9")), f"{name}: not a complete JPEG"
+              p = Path("app/src/main/res/drawable-nodpi") / name
+              raw = p.read_bytes()
+              assert len(raw) > 400000, f"{name}: unexpected image size"
+              assert raw.startswith(bytes.fromhex("ffd8")) and raw.endswith(bytes.fromhex("ffd9"))
+              with Image.open(p) as image:
+                  assert image.width >= 1024 and image.height >= 1024, (name, image.size)
+                  image.verify()
           PY
-      - name: Unit tests and release build
+      - name: Clean build, tests and lint
         shell: bash
         run: |
           set -o pipefail
           gradle clean :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-      - name: Preserve APK signing utility
-        if: success()
+      - name: Align unsigned release APK with Android SDK tool
         shell: bash
         run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          INPUT="app/build/outputs/apk/release/app-release-unsigned.apk"
+          OUTPUT="app/build/outputs/apk/release/app-release-unsigned-aligned.apk"
+          test -s "$INPUT"
+          "$BT/zipalign" -f -p 4 "$INPUT" "$OUTPUT"
+          "$BT/zipalign" -c -v -p 4 "$OUTPUT" | tail -n 5
+          "$BT/aapt" dump badging "$OUTPUT" | tee apk-badging.txt
+          "$BT/aapt" dump permissions "$OUTPUT" | tee apk-permissions.txt
+          sha256sum "$OUTPUT" | tee apk-aligned-sha256.txt
+      - name: Audit dependency tree
+        shell: bash
+        run: gradle :app:dependencies --configuration releaseRuntimeClasspath --no-daemon > release-dependencies.txt
+      - name: Preserve standard APK signing utility
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p signing-tools
           cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" signing-tools/apksigner.jar
-          cp "$ANDROID_HOME/build-tools/36.0.0/zipalign" signing-tools/zipalign
-          chmod +x signing-tools/zipalign
-          test -s app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s signing-tools/apksigner.jar
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.6.1-clean-APKs
+          name: MARK-Audio-v0.6.2-aligned-APKs
           path: |
             build.log
+            apk-badging.txt
+            apk-permissions.txt
+            apk-aligned-sha256.txt
+            release-dependencies.txt
             app/build/reports/tests/testDebugUnitTest/**
             app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release-unsigned-aligned.apk
             signing-tools/apksigner.jar
-            signing-tools/zipalign
           if-no-files-found: warn
