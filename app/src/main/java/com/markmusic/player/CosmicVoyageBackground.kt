@@ -1,11 +1,13 @@
 package com.markmusic.player
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -22,22 +24,34 @@ import kotlin.math.sin
  * DrawScope: music library and playback controls are not recomposed at 60Hz.
  */
 @Composable
-internal fun CosmicVoyageBackground(palette: MarkPalette, modifier: Modifier = Modifier) {
+internal fun CosmicVoyageBackground(
+    palette: MarkPalette,
+    speed: Float = 1f,
+    steering: Float = 1f,
+    modifier: Modifier = Modifier
+) {
     val tilt = LocalGlassTilt.current
-    val journey = rememberInfiniteTransition(label = "slow-cosmic-voyage")
-    val clock = journey.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 110_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "voyage-progress"
-    )
+    // Persistent phase: changing the slider does not restart the voyage.
+    // The triangle wave reverses seamlessly, including at zero speed.
+    var phase by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(speed) {
+        var previousFrame = 0L
+        while (coroutineContext.isActive) {
+            withFrameNanos { now ->
+                if (previousFrame != 0L && speed > 0f) {
+                    val seconds = ((now - previousFrame) / 1_000_000_000f).coerceIn(0f, .1f)
+                    phase = (phase + seconds * speed / 110f) % 2f
+                }
+                previousFrame = now
+            }
+        }
+    }
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val dx = tilt.value.x
-        val dy = tilt.value.y
-        val t = clock.value
+        val dx = tilt.value.x * steering
+        val dy = tilt.value.y * steering
+        val t = if (phase <= 1f) phase else 2f - phase
         drawRect(Brush.verticalGradient(listOf(
             Color(0xFF061127), palette.start, palette.end, Color(0xFF090D29)
         )))
