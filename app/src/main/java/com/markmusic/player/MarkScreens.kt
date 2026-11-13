@@ -183,16 +183,25 @@ internal fun MarkLibraryScreen(
 ) {
     val labels = listOf("Треки", "Альбомы", "Исполнители", "Папки")
     Column(Modifier.fillMaxSize().padding(top = 12.dp)) {
-        Text("Медиатека", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-        Text("${songs.size} композиций на устройстве", color = Color(0xFFB9C9E8), fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NeonIconTile("library", palette.accent, size = 53.dp)
+            Column {
+                Text("Медиатека", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+                NeonScript("Твоя звуковая вселенная", palette.secondary, size = 15)
+            }
+        }
+        Text("${songs.size} композиций на устройстве", color = NeonSubtle, fontSize = 12.sp,
+            modifier = Modifier.padding(top = 5.dp))
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(
             value = query, onValueChange = onQueryChange, singleLine = true,
             placeholder = { Text("Поиск музыки, альбома, папки") },
-            leadingIcon = { Text("⌕", fontSize = 25.sp, color = palette.accent) },
-            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { NeonGlyph("search", palette.accent, size = 28.dp) },
+            shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()
+                .shadow(10.dp, RoundedCornerShape(24.dp), ambientColor = palette.accent.copy(alpha = .2f))
+                .background(Color(0xA5172B50), RoundedCornerShape(24.dp)),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = palette.accent, unfocusedBorderColor = Color(0xFF425577),
+                focusedBorderColor = palette.accent, unfocusedBorderColor = palette.secondary.copy(alpha = .40f),
                 focusedTextColor = Color.White, unfocusedTextColor = Color.White,
                 focusedPlaceholderColor = Color(0xFF9BAECD), unfocusedPlaceholderColor = Color(0xFF9BAECD)
             )
@@ -203,11 +212,14 @@ internal fun MarkLibraryScreen(
                 FilterChip(
                     selected = category == index,
                     onClick = { onCategoryChange(index) },
-                    label = { Text(label) },
+                    label = { Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                    shape = RoundedCornerShape(21.dp),
+                    border = BorderStroke(1.dp, if (category == index) palette.accent else palette.secondary.copy(alpha = .35f)),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = palette.accent.copy(alpha = .2f),
+                        selectedContainerColor = palette.accent.copy(alpha = .29f),
                         selectedLabelColor = palette.accent,
-                        labelColor = Color.White
+                        labelColor = Color.White,
+                        containerColor = Color(0x991B2F54)
                     )
                 )
             }
@@ -223,7 +235,7 @@ internal fun MarkLibraryScreen(
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (category == 0) {
                     items(songs, key = { it.id }) { track -> LibraryTrackRow(track, palette) { onPlay(songs, track) } }
@@ -237,7 +249,7 @@ internal fun MarkLibraryScreen(
                     groups.forEach { (name, tracks) ->
                         item(key = "group-$category-$name") {
                             Row(Modifier.fillMaxWidth().padding(top = 13.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(name, Modifier.weight(1f), color = palette.accent, fontWeight = FontWeight.Bold,
+                                Text(name, Modifier.weight(1f), color = palette.accent, fontWeight = FontWeight.ExtraBold,
                                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text("${tracks.size}", color = Color(0xFFB9C9E8), fontSize = 12.sp)
                             }
@@ -260,28 +272,57 @@ internal fun MarkPlaylistScreen(
     onPlay: (List<Track>, Track) -> Unit
 ) {
     Column(Modifier.fillMaxSize().padding(top = 14.dp)) {
-        Text("Плейлисты", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-        Text("Музыка, собранная по твоему настроению", color = Color(0xFFB9C9E8), fontSize = 12.sp)
-        Spacer(Modifier.height(18.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-            item { PlaylistTile("♥", "Любимые треки", "${favorites.size} треков", palette.secondary) {
-                if (favorites.isNotEmpty()) onPlay(favorites, favorites.first())
-            } }
-            item { PlaylistTile("✦", "Недавно добавленные", "${recent.size} треков", palette.accent) {
-                if (recent.isNotEmpty()) onPlay(recent, recent.first())
-            } }
-            item { Spacer(Modifier.height(4.dp)); Text("Любимые треки", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
-            if (favorites.isEmpty()) {
-                item { EmptyHint("Нажимай на сердечко в плеере, чтобы собирать здесь любимую музыку") }
-            } else {
-                items(favorites, key = { it.id }) { track -> LibraryTrackRow(track, palette) { onPlay(favorites, track) } }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NeonIconTile("playlist", NeonPink, size = 53.dp)
+            Column {
+                Text("Плейлисты", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+                NeonScript("Музыка под настроение", palette.accent, size = 15)
             }
-            item { Spacer(Modifier.height(8.dp)); Text("Недавно добавленные", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
-            items(recent, key = { "recent-${it.id}" }) { track -> LibraryTrackRow(track, palette) { onPlay(recent, track) } }
+        }
+        Spacer(Modifier.height(16.dp))
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(13.dp),
+            contentPadding = PaddingValues(bottom = 15.dp)
+        ) {
+            item {
+                PlaylistTile("♥", "Любимые треки", "${favorites.size} композиций", NeonPink) {
+                    if (favorites.isNotEmpty()) onPlay(favorites, favorites.first())
+                }
+            }
+            item {
+                PlaylistTile("✦", "Недавно добавленные", "${recent.size} композиций", palette.accent) {
+                    if (recent.isNotEmpty()) onPlay(recent, recent.first())
+                }
+            }
+            item {
+                NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        NeonIconTile("wave", palette.secondary, size = 45.dp)
+                        Text("Сохраняй понравившуюся музыку сердечком в плеере — она появится здесь.",
+                            color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp)
+                    }
+                }
+            }
+            item {
+                Spacer(Modifier.height(4.dp))
+                Text("Любимые треки", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            if (favorites.isEmpty()) item { EmptyHint("Твои любимые композиции появятся здесь") }
+            else items(favorites, key = { it.id }) { track ->
+                LibraryTrackRow(track, palette) { onPlay(favorites, track) }
+            }
+            item {
+                Spacer(Modifier.height(5.dp))
+                Text("Недавно добавленные", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            if (recent.isEmpty()) item { EmptyHint("Добавь музыку на телефон, чтобы увидеть её здесь") }
+            else items(recent, key = { "recent-${it.id}" }) { track ->
+                LibraryTrackRow(track, palette) { onPlay(recent, track) }
+            }
         }
     }
 }
-
 @Composable
 internal fun MarkPlayerScreen(
     track: Track,
