@@ -1,0 +1,97 @@
+name: MARK Audio signed release APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout trusted main branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Install SDK components
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Clean build and unit tests
+        run: gradle clean :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Align release APK before signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          "$BT/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/mark-aligned-unsigned.apk"
+          "$BT/zipalign" -c -v -p 4 "$RUNNER_TEMP/mark-aligned-unsigned.apk"
+
+      - name: Sign and verify with protected repository secrets
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for var in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!var:-}" ]]; then echo "ERROR: Missing signing secret $var" >&2; exit 1; fi
+          done
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          KEYSTORE="$RUNNER_TEMP/mark-audio-release.jks"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          "$BT/apksigner" sign \
+            --ks "$KEYSTORE" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            --out "$RUNNER_TEMP/MARK-Audio-signed.apk" \
+            "$RUNNER_TEMP/mark-aligned-unsigned.apk"
+          "$BT/apksigner" verify --min-sdk-version 26 "$RUNNER_TEMP/MARK-Audio-signed.apk"
+          REPORT="$("$BT/apksigner" verify --min-sdk-version 23 --verbose --print-certs "$RUNNER_TEMP/MARK-Audio-signed.apk")"
+          for scheme in v1 v2 v3; do
+            grep -Eq "Verified using ${scheme} scheme .*: true$" <<< "$REPORT" || { echo "ERROR: Missing ${scheme} signature"; exit 1; }
+          done
+          EXPECTED_SHA256="f02b5efb88a28dddccca3148bc88b472365e76bb345a8a750b09482cd686858d"
+          grep -Fqi "Signer #1 certificate SHA-256 digest: $EXPECTED_SHA256" <<< "$REPORT" || { echo "ERROR: Unexpected release signing certificate"; exit 1; }
+          "$BT/zipalign" -c -v -p 4 "$RUNNER_TEMP/MARK-Audio-signed.apk"
+          mkdir -p dist
+          cp "$RUNNER_TEMP/MARK-Audio-signed.apk" dist/MARK-Audio-signed.apk
+          sha256sum dist/MARK-Audio-signed.apk > dist/MARK-Audio-signed.apk.sha256
+          echo "Signed release verified: v1/v2/v3 and pinned SHA-256 certificate."
+
+      - name: Upload verified signed release
+        uses: actions/upload-artifact@v4
+        with:
+          name: MARK-Audio-signed-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
