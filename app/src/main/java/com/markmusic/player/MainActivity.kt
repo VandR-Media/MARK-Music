@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Build
 import android.provider.MediaStore
 import android.widget.Toast
 import org.json.JSONArray
@@ -110,6 +109,7 @@ private fun MarkApp() {
     var showThemes by remember { mutableStateOf(false) }
     var showEqualizer by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
+    var newPlaylistName by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Track?>(null) }
     var userPlaylists by remember { mutableStateOf(PlaylistStore.read(ctx)) }
     var glassDepth by remember {
@@ -293,7 +293,7 @@ private fun MarkApp() {
             when (navTab) {
                 0 -> Box(Modifier.weight(1f)) {
                     MarkHomeScreen(
-                        logo = BrandArtwork.logo(ctx), songs = songs, audioAllowed = audioAllowed,
+                        logo = BrandArtwork.logo(ctx), songs = musicSongs, audioAllowed = audioAllowed,
                         onRefresh = { refresh++ },
                         onRequestPermission = { audioLauncher.launch(permission) },
                         favoritesCount = songs.count { favoriteIds.contains(it.id) },
@@ -308,6 +308,7 @@ private fun MarkApp() {
                 1 -> Box(Modifier.weight(1f)) {
                     MarkLibraryScreen(
                         songs = filtered, query = query, onQueryChange = { query = it },
+                        onLongPress = { pendingDelete = it },
                         category = tab, onCategoryChange = { tab = it },
                         loading = loading, error = libraryError, palette = palette,
                         onPlay = { queue, selected -> playQueue(queue, selected) }
@@ -331,7 +332,21 @@ private fun MarkApp() {
                             onSeek = { controller?.seekTo(it) },
                             onPrevious = { controller?.seekToPreviousMediaItem() },
                             onTogglePlayback = { controller?.let { if (it.isPlaying) it.pause() else it.play() } },
-                            onNext = { controller?.seekToNextMediaItem() }
+                            onNext = { controller?.seekToNextMediaItem() },
+                            repeatLabel = when (repeatMode) {
+                                Player.REPEAT_MODE_ONE -> "Повтор одного трека"
+                                Player.REPEAT_MODE_ALL -> "Повтор: ${queueScope.lowercase()}"
+                                else -> "Повтор выключен"
+                            },
+                            onRepeat = {
+                                controller?.repeatMode = when (repeatMode) {
+                                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
+                                    Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
+                                    else -> Player.REPEAT_MODE_OFF
+                                }
+                            },
+                            onAddToPlaylist = { showAddToPlaylist = true },
+                            onDelete = { pendingDelete = current }
                         )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -355,10 +370,27 @@ private fun MarkApp() {
                 }
                 else -> Box(Modifier.weight(1f)) {
                     MarkPlaylistScreen(
-                        favorites = songs.filter { favoriteIds.contains(it.id) },
-                        recent = songs.sortedByDescending { it.dateAddedSeconds }.take(12),
+                        favorites = musicSongs.filter { favoriteIds.contains(it.id) },
+                        recent = musicSongs.sortedByDescending { it.dateAddedSeconds }.take(12),
+                        otherAudio = otherAudio,
+                        userPlaylists = userPlaylists,
+                        allSongs = songs,
                         palette = palette,
-                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                        onCreate = { name ->
+                            val created = PlaylistStore.create(ctx, name)
+                            if (created) userPlaylists = PlaylistStore.read(ctx)
+                            created
+                        },
+                        onDeletePlaylist = { name ->
+                            PlaylistStore.delete(ctx, name)
+                            userPlaylists = PlaylistStore.read(ctx)
+                        },
+                        onRemoveTrack = { name, id ->
+                            PlaylistStore.remove(ctx, name, id)
+                            userPlaylists = PlaylistStore.read(ctx)
+                        },
+                        onPlay = { queue, selected -> playQueue(queue, selected) },
+                        onLongPress = { pendingDelete = it }
                     )
                 }
             }
@@ -392,10 +424,86 @@ private fun MarkApp() {
                     voyageSpeed = value
                     prefs.edit().putFloat("voyage_speed", value).apply()
                 },
+                glassDepth = glassDepth,
+                onGlassDepthChange = { value ->
+                    glassDepth = value
+                    prefs.edit().putFloat("glass_depth", value).apply()
+                },
+                onOpenEqualizer = {
+                    showThemes = false
+                    showEqualizer = true
+                },
                 onDismiss = { showThemes = false }
             )
         }
     }
+    }
+    if (showEqualizer) {
+        MarkEqualizerDialog(palette) { showEqualizer = false }
+    }
+    if (showAddToPlaylist) {
+        AlertDialog(
+            onDismissRequest = { showAddToPlaylist = false },
+            title = { Text("Добавить в плейлист", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    userPlaylists.keys.forEach { name ->
+                        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 14.dp,
+                            onClick = {
+                                current?.let { PlaylistStore.add(ctx, name, it.id) }
+                                userPlaylists = PlaylistStore.read(ctx)
+                                showAddToPlaylist = false
+                            }) {
+                            Text(name, Modifier.padding(11.dp), color = Color.White)
+                        }
+                    }
+                    OutlinedTextField(value = newPlaylistName,
+                        onValueChange = { newPlaylistName = it.take(45) },
+                        label = { Text("Новый плейлист") }, singleLine = true)
+                    NeonPill("Создать и добавить", palette, onClick = {
+                        if (PlaylistStore.create(ctx, newPlaylistName)) {
+                            current?.let { PlaylistStore.add(ctx, newPlaylistName.trim(), it.id) }
+                            userPlaylists = PlaylistStore.read(ctx)
+                            newPlaylistName = ""
+                            showAddToPlaylist = false
+                        } else Toast.makeText(ctx, "Введите новое название", Toast.LENGTH_SHORT).show()
+                    })
+                }
+            },
+            confirmButton = { TextButton(onClick = { showAddToPlaylist = false }) {
+                Text("Закрыть", color = palette.accent)
+            } }, containerColor = Color(0xFF101D40)
+        )
+    }
+    pendingDelete?.let { track ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Удалить аудиофайл?", color = Color.White) },
+            text = { Text("«${track.title}» будет удалён с телефона, а не только из MARK Audio. Android запросит подтверждение.",
+                color = NeonSubtle) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDelete = null
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        runCatching {
+                            val request = MediaStore.createDeleteRequest(
+                                ctx.contentResolver, listOf(track.uri))
+                            deletingId = track.id
+                            deleteLauncher.launch(
+                                IntentSenderRequest.Builder(request.intentSender).build())
+                        }.onFailure {
+                            Toast.makeText(ctx, "Не удалось запросить удаление", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        Toast.makeText(ctx, "Для удаления файла требуется Android 11 или новее",
+                            Toast.LENGTH_LONG).show()
+                    }
+                }) { Text("Удалить файл", color = NeonPink) }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) {
+                Text("Отмена", color = palette.accent)
+            } }, containerColor = Color(0xFF101D40)
+        )
     }
     if (showEffects) {
         AlertDialog(
