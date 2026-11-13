@@ -110,6 +110,12 @@ private fun MarkApp() {
     }
     var themeKey by remember { mutableStateOf(prefs.getString("theme", "COSMIC_BLUE") ?: "COSMIC_BLUE") }
     val palette = markPalette(themeKey)
+    var tiltSensitivity by remember {
+        mutableFloatStateOf(prefs.getFloat("tilt_sensitivity", 1f).coerceIn(0f, 2f))
+    }
+    var voyageSpeed by remember {
+        mutableFloatStateOf(prefs.getFloat("voyage_speed", 1f).coerceIn(0f, 5f))
+    }
     var favoriteIds by remember {
         mutableStateOf(prefs.getStringSet("favorites", mutableSetOf())?.mapNotNull { it.toLongOrNull() }?.toSet().orEmpty())
     }
@@ -193,8 +199,12 @@ private fun MarkApp() {
         navigate(2)
     }
 
+    CompositionLocalProvider(LocalGlassSensitivity provides tiltSensitivity) {
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-        CosmicVoyageBackground(palette, Modifier.matchParentSize())
+        CosmicVoyageBackground(
+            palette = palette, speed = voyageSpeed, steering = tiltSensitivity,
+            modifier = Modifier.matchParentSize()
+        )
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             when (navTab) {
                 0 -> Box(Modifier.weight(1f)) {
@@ -288,9 +298,20 @@ private fun MarkApp() {
                     themeKey = key
                     prefs.edit().putString("theme", key).apply()
                 },
+                tiltSensitivity = tiltSensitivity,
+                onTiltSensitivityChange = { value ->
+                    tiltSensitivity = value
+                    prefs.edit().putFloat("tilt_sensitivity", value).apply()
+                },
+                voyageSpeed = voyageSpeed,
+                onVoyageSpeedChange = { value ->
+                    voyageSpeed = value
+                    prefs.edit().putFloat("voyage_speed", value).apply()
+                },
                 onDismiss = { showThemes = false }
             )
         }
+    }
     }
     if (showEffects) {
         AlertDialog(
