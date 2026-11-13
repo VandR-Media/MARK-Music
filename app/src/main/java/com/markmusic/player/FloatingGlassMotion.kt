@@ -22,43 +22,48 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import kotlin.math.abs
 
-/**
- * One gently filtered sensor stream shared by the whole UI, never one sensor
- * listener per button. No sensor permission or background polling is needed.
- */
-internal val LocalGlassTilt = compositionLocalOf { Offset.Zero }
+// Provide the State, not its value: only RenderNode/layer redraws when a sensor
+// sample arrives. Recomposition of the entire music library would stutter audio UI.
+internal val LocalGlassTilt = compositionLocalOf<State<Offset>> { mutableStateOf(Offset.Zero) }
 
 @Composable
 internal fun GlassMotionHost(content: @Composable () -> Unit) {
     val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
     val tilt = remember { mutableStateOf(Offset.Zero) }
-    val lifecycleOwner = context as? LifecycleOwner
-    DisposableEffect(context, lifecycleOwner) {
+    DisposableEffect(context, owner) {
         val manager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         val sensor = manager?.getDefaultSensor(Sensor.TYPE_GRAVITY)
             ?: manager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         var lastUpdate = 0L
+        var baseX = Float.NaN
+        var baseY = Float.NaN
         var smoothX = 0f
         var smoothY = 0f
         val listener = object : SensorEventListener {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
             override fun onSensorChanged(event: SensorEvent) {
                 val now = SystemClock.elapsedRealtime()
-                if (now - lastUpdate < 65L) return
+                if (now - lastUpdate < 40L) return  // max 25 updates per second
                 lastUpdate = now
-                // Small amplitudes avoid shaky graphics and sensor noise.
-                val x = (event.values[0] / 9.81f).coerceIn(-0.75f, 0.75f)
-                val y = (event.values[1] / 9.81f).coerceIn(-0.75f, 0.75f)
-                smoothX += (x - smoothX) * 0.16f
-                smoothY += (y - smoothY) * 0.16f
-                if (abs(smoothX - tilt.value.x) > .012f || abs(smoothY - tilt.value.y) > .012f) {
+                val gx = (event.values[0] / 9.81f).coerceIn(-1f, 1f)
+                val gy = (event.values[1] / 9.81f).coerceIn(-1f, 1f)
+                if (baseX.isNaN()) {
+                    baseX = gx
+                    baseY = gy
+                }
+                // Relative to the hand-held neutral pose, not absolute gravity.
+                // This is important for a portrait-locked app.
+                smoothX += ((gx - baseX).coerceIn(-.8f, .8f) - smoothX) * .22f
+                smoothY += ((gy - baseY).coerceIn(-.8f, .8f) - smoothY) * .22f
+                if (abs(smoothX - tilt.value.x) > .006f || abs(smoothY - tilt.value.y) > .006f) {
                     tilt.value = Offset(smoothX, smoothY)
                 }
             }
@@ -66,7 +71,12 @@ internal fun GlassMotionHost(content: @Composable () -> Unit) {
         var registered = false
         fun start() {
             if (!registered && manager != null && sensor != null) {
-                registered = manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
+                baseX = Float.NaN
+                baseY = Float.NaN
+                smoothX = 0f
+                smoothY = 0f
+                tilt.value = Offset.Zero
+                registered = manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
             }
         }
         fun stop() {
@@ -80,14 +90,14 @@ internal fun GlassMotionHost(content: @Composable () -> Unit) {
                 else -> Unit
             }
         }
-        lifecycleOwner?.lifecycle?.addObserver(observer)
-        if (lifecycleOwner?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true) start()
+        owner.lifecycle.addObserver(observer)
+        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) start()
         onDispose {
-            lifecycleOwner?.lifecycle?.removeObserver(observer)
+            owner.lifecycle.removeObserver(observer)
             stop()
         }
     }
-    CompositionLocalProvider(LocalGlassTilt provides tilt.value) { content() }
+    CompositionLocalProvider(LocalGlassTilt provides tilt) { content() }
 }
 
 @Composable
@@ -95,34 +105,37 @@ internal fun rememberGlassPressed(interactionSource: MutableInteractionSource): 
     interactionSource.collectIsPressedAsState()
 
 /**
- * Optical elevation + very small gyroscopic parallax. A short spring makes
- * buttons sink under a finger and rise on release; shape and hit area stay fixed.
+ * Material-like floating depth. No rectangular layer shadow: shadows are
+ * provided by the actual rounded/circular shapes in the UI components.
+ * Motion is measured in dp and never shifts the clickable layout itself.
  */
 @Composable
 internal fun Modifier.floatingGlassMotion(
     pressed: Boolean,
     color: Color,
-    enabled: Boolean = true
+    depth: Float = 1f
 ): Modifier {
     val tilt = LocalGlassTilt.current
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.935f else 1f,
-        animationSpec = spring(dampingRatio = .64f, stiffness = 620f),
-        label = "floating-glass-scale"
+        targetValue = if (pressed) .952f else 1f,
+        animationSpec = spring(dampingRatio = .68f, stiffness = 480f),
+        label = "glass-press-scale"
     )
     val lift by animateFloatAsState(
-        targetValue = if (pressed) 1.5f else -2f,
-        animationSpec = spring(dampingRatio = .70f, stiffness = 520f),
-        label = "floating-glass-lift"
+        targetValue = if (pressed) 1.1f else -2.0f,
+        animationSpec = spring(dampingRatio = .68f, stiffness = 420f),
+        label = "glass-press-lift"
     )
     return this.graphicsLayer {
+        val angle = tilt.value
+        val unit = density
         scaleX = scale
         scaleY = scale
-        translationX = if (enabled) tilt.x * 2.2f else 0f
-        translationY = lift + if (enabled) tilt.y * 1.7f else 0f
-        rotationZ = if (enabled) tilt.x * 1.2f else 0f
-        shadowElevation = if (pressed) 2.dp.toPx() else 10.dp.toPx()
-        ambientShadowColor = color.copy(alpha = .42f)
-        spotShadowColor = color.copy(alpha = .53f)
+        translationX = angle.x * 15f * unit * depth
+        translationY = (lift + angle.y * 10f * depth) * unit
+        rotationY = (-angle.x * 6f * depth).coerceIn(-5f, 5f)
+        rotationX = (angle.y * 5f * depth).coerceIn(-4f, 4f)
+        cameraDistance = 16f * density
+        // Deliberately NO shadowElevation: that made black rectangles under nav icons.
     }
 }
