@@ -30,15 +30,28 @@ jobs:
           test ! -e app/src/main/res/drawable/mark_launcher.xml
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image
+          def dimensions(raw):
+              i = 2
+              while i + 9 < len(raw):
+                  if raw[i] != 0xff:
+                      i += 1
+                      continue
+                  i += 1
+                  while raw[i] == 0xff: i += 1
+                  marker = raw[i]; i += 1
+                  if marker in (0xd8, 0x01) or 0xd0 <= marker <= 0xd7: continue
+                  length = int.from_bytes(raw[i:i+2], "big")
+                  if marker in (0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf):
+                      return int.from_bytes(raw[i+5:i+7], "big"), int.from_bytes(raw[i+3:i+5], "big")
+                  i += length
+              raise ValueError("JPEG dimensions not found")
           for name in ("mark_logo.jpg", "mark_welcome.jpg"):
               p = Path("app/src/main/res/drawable-nodpi") / name
               raw = p.read_bytes()
               assert len(raw) > 400000, f"{name}: unexpected image size"
               assert raw.startswith(bytes.fromhex("ffd8")) and raw.endswith(bytes.fromhex("ffd9"))
-              with Image.open(p) as image:
-                  assert image.width >= 1024 and image.height >= 1024, (name, image.size)
-                  image.verify()
+              width, height = dimensions(raw)
+              assert width >= 1024 and height >= 1024, (name, width, height)
           PY
       - name: Clean build, tests and lint
         shell: bash
