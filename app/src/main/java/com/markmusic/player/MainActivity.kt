@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = CYAN, secondary = VIOLET,
                 background = BG, surface = PANEL, onSurface = Color.White
-            )) { MarkApp() }
+            )) { GlassMotionHost { MarkApp() } }
         }
     }
 }
