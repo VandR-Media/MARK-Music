@@ -164,6 +164,14 @@ private fun MarkApp() {
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
+            if (deletingId >= 0L) {
+                for (name in userPlaylists.keys) PlaylistStore.remove(ctx, name, deletingId)
+                userPlaylists = PlaylistStore.read(ctx)
+                val updated = favoriteIds - deletingId
+                favoriteIds = updated
+                prefs.edit().putStringSet("favorites",
+                    updated.map { it.toString() }.toSet()).apply()
+            }
             if (deletingId >= 0 && controller?.currentMediaItem?.mediaId == deletingId.toString()) {
                 controller?.stop()
                 controller?.clearMediaItems()
