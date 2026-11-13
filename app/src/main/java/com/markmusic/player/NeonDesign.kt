@@ -118,6 +118,7 @@ internal fun neonVector(name: String): ImageVector = when (name) {
     "play" -> Icons.Rounded.PlayArrow
     "pause" -> Icons.Rounded.Pause
     "next" -> Icons.Rounded.SkipNext
+    "repeat" -> Icons.Rounded.Repeat
     "previous" -> Icons.Rounded.SkipPrevious
     "effects" -> Icons.Rounded.AutoAwesome
     "more" -> Icons.Rounded.MoreHoriz
