@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -94,10 +95,19 @@ private fun MarkApp() {
     var libraryError by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableIntStateOf(0) }
-    var navTab by remember { mutableIntStateOf(0) }
-    var previousNavTab by remember { mutableIntStateOf(0) }
+    var navigation by remember { mutableStateOf(SectionNavigationState()) }
+    val navTab = navigation.current
+    fun navigate(destination: Int) { navigation = navigation.open(destination) }
+    fun navigateBack() { navigation = navigation.back() }
     var showEffects by remember { mutableStateOf(false) }
     var showThemes by remember { mutableStateOf(false) }
+    BackHandler(enabled = showEffects || showThemes || navTab != 0) {
+        when {
+            showEffects -> showEffects = false
+            showThemes -> showThemes = false
+            else -> navigateBack()
+        }
+    }
     var themeKey by remember { mutableStateOf(prefs.getString("theme", "COSMIC_BLUE") ?: "COSMIC_BLUE") }
     val palette = markPalette(themeKey)
     var favoriteIds by remember {
@@ -180,8 +190,7 @@ private fun MarkApp() {
             play()
         }
         playerError = null
-        previousNavTab = navTab
-        navTab = 2
+        navigate(2)
     }
 
     Box(
@@ -203,10 +212,10 @@ private fun MarkApp() {
                         onRequestPermission = { audioLauncher.launch(permission) },
                         favoritesCount = songs.count { favoriteIds.contains(it.id) },
                         current = current, playing = playing, palette = palette,
-                        onSearch = { navTab = 1 },
+                        onSearch = { navigate(1) },
                         onOpenThemes = { showThemes = true },
-                        onOpenLibrary = { category -> tab = category; query = ""; navTab = 1 },
-                        onOpenPlaylists = { navTab = 3 },
+                        onOpenLibrary = { category -> tab = category; query = ""; navigate(1) },
+                        onOpenPlaylists = { navigate(3) },
                         onPlay = { queue, selected -> playQueue(queue, selected) }
                     )
                 }
@@ -225,7 +234,7 @@ private fun MarkApp() {
                             position = position, duration = duration,
                             isFavorite = favoriteIds.contains(current.id),
                             playerError = playerError, palette = palette,
-                            onBack = { navTab = previousNavTab },
+                            onBack = { navigateBack() },
                             onEffects = { showEffects = true },
                             onFavorite = {
                                 val updated = favoriteIds.toMutableSet()
@@ -252,7 +261,7 @@ private fun MarkApp() {
                                         color = NeonSubtle, fontSize = 13.sp,
                                         textAlign = TextAlign.Center, lineHeight = 19.sp)
                                     NeonPill("Открыть медиатеку", palette,
-                                        onClick = { navTab = 1 }, icon = "library")
+                                        onClick = { navigate(1) }, icon = "library")
                                 }
                             }
                         }
@@ -271,15 +280,12 @@ private fun MarkApp() {
                 if (current != null) {
                     MarkMiniPlayer(
                         track = current, playing = playing, palette = palette,
-                        onOpen = { previousNavTab = navTab; navTab = 2 },
+                        onOpen = { navigate(2) },
                         onToggle = { controller?.let { if (it.isPlaying) it.pause() else it.play() } }
                     )
                 }
                 MarkBottomNavigation(navTab, palette) { selected ->
-                    if (selected == 2 && current == null) navTab = 1 else {
-                        if (selected == 2) previousNavTab = navTab
-                        navTab = selected
-                    }
+                    navigate(if (selected == 2 && current == null) 1 else selected)
                 }
             }
         }
