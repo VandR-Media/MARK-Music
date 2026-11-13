@@ -344,68 +344,85 @@ internal fun MarkPlayerScreen(
     var dragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 7.dp, bottom = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 11.dp, bottom = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("‹  Назад", color = palette.accent, fontSize = 15.sp) }
-            Spacer(Modifier.weight(1f))
-            Text("СЕЙЧАС ИГРАЕТ", color = Color(0xFFB9C9E8), fontSize = 10.sp, letterSpacing = 1.8.sp)
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = onEffects) { Text("✧", color = palette.accent, fontSize = 23.sp) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween) {
+            NeonRoundButton("back", palette.secondary, onBack, 43.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("СЕЙЧАС ИГРАЕТ", color = Color.White, fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
+                Text("MARK AUDIO", color = palette.accent, fontSize = 10.sp, letterSpacing = 3.sp)
+            }
+            NeonRoundButton("effects", palette.accent, onEffects, 43.dp)
         }
-        Spacer(Modifier.height(8.dp))
-        MarkCover(track, Modifier.fillMaxWidth(.65f).aspectRatio(1f).clip(RoundedCornerShape(24.dp)).border(1.dp, palette.accent.copy(alpha = .45f), RoundedCornerShape(24.dp)))
-        Spacer(Modifier.height(12.dp))
+        NeonGlass(
+            palette, Modifier.fillMaxWidth(.87f).aspectRatio(1f),
+            radius = 30.dp
+        ) {
+            MarkCover(track, Modifier.fillMaxSize().padding(6.dp).clip(RoundedCornerShape(25.dp)))
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(track.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(track.title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(track.artist, color = Color(0xFFB9C9E8), fontSize = 14.sp,
+                Text(track.artist, color = NeonSubtle, fontSize = 14.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Surface(onClick = onFavorite, shape = CircleShape, color = palette.panel, modifier = Modifier.size(48.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(if (isFavorite) "♥" else "♡", color = if (isFavorite) Color(0xFFFF59B9) else palette.accent, fontSize = 27.sp)
+            NeonRoundButton(if (isFavorite) "heart" else "heart-outline",
+                NeonPink, onFavorite, 52.dp)
+        }
+        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 25.dp) {
+            Column(Modifier.fillMaxWidth().padding(11.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                MusicVisualizer(
+                    style, playing,
+                    Modifier.fillMaxWidth().height(114.dp).clip(RoundedCornerShape(18.dp))
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    NeonGlyph("wave", palette.secondary, size = 22.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(style.label, color = palette.accent, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                        Text("Живая визуализация", color = NeonSubtle, fontSize = 10.sp)
+                    }
+                    TextButton(onClick = onEffects) {
+                        Text("20 эффектов", color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        MusicVisualizer(style, playing, Modifier.fillMaxWidth().height(94.dp).clip(RoundedCornerShape(18.dp)))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(style.label, color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text("Визуализация звука", color = Color(0xFFB9C9E8), fontSize = 10.sp)
+        Column(Modifier.fillMaxWidth()) {
+            Slider(
+                value = if (dragging) sliderValue.coerceIn(0f, duration.coerceAtLeast(1).toFloat())
+                    else position.coerceIn(0L, duration.coerceAtLeast(1L)).toFloat(),
+                onValueChange = { sliderValue = it; dragging = true },
+                onValueChangeFinished = { onSeek(sliderValue.toLong()); dragging = false },
+                valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.White, activeTrackColor = palette.accent,
+                    inactiveTrackColor = palette.secondary.copy(alpha = .23f)
+                )
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(formatTrackTime(position), color = NeonSubtle, fontSize = 12.sp)
+                Text(formatTrackTime(duration), color = NeonSubtle, fontSize = 12.sp)
             }
-            TextButton(onClick = onEffects) { Text("20 эффектов  ›", color = palette.accent) }
-        }
-        Spacer(Modifier.height(9.dp))
-        Slider(
-            value = if (dragging) sliderValue.coerceIn(0f, duration.coerceAtLeast(1).toFloat())
-                else position.coerceIn(0L, duration.coerceAtLeast(1L)).toFloat(),
-            onValueChange = { sliderValue = it; dragging = true },
-            onValueChangeFinished = { onSeek(sliderValue.toLong()); dragging = false },
-            valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
-            colors = SliderDefaults.colors(thumbColor = palette.accent, activeTrackColor = palette.accent)
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatTrackTime(position), color = Color(0xFFB9C9E8), fontSize = 11.sp)
-            Text(formatTrackTime(duration), color = Color(0xFFB9C9E8), fontSize = 11.sp)
         }
         if (playerError != null) Text(playerError, color = Color(0xFFFFA4A4), fontSize = 12.sp)
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            PlayerControl("⏮", 25, false, palette, onPrevious)
-            Spacer(Modifier.width(20.dp))
-            PlayerControl(if (playing) "Ⅱ" else "▶", 30, true, palette, onTogglePlayback)
-            Spacer(Modifier.width(20.dp))
-            PlayerControl("⏭", 25, false, palette, onNext)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically) {
+            PlayerControl("⏮", 28, false, palette, onPrevious)
+            Spacer(Modifier.width(23.dp))
+            PlayerControl(if (playing) "Ⅱ" else "▶", 32, true, palette, onTogglePlayback)
+            Spacer(Modifier.width(23.dp))
+            PlayerControl("⏭", 28, false, palette, onNext)
         }
-        Spacer(Modifier.height(8.dp))
-        Text("MARK AUDIO", color = Color(0xFF8196BC), fontSize = 9.sp, letterSpacing = 2.5.sp)
+        NeonScript("Feel the sound. See the music.", palette.secondary, size = 15, center = true)
     }
 }
-
 @Composable
 internal fun MarkMiniPlayer(
     track: Track,
@@ -414,43 +431,57 @@ internal fun MarkMiniPlayer(
     onOpen: () -> Unit,
     onToggle: () -> Unit
 ) {
-    Surface(
-        onClick = onOpen, color = palette.panel, shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 7.dp, bottom = 8.dp)
-    ) {
-        Row(Modifier.padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
-            MarkCover(track, Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)))
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(track.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+    NeonGlass(palette, Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 8.dp),
+        radius = 25.dp, onClick = onOpen) {
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            MarkCover(track, Modifier.size(52.dp).clip(RoundedCornerShape(17.dp)))
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(track.title, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(track.artist, color = Color(0xFFB9C9E8), fontSize = 11.sp,
+                Text(track.artist, color = NeonSubtle, fontSize = 11.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            TextButton(onClick = onToggle) { Text(if (playing) "Ⅱ" else "▶", color = palette.accent, fontSize = 22.sp) }
+            NeonRoundButton(if (playing) "pause" else "play", palette.accent,
+                onToggle, size = 47.dp, primary = true)
         }
     }
 }
-
 @Composable
 internal fun MarkBottomNavigation(selected: Int, palette: MarkPalette, onSelect: (Int) -> Unit) {
-    val items = listOf("⌂" to "Главная", "▦" to "Медиатека", "♫" to "Плеер", "♡" to "Плейлисты")
-    Surface(color = palette.panel, shape = RoundedCornerShape(23.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp).border(1.dp, palette.accent.copy(alpha = .24f), RoundedCornerShape(23.dp))) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.SpaceAround) {
-            items.forEachIndexed { index, pair ->
+    val items = listOf(
+        Triple("home", "Главная", palette.accent),
+        Triple("library", "Медиатека", palette.secondary),
+        Triple("music", "Плеер", NeonPink),
+        Triple("heart", "Плейлисты", NeonGold)
+    )
+    NeonGlass(palette, Modifier.fillMaxWidth().padding(bottom = 4.dp), radius = 29.dp) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            items.forEachIndexed { index, item ->
                 Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { onSelect(index) }.padding(vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    Modifier.weight(1f)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(if (selected == index) item.third.copy(alpha = .12f)
+                            else Color.Transparent)
+                        .clickable { onSelect(index) }
+                        .padding(vertical = 5.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    Text(pair.first, color = if (selected == index) palette.accent else Color(0xFF9BAECD), fontSize = 20.sp)
-                    Text(pair.second, color = if (selected == index) palette.accent else Color(0xFF9BAECD),
-                        fontSize = 9.sp, fontWeight = if (selected == index) FontWeight.Bold else FontWeight.Normal)
+                    NeonIconTile(item.first, item.third, size = 43.dp, selected = selected == index)
+                    Text(item.second,
+                        color = if (selected == index) item.third else NeonSubtle,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        fontWeight = if (selected == index) FontWeight.ExtraBold else FontWeight.Medium)
                 }
             }
         }
     }
 }
-
 @Composable
 internal fun MarkThemeDialog(selected: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
