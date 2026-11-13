@@ -83,7 +83,12 @@ jobs:
             grep -Eq "Verified using ${scheme} scheme .*: true$" <<< "$REPORT" || { echo "ERROR: Missing ${scheme} signature"; exit 1; }
           done
           EXPECTED_SHA256="f02b5efb88a28dddccca3148bc88b472365e76bb345a8a750b09482cd686858d"
-          grep -Fqi "Signer #1 certificate SHA-256 digest: $EXPECTED_SHA256" <<< "$REPORT" || { echo "ERROR: Unexpected release signing certificate"; exit 1; }
+          if ! grep -Fqi "Signer #1 certificate SHA-256 digest: $EXPECTED_SHA256" <<< "$REPORT"; then
+            echo "ERROR: Unexpected release signing certificate; the public fingerprint is:"
+            grep -F 'Signer #1 certificate SHA-256 digest:' <<< "$REPORT" || true
+            echo "Expected fingerprint: $EXPECTED_SHA256"
+            exit 1
+          fi
           "$BT/zipalign" -c -v -p 4 "$RUNNER_TEMP/MARK-Audio-signed.apk"
           mkdir -p dist
           cp "$RUNNER_TEMP/MARK-Audio-signed.apk" dist/MARK-Audio-signed.apk
