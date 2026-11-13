@@ -57,7 +57,17 @@ internal val MARK_PALETTES = listOf(
     MarkPalette("JADE_MOON", "Jade Moon", Color(0xFF091D25), Color(0xFF183D3A), Color(0xCB183B46), Color(0xFFB1E8A1), Color(0xFF77CFCC)),
     MarkPalette("FROSTED_LILAC", "Frosted Lilac", Color(0xFF16182F), Color(0xFF3B315C), Color(0xC9293153), Color(0xFFD2B7FF), Color(0xFF8EEBFF)),
     MarkPalette("COPPER_DUSK", "Copper Dusk", Color(0xFF251421), Color(0xFF58332C), Color(0xCD3C2B3D), Color(0xFFFFA877), Color(0xFFF3D38B)),
-    MarkPalette("STELLAR_MINT", "Stellar Mint", Color(0xFF071E2C), Color(0xFF123F4A), Color(0xCB17364A), Color(0xFF73FFE3), Color(0xFFB4A6FF))
+    MarkPalette("STELLAR_MINT", "Stellar Mint", Color(0xFF071E2C), Color(0xFF123F4A), Color(0xCB17364A), Color(0xFF73FFE3), Color(0xFFB4A6FF)),
+    MarkPalette("TROPICAL_FLARE", "Tropical Flare", Color(0xFFF95D70), Color(0xFFFFC75A), Color(0xB9556485), Color(0xFFFF6BA5), Color(0xFFFFF2A0)),
+    MarkPalette("CYAN_SUNRISE", "Cyan Sunrise", Color(0xFF12BED8), Color(0xFFFFCA4E), Color(0xB9556485), Color(0xFF16BFD5), Color(0xFFFFFF9E)),
+    MarkPalette("LIME_MAGENTA", "Lime Magenta", Color(0xFFA1ED3A), Color(0xFFF84AAF), Color(0xB9556485), Color(0xFF59B847), Color(0xFFFFD1F2)),
+    MarkPalette("CORAL_SKY", "Coral Sky", Color(0xFFFF897A), Color(0xFF52CEFF), Color(0xB9556485), Color(0xFFFFA65F), Color(0xFF9AEAFF)),
+    MarkPalette("GOLDEN_ORCHID", "Golden Orchid", Color(0xFFFFD866), Color(0xFFB778FF), Color(0xB9556485), Color(0xFFFFB84E), Color(0xFFDFB5FF)),
+    MarkPalette("MINT_PEACH", "Mint Peach", Color(0xFF58E6C4), Color(0xFFFF9D9F), Color(0xB9556485), Color(0xFF32D9AB), Color(0xFFFFD1BC)),
+    MarkPalette("LAVENDER_DAY", "Lavender Day", Color(0xFFDDA8FF), Color(0xFF7EC9FF), Color(0xB9556485), Color(0xFFC993FF), Color(0xFFB5EDFF)),
+    MarkPalette("SKY_PINK", "Sky Pink", Color(0xFF6ED9FF), Color(0xFFFF84D4), Color(0xB9556485), Color(0xFF53C3FF), Color(0xFFFFD0F3)),
+    MarkPalette("SOLAR_MINT", "Solar Mint", Color(0xFFFFE373), Color(0xFF65E9BB), Color(0xB9556485), Color(0xFFFFA862), Color(0xFFB4FFE3)),
+    MarkPalette("SAPPHIRE_CITRUS", "Sapphire Citrus", Color(0xFF568DFF), Color(0xFFFFBF55), Color(0xB9556485), Color(0xFF89ACFF), Color(0xFFFFEA9C))
 )
 
 internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull { it.key == key } ?: MARK_PALETTES.first()
