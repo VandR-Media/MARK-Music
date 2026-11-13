@@ -567,7 +567,15 @@ internal fun MarkBottomNavigation(selected: Int, palette: MarkPalette, onSelect:
     }
 }
 @Composable
-internal fun MarkThemeDialog(selected: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun MarkThemeDialog(
+    selected: String,
+    onSelect: (String) -> Unit,
+    tiltSensitivity: Float,
+    onTiltSensitivityChange: (Float) -> Unit,
+    voyageSpeed: Float,
+    onVoyageSpeedChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
     val activePalette = markPalette(selected)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -587,6 +595,55 @@ internal fun MarkThemeDialog(selected: String, onSelect: (String) -> Unit, onDis
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(11.dp)
             ) {
+                NeonGlass(activePalette, Modifier.fillMaxWidth(), radius = 20.dp) {
+                    Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            NeonGlyph("effects", activePalette.accent, size = 22.dp)
+                            Spacer(Modifier.width(9.dp))
+                            Text("Чувствительность к наклону", Modifier.weight(1f),
+                                color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("${(tiltSensitivity * 100).toInt()}%",
+                                color = activePalette.accent, fontSize = 12.sp)
+                        }
+                        Slider(
+                            value = tiltSensitivity,
+                            onValueChange = onTiltSensitivityChange,
+                            valueRange = 0f..2f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = activePalette.accent,
+                                activeTrackColor = activePalette.accent,
+                                inactiveTrackColor = Color.White.copy(alpha = .19f)
+                            )
+                        )
+                        Text("0% — без движения  ·  100% — как сейчас  ·  200% — сильнее",
+                            color = NeonSubtle, fontSize = 10.sp, lineHeight = 15.sp)
+                        Spacer(Modifier.height(9.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            NeonGlyph("wave", activePalette.secondary, size = 22.dp)
+                            Spacer(Modifier.width(9.dp))
+                            Text("Скорость путешествия", Modifier.weight(1f),
+                                color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("${"%.1f".format(java.util.Locale.US, voyageSpeed)}×",
+                                color = activePalette.secondary, fontSize = 12.sp)
+                        }
+                        Slider(
+                            value = voyageSpeed,
+                            onValueChange = onVoyageSpeedChange,
+                            valueRange = 0f..5f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = activePalette.secondary,
+                                activeTrackColor = activePalette.secondary,
+                                inactiveTrackColor = Color.White.copy(alpha = .19f)
+                            )
+                        )
+                        Text("0× — остановка  ·  1× — обычная  ·  5× — быстро",
+                            color = NeonSubtle, fontSize = 10.sp, lineHeight = 15.sp)
+                    }
+                }
+                Text("Цветовые схемы · ${MARK_PALETTES.size}",
+                    color = activePalette.accent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold)
                 MARK_PALETTES.forEach { theme ->
                     NeonGlass(
                         theme,
