@@ -1,6 +1,7 @@
 package com.markmusic.player.audio
 
 import android.content.Intent
+import org.json.JSONArray
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -70,10 +71,26 @@ class PlaybackService : MediaSessionService() {
     // Media3 trusts our own UID, system controllers and user-approved media controllers.
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         if (controllerInfo.isTrusted) session else null
+    /** Extra checkpoint when Android stops the service while the UI is closed. */
+    private fun savePlaybackPosition() {
+        val p = player ?: return
+        if (p.mediaItemCount <= 0) return
+        val queue = JSONArray()
+        for (i in 0 until p.mediaItemCount) queue.put(p.getMediaItemAt(i).mediaId)
+        getSharedPreferences("mark_music", MODE_PRIVATE).edit()
+            .putString("last_queue", queue.toString())
+            .putInt("last_index", p.currentMediaItemIndex.coerceAtLeast(0))
+            .putLong("last_position", p.currentPosition.coerceAtLeast(0L))
+            .putBoolean("resume_playing", p.playWhenReady)
+            .putInt("last_repeat", p.repeatMode)
+            .apply()
+    }
     override fun onTaskRemoved(rootIntent: Intent?) {
+        savePlaybackPosition()
         if (player?.isPlaying != true) stopSelf()
     }
     override fun onDestroy() {
+        savePlaybackPosition()
         eqScope.cancel()
         eqEngine.release()
         AudioSessionBus.sessionId.value = 0
