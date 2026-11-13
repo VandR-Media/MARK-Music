@@ -52,7 +52,14 @@ internal fun CosmicVoyageBackground(
         val dx = tilt.value.x * steering
         val dy = tilt.value.y * steering
         val t = if (phase <= 1f) phase else 2f - phase
-        drawRect(Brush.verticalGradient(listOf(
+        val isBright = palette.key in setOf(
+            "TROPICAL_FLARE", "CYAN_SUNRISE", "LIME_MAGENTA", "CORAL_SKY",
+            "GOLDEN_ORCHID", "MINT_PEACH", "LAVENDER_DAY", "SKY_PINK",
+            "SOLAR_MINT", "SAPPHIRE_CITRUS"
+        )
+        drawRect(Brush.verticalGradient(if (isBright) listOf(
+            palette.start, palette.start, palette.end, palette.end
+        ) else listOf(
             Color(0xFF061127), palette.start, palette.end, Color(0xFF090D29)
         )))
         // Diffuse, very distant dust clouds move more slowly than the stars.
@@ -86,7 +93,9 @@ internal fun CosmicVoyageBackground(
             }
         }
         // Gentle vignette to keep album art and all labels legible.
-        drawRect(Brush.verticalGradient(listOf(
+        drawRect(Brush.verticalGradient(if (isBright) listOf(
+            Color(0x35020A1B), Color(0x21020A1B), Color(0x45030B1B)
+        ) else listOf(
             Color(0x20020A1B), Color.Transparent, Color(0x65030B1B)
         )))
     }
