@@ -337,59 +337,141 @@ internal fun MarkLibraryScreen(
 internal fun MarkPlaylistScreen(
     favorites: List<Track>,
     recent: List<Track>,
+    otherAudio: List<Track>,
+    userPlaylists: Map<String, Set<Long>>,
+    allSongs: List<Track>,
     palette: MarkPalette,
-    onPlay: (List<Track>, Track) -> Unit
+    onCreate: (String) -> Boolean,
+    onDeletePlaylist: (String) -> Unit,
+    onRemoveTrack: (String, Long) -> Unit,
+    onPlay: (List<Track>, Track) -> Unit,
+    onLongPress: (Track) -> Unit = {}
 ) {
+    var opened by remember { mutableStateOf<String?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    var createError by remember { mutableStateOf(false) }
+    val builtIns = listOf(
+        "Любимые треки" to favorites,
+        "Недавно добавленные" to recent,
+        "Голосовые и другое" to otherAudio
+    )
+    val selectedTracks = when (opened) {
+        null -> emptyList()
+        else -> builtIns.firstOrNull { it.first == opened }?.second
+            ?: allSongs.filter { userPlaylists[opened].orEmpty().contains(it.id) }
+    }
     Column(Modifier.fillMaxSize().padding(top = 14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NeonIconTile("playlist", NeonPink, size = 53.dp)
-            Column {
-                Text("Плейлисты", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-                NeonScript("Музыка под настроение", palette.accent, size = 15)
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NeonIconTile(if (opened == null) "playlist" else "back",
+                NeonPink, size = 50.dp, onClick = { opened = null })
+            Column(Modifier.weight(1f)) {
+                Text(opened ?: "Плейлисты", color = Color.White, fontSize = 23.sp,
+                    fontWeight = FontWeight.ExtraBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                Text(if (opened == null) "Музыка под настроение" else
+                    "${selectedTracks.size} аудиофайлов", color = palette.accent, fontSize = 12.sp)
             }
+            if (opened == null) NeonRoundButton("add", palette.accent,
+                onClick = { creating = true }, size = 44.dp)
         }
-        Spacer(Modifier.height(16.dp))
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(13.dp),
-            contentPadding = PaddingValues(bottom = 15.dp)
-        ) {
-            item {
-                PlaylistTile("♥", "Любимые треки", "${favorites.size} композиций", NeonPink) {
-                    if (favorites.isNotEmpty()) onPlay(favorites, favorites.first())
+        Spacer(Modifier.height(13.dp))
+        if (opened == null) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 15.dp)
+            ) {
+                items(builtIns, key = { it.first }) { (name, tracks) ->
+                    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 23.dp,
+                        onClick = { opened = name }) {
+                        Row(Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            NeonIconTile(
+                                if (name == "Любимые треки") "heart" else
+                                    if (name == "Недавно добавленные") "time" else "wave",
+                                palette.secondary, size = 55.dp)
+                            Spacer(Modifier.width(13.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(name, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("${tracks.size} треков", color = NeonSubtle, fontSize = 12.sp)
+                            }
+                            NeonGlyph("chevron", palette.accent)
+                        }
+                    }
                 }
-            }
-            item {
-                PlaylistTile("✦", "Недавно добавленные", "${recent.size} композиций", palette.accent) {
-                    if (recent.isNotEmpty()) onPlay(recent, recent.first())
-                }
-            }
-            item {
-                NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        NeonIconTile("wave", palette.secondary, size = 45.dp)
-                        Text("Сохраняй понравившуюся музыку сердечком в плеере — она появится здесь.",
-                            color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp)
+                items(userPlaylists.entries.toList(), key = { "custom-${it.key}" }) { entry ->
+                    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 23.dp,
+                        onClick = { opened = entry.key }) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            NeonIconTile("playlist", palette.accent, size = 55.dp)
+                            Spacer(Modifier.width(13.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(entry.key, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("${entry.value.size} треков", color = NeonSubtle, fontSize = 12.sp)
+                            }
+                            NeonGlyph("chevron", palette.accent)
+                        }
                     }
                 }
             }
-            item {
-                Spacer(Modifier.height(4.dp))
-                Text("Любимые треки", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+        } else {
+            if (userPlaylists.containsKey(opened)) {
+                TextButton(onClick = {
+                    val name = opened ?: return@TextButton
+                    onDeletePlaylist(name)
+                    opened = null
+                }) { Text("Удалить плейлист (файлы сохранятся)", color = NeonPink) }
             }
-            if (favorites.isEmpty()) item { EmptyHint("Твои любимые композиции появятся здесь") }
-            else items(favorites, key = { it.id }) { track ->
-                LibraryTrackRow(track, palette) { onPlay(favorites, track) }
-            }
-            item {
-                Spacer(Modifier.height(5.dp))
-                Text("Недавно добавленные", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            if (recent.isEmpty()) item { EmptyHint("Добавь музыку на телефон, чтобы увидеть её здесь") }
-            else items(recent, key = { "recent-${it.id}" }) { track ->
-                LibraryTrackRow(track, palette) { onPlay(recent, track) }
+            if (selectedTracks.isEmpty()) {
+                EmptyHint("Здесь пока нет композиций")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 15.dp)) {
+                    items(selectedTracks, key = { it.id }) { track ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) {
+                                LibraryTrackRow(track, palette,
+                                    { onPlay(selectedTracks, track) }, { onLongPress(track) })
+                            }
+                            if (userPlaylists.containsKey(opened)) {
+                                TextButton(onClick = {
+                                    onRemoveTrack(opened ?: "", track.id)
+                                }) { Text("−", color = palette.accent) }
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+    if (creating) {
+        AlertDialog(
+            onDismissRequest = { creating = false },
+            title = { Text("Новый плейлист", color = Color.White) },
+            text = {
+                Column {
+                    OutlinedTextField(value = newName, onValueChange = { newName = it.take(45) },
+                        label = { Text("Название") }, singleLine = true)
+                    if (createError) Text("Такое имя уже существует или не подходит",
+                        color = NeonPink)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (onCreate(newName)) {
+                        opened = newName.trim()
+                        creating = false
+                        newName = ""
+                        createError = false
+                    } else createError = true
+                }) { Text("Создать", color = palette.accent) }
+            },
+            dismissButton = { TextButton(onClick = { creating = false }) {
+                Text("Отмена", color = NeonSubtle)
+            } },
+            containerColor = Color(0xFF101D40)
+        )
     }
 }
 @Composable
