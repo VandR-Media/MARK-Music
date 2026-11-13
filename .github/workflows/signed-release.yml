@@ -49,6 +49,10 @@ jobs:
           "$BT/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/mark-aligned-unsigned.apk"
           "$BT/zipalign" -c -v -p 4 "$RUNNER_TEMP/mark-aligned-unsigned.apk"
 
+      - name: Audit packaged permissions and application identity
+        shell: bash
+        run: bash scripts/audit-release-apk.sh "$RUNNER_TEMP/mark-aligned-unsigned.apk"
+
       - name: Sign and verify with protected repository secrets
         shell: bash
         env:
