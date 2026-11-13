@@ -47,7 +47,17 @@ internal val MARK_PALETTES = listOf(
     MarkPalette("AURORA", "Aurora", Color(0xFF041D2B), Color(0xFF073D49), Color(0xD9103945), Color(0xFF4DE7C5), Color(0xFF48B9FF)),
     MarkPalette("ELECTRIC_POP", "Electric Pop", Color(0xFF18082E), Color(0xFF3C0B53), Color(0xD9271746), Color(0xFFFF55D6), Color(0xFF9D63FF)),
     MarkPalette("CRYSTAL_LIGHT", "Crystal Light", Color(0xFF071D39), Color(0xFF153E68), Color(0xD91B3A5C), Color(0xFF8BE8FF), Color(0xFFB6C9FF)),
-    MarkPalette("SOLAR_ENERGY", "Solar Energy", Color(0xFF251126), Color(0xFF55230F), Color(0xD9382536), Color(0xFFFFB05E), Color(0xFFFF6E9D))
+    MarkPalette("SOLAR_ENERGY", "Solar Energy", Color(0xFF251126), Color(0xFF55230F), Color(0xD9382536), Color(0xFFFFB05E), Color(0xFFFF6E9D)),
+    MarkPalette("NEBULA_ROSE", "Nebula Rose", Color(0xFF140D2C), Color(0xFF381644), Color(0xC9272451), Color(0xFFFF84BC), Color(0xFFFFB2E4)),
+    MarkPalette("GALACTIC_EMERALD", "Galactic Emerald", Color(0xFF061F25), Color(0xFF073D35), Color(0xC91A3E3D), Color(0xFF4BF5BD), Color(0xFF73C4FF)),
+    MarkPalette("MIDNIGHT_GOLD", "Midnight Gold", Color(0xFF0C142C), Color(0xFF282347), Color(0xCA2B2D4B), Color(0xFFFFD77A), Color(0xFFA895FF)),
+    MarkPalette("RED_SUPERNOVA", "Red Supernova", Color(0xFF260C20), Color(0xFF521529), Color(0xC9371B39), Color(0xFFFF705D), Color(0xFFFFBA77)),
+    MarkPalette("ULTRAVIOLET", "Ultraviolet", Color(0xFF110A32), Color(0xFF30205E), Color(0xCD29214C), Color(0xFFC388FF), Color(0xFF70C8FF)),
+    MarkPalette("OCEAN_DEPTH", "Ocean Depth", Color(0xFF041727), Color(0xFF063955), Color(0xC9123550), Color(0xFF57D3FF), Color(0xFF48F4D7)),
+    MarkPalette("JADE_MOON", "Jade Moon", Color(0xFF091D25), Color(0xFF183D3A), Color(0xCB183B46), Color(0xFFB1E8A1), Color(0xFF77CFCC)),
+    MarkPalette("FROSTED_LILAC", "Frosted Lilac", Color(0xFF16182F), Color(0xFF3B315C), Color(0xC9293153), Color(0xFFD2B7FF), Color(0xFF8EEBFF)),
+    MarkPalette("COPPER_DUSK", "Copper Dusk", Color(0xFF251421), Color(0xFF58332C), Color(0xCD3C2B3D), Color(0xFFFFA877), Color(0xFFF3D38B)),
+    MarkPalette("STELLAR_MINT", "Stellar Mint", Color(0xFF071E2C), Color(0xFF123F4A), Color(0xCB17364A), Color(0xFF73FFE3), Color(0xFFB4A6FF))
 )
 
 internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull { it.key == key } ?: MARK_PALETTES.first()
