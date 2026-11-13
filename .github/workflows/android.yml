@@ -21,6 +21,11 @@ jobs:
           gradle-version: '8.13'
       - name: Install Android SDK platform
         run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Check obsolete drawable resources
+        run: |
+          test ! -f app/src/main/res/drawable/mark_logo.xml
+          test ! -f app/src/main/res/drawable/mark_launcher.xml
+          test ! -f app/src/main/res/drawable-nodpi/mark_logo.jpg
       - name: Validate approved artwork assets
         run: |
           python3 - <<'PY'
@@ -35,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle clean :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Preserve APK signing utility
         if: success()
         shell: bash
@@ -48,7 +53,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.6.0-APKs
+          name: MARK-Audio-v0.6.1-clean-APKs
           path: |
             build.log
             app/build/reports/tests/testDebugUnitTest/**
