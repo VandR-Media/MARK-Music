@@ -200,6 +200,9 @@ internal fun MarkLibraryScreen(
 ) {
     val labels = listOf("Треки", "Альбомы", "Исполнители", "Папки")
     var openedGroup by remember(category) { mutableStateOf<String?>(null) }
+    androidx.activity.compose.BackHandler(enabled = openedGroup != null) {
+        openedGroup = null
+    }
     Column(Modifier.fillMaxSize().padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NeonIconTile("library", palette.accent, size = 53.dp)
