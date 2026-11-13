@@ -71,6 +71,9 @@ jobs:
           "$BT/aapt" dump badging "$OUTPUT" | tee apk-badging.txt
           "$BT/aapt" dump permissions "$OUTPUT" | tee apk-permissions.txt
           sha256sum "$OUTPUT" | tee apk-aligned-sha256.txt
+      - name: Audit final APK permissions
+        shell: bash
+        run: bash scripts/audit-release-apk.sh app/build/outputs/apk/release/app-release-unsigned-aligned.apk
       - name: Audit dependency tree
         shell: bash
         run: gradle :app:dependencies --configuration releaseRuntimeClasspath --no-daemon > release-dependencies.txt
