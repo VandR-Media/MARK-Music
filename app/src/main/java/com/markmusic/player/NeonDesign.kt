@@ -179,11 +179,12 @@ internal fun NeonIconTile(
             .drawWithContent {
                 drawContent()
                 if (selected) {
-                    val center = (shimmer * 2.0f - 0.45f) * size.width
+                    val canvasSize = this.size
+                    val center = (shimmer * 2.0f - 0.45f) * canvasSize.width
                     drawRect(brush = Brush.linearGradient(
                         listOf(Color.Transparent, Color.White.copy(alpha = .30f), Color.Transparent),
-                        start = Offset(center - size.width * .38f, 0f),
-                        end = Offset(center + size.width * .38f, size.height)
+                        start = Offset(center - canvasSize.width * .38f, 0f),
+                        end = Offset(center + canvasSize.width * .38f, canvasSize.height)
                     ))
                 }
             }
