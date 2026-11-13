@@ -49,7 +49,11 @@ class PlaybackService : MediaSessionService() {
         session = MediaSession.Builder(this, p).build()
         AudioSessionBus.sessionId.value = p.audioSessionId
     }
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
+    // The service is exported for Android media controls, but arbitrary apps must not
+    // receive unrestricted access to the user's playback queue and local file URIs.
+    // Media3 trusts our own UID, system controllers and user-approved media controllers.
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
+        if (controllerInfo.isTrusted) session else null
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (player?.isPlaying != true) stopSelf()
     }
