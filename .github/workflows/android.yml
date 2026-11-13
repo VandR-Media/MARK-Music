@@ -1,4 +1,4 @@
-name: Android debug APK
+name: MARK Audio Android CI
 on:
   pull_request:
   workflow_dispatch:
@@ -13,14 +13,36 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
-      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
-      - run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
-      - uses: actions/upload-artifact@v4
+      - name: Install Android SDK platform
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Unit tests and release build
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Preserve APK signing utility
         if: success()
+        shell: bash
+        run: |
+          mkdir -p signing-tools
+          cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" signing-tools/apksigner.jar
+          cp "$ANDROID_HOME/build-tools/36.0.0/zipalign" signing-tools/zipalign
+          chmod +x signing-tools/zipalign
+          test -s app/build/outputs/apk/release/app-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: MARK-Music-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: MARK-Audio-v0.4.0-release-unsigned
+          path: |
+            build.log
+            app/build/reports/tests/testDebugUnitTest/**
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            signing-tools/apksigner.jar
+            signing-tools/zipalign
+          if-no-files-found: warn
