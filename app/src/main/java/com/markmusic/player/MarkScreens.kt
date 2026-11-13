@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,36 +73,45 @@ internal fun MarkHomeScreen(
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Image(logo, null, Modifier.size(45.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop)
-                Spacer(Modifier.width(11.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("MARK", fontSize = 21.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = 1.2.sp)
-                    Text("AUDIO PLAYER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = palette.accent, letterSpacing = 2.1.sp)
+            NeonGlass(palette, Modifier.fillMaxWidth(), radius = 28.dp) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(logo, null, Modifier.size(54.dp).clip(RoundedCornerShape(17.dp)), contentScale = ContentScale.Fit)
+                    Spacer(Modifier.width(11.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("MARK", fontSize = 26.sp, fontWeight = FontWeight.Black,
+                            color = Color.White, letterSpacing = 1.3.sp)
+                        Text("A U D I O", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                            color = palette.accent, letterSpacing = 2.sp)
+                    }
+                    HeaderAction("⌕", "Поиск", onSearch, palette)
+                    Spacer(Modifier.width(7.dp))
+                    HeaderAction("↻", "Обновить", onRefresh, palette)
+                    Spacer(Modifier.width(7.dp))
+                    HeaderAction("⚙", "Оформление", onOpenThemes, palette)
                 }
-                HeaderAction("⌕", "Поиск", onSearch, palette)
-                Spacer(Modifier.width(6.dp))
-                HeaderAction("↻", "Обновить", onRefresh, palette)
-                Spacer(Modifier.width(6.dp))
-                HeaderAction("⚙", "Оформление", onOpenThemes, palette)
             }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Твоя музыка. Твои правила.", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                Text("${songs.size} композиций уже ждут тебя", fontSize = 11.sp, color = Color(0xFFB9C9E8))
+                NeonScript("Feel the sound. See the music.", palette.accent, size = 22)
+                Text("${songs.size} композиций в твоей вселенной", fontSize = 12.sp, color = NeonSubtle)
             }
         }
         if (!audioAllowed) {
             item {
-                Surface(color = Color(0xCC17294A), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().border(1.dp, palette.accent.copy(alpha = .25f), RoundedCornerShape(18.dp))) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Открой свою музыкальную вселенную", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text("Разреши доступ к аудиофайлам, чтобы MARK Audio собрал треки, альбомы и папки на телефоне. Музыка остаётся на устройстве.",
-                            color = Color(0xFFB9C9E8), fontSize = 11.sp, lineHeight = 15.sp)
-                        Button(onClick = onRequestPermission, colors = ButtonDefaults.buttonColors(containerColor = palette.accent)) {
-                            Text("Найти музыку", color = Color(0xFF07152D), fontWeight = FontWeight.Bold)
+                NeonGlass(palette, Modifier.fillMaxWidth(), radius = 27.dp) {
+                    Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            NeonIconTile("wave", palette.secondary, size = 49.dp)
+                            Text("Открой свою музыкальную вселенную", color = Color.White,
+                                fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 21.sp)
                         }
+                        Text("Разреши доступ к аудиофайлам, чтобы MARK Audio собрал треки, альбомы и папки на телефоне. Музыка остаётся на устройстве.",
+                            color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
+                        NeonPill("Найти музыку", palette, onClick = onRequestPermission, icon = "search")
                     }
                 }
             }
@@ -121,7 +132,10 @@ internal fun MarkHomeScreen(
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(11.dp)) {
                     recent.forEach { track ->
                         Column(Modifier.width(116.dp).clickable { onPlay(recent, track) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            MarkCover(track, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(17.dp)))
+                            Box(Modifier.fillMaxWidth().shadow(9.dp, RoundedCornerShape(22.dp),
+                                ambientColor = palette.secondary.copy(alpha = .30f), spotColor = palette.accent.copy(alpha = .25f))) {
+                                MarkCover(track, Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp)))
+                            }
                             Text(track.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(track.artist, color = Color(0xFFB9C9E8), fontSize = 10.sp,
@@ -473,22 +487,23 @@ internal fun MarkWelcomeScreen(welcomeArtwork: ImageBitmap, palette: MarkPalette
 
 @Composable
 private fun HeaderAction(symbol: String, description: String, onClick: () -> Unit, palette: MarkPalette) {
-    Surface(onClick = onClick, color = palette.panel, shape = CircleShape, modifier = Modifier.size(36.dp)) {
-        Box(contentAlignment = Alignment.Center) { Text(symbol, color = palette.accent, fontSize = 20.sp) }
-    }
+    val icon = when (symbol) { "⌕" -> "search"; "↻" -> "refresh"; else -> "settings" }
+    NeonRoundButton(icon, if (icon == "settings") palette.secondary else palette.accent, onClick, 42.dp)
 }
 
 @Composable
 private fun CategoryTile(symbol: String, title: String, count: String, tint: Color, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = Color(0xAA17294A), shape = RoundedCornerShape(17.dp), modifier = modifier) {
-        Column(Modifier.padding(vertical = 10.dp, horizontal = 3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(symbol, color = tint, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-            Text(title, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-            Text(count, color = Color(0xFF9BAECD), fontSize = 9.sp)
+    val icon = when (symbol) { "♫" -> "music"; "◉" -> "album"; "♙" -> "artist"; else -> "folder" }
+    NeonGlass(markPalette("COSMIC_BLUE"), modifier, radius = 24.dp, onClick = onClick) {
+        Column(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 12.dp, start = 2.dp, end = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            NeonIconTile(icon, tint, size = 51.dp)
+            Text(title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(count, color = NeonSubtle, fontSize = 10.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
-
 @Composable
 private fun SectionHeading(title: String, action: String, palette: MarkPalette, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -501,45 +516,46 @@ private fun SectionHeading(title: String, action: String, palette: MarkPalette, 
 
 @Composable
 private fun PlaylistTile(symbol: String, title: String, subtitle: String, tint: Color, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = Color(0xAA17294A), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(43.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(tint, tint.copy(alpha = .35f)))),
-                contentAlignment = Alignment.Center) {
-                Text(symbol, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+    NeonGlass(markPalette("COSMIC_BLUE"), Modifier.fillMaxWidth(), radius = 24.dp, onClick = onClick) {
+        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            NeonIconTile(if (symbol == "♥") "heart" else if (symbol == "✦") "time" else "music",
+                tint, size = 55.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(subtitle, color = NeonSubtle, fontSize = 11.sp)
             }
-            Spacer(Modifier.width(11.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text(subtitle, color = Color(0xFF9BAECD), fontSize = 10.sp)
-            }
-            Text("›", color = tint, fontSize = 25.sp)
+            NeonGlyph("chevron", tint, size = 28.dp)
         }
     }
 }
-
 @Composable
 private fun EmptyHint(message: String) {
-    Text(message, color = Color(0xFF9BAECD), fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(20.dp),
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    Column(Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        NeonIconTile("wave", NeonBlue, size = 58.dp)
+        Text(message, color = NeonSubtle, fontSize = 13.sp, lineHeight = 19.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
 }
-
 @Composable
 private fun LibraryTrackRow(track: Track, palette: MarkPalette, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = Color.Transparent, shape = RoundedCornerShape(14.dp)) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp, horizontal = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-            MarkCover(track, Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)))
-            Spacer(Modifier.width(11.dp))
-            Column(Modifier.weight(1f)) {
-                Text(track.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 20.dp, onClick = onClick) {
+        Row(Modifier.fillMaxWidth().padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
+            MarkCover(track, Modifier.size(54.dp).clip(RoundedCornerShape(17.dp)))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(track.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${track.artist} · ${track.album}", color = Color(0xFF9BAECD), fontSize = 10.sp,
+                Text("${track.artist} · ${track.album}", color = NeonSubtle, fontSize = 11.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(formatTrackTime(track.durationMs), color = palette.accent, fontSize = 10.sp)
+            Text(formatTrackTime(track.durationMs), color = palette.accent, fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold)
         }
     }
 }
-
 @Composable
 private fun MarkCover(track: Track, modifier: Modifier) {
     val context = LocalContext.current
@@ -549,23 +565,16 @@ private fun MarkCover(track: Track, modifier: Modifier) {
     Box(modifier.background(Brush.linearGradient(listOf(Color(0xFF713BBA), Color(0xFF174C8C), Color(0xFF14AFC6)))),
         contentAlignment = Alignment.Center) {
         if (cover != null) Image(cover!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Text("M", color = Color.White.copy(alpha = .9f), fontSize = 25.sp, fontWeight = FontWeight.Black)
+        else NeonGlyph("music", Color.White, size = 32.dp)
     }
 }
 
 @Composable
 private fun PlayerControl(symbol: String, fontSize: Int, primary: Boolean, palette: MarkPalette, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick, shape = CircleShape,
-        color = if (primary) palette.accent else palette.panel,
-        modifier = Modifier.size(if (primary) 66.dp else 49.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(symbol, color = if (primary) Color(0xFF07152D) else Color.White, fontSize = fontSize.sp, fontWeight = FontWeight.Bold)
-        }
-    }
+    val name = when (symbol) { "⏮" -> "previous"; "⏭" -> "next"; "▶" -> "play"; else -> "pause" }
+    NeonRoundButton(name, if (primary) palette.accent else palette.secondary, onClick,
+        if (primary) 76.dp else 55.dp, primary)
 }
-
 private fun formatTrackTime(ms: Long): String {
     val seconds = max(0L, ms) / 1000
     return "%d:%02d".format(seconds / 60, seconds % 60)
