@@ -168,13 +168,6 @@ internal fun MarkHomeScreen(
                 }
             }
         }
-        item {
-            SectionHeading("Мои плейлисты", "ОТКРЫТЬ", palette, onOpenPlaylists)
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                PlaylistTile("♥", "Любимые треки", "$favoritesCount треков", palette.secondary, onOpenPlaylists)
-                PlaylistTile("♫", "Вся медиатека", "${songs.size} треков", palette.accent) { onOpenLibrary(0) }
-            }
-        }
         if (current != null) {
             item {
                 Text("Сейчас играет", color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -202,9 +195,11 @@ internal fun MarkLibraryScreen(
     loading: Boolean,
     error: String?,
     palette: MarkPalette,
-    onPlay: (List<Track>, Track) -> Unit
+    onPlay: (List<Track>, Track) -> Unit,
+    onLongPress: (Track) -> Unit = {}
 ) {
     val labels = listOf("Треки", "Альбомы", "Исполнители", "Папки")
+    var openedGroup by remember(category) { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NeonIconTile("library", palette.accent, size = 53.dp)
@@ -255,6 +250,7 @@ internal fun MarkLibraryScreen(
                             chipShape
                         )
                         .clickable(interactionSource = interaction, indication = LocalIndication.current) {
+                            openedGroup = null
                             onCategoryChange(index)
                         },
                     contentAlignment = Alignment.Center
@@ -283,24 +279,50 @@ internal fun MarkLibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (category == 0) {
-                    items(songs, key = { it.id }) { track -> LibraryTrackRow(track, palette) { onPlay(songs, track) } }
-                } else {
-                    val groups = when (category) {
-                        1 -> songs.groupBy { it.albumId }.values.map { it.first().album to it }
-                            .sortedBy { it.first.lowercase() }
-                        2 -> LibraryGrouping.groupByAlbum(songs) { it.artist }.toList()
-                        else -> LibraryGrouping.groupByFolder(songs) { it.folder }.toList()
+                    items(songs, key = { "song-${it.id}" }) { track ->
+                        LibraryTrackRow(track, palette, { onPlay(songs, track) }, { onLongPress(track) })
                     }
-                    groups.forEach { (name, tracks) ->
-                        item(key = "group-$category-$name") {
-                            Row(Modifier.fillMaxWidth().padding(top = 13.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(name, Modifier.weight(1f), color = palette.accent, fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text("${tracks.size}", color = Color(0xFFB9C9E8), fontSize = 12.sp)
-                            }
+                } else {
+                    val groups: List<Pair<String, List<Track>>> = when (category) {
+                        1 -> songs.groupBy { "${it.albumId}|${it.album}" }.values
+                            .map { it.first().album to it }.sortedBy { it.first.lowercase() }
+                        2 -> songs.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }
+                        else -> songs.groupBy { it.folder }.toList().sortedBy { it.first.lowercase() }
+                    }
+                    val opened = groups.firstOrNull { it.first == openedGroup }
+                    if (opened != null) {
+                        item {
+                            NeonPill("← Все ${labels[category].lowercase()}", palette,
+                                onClick = { openedGroup = null })
+                            Spacer(Modifier.height(8.dp))
                         }
-                        items(tracks, key = { "$category-$name-${it.id}" }) { track ->
-                            LibraryTrackRow(track, palette) { onPlay(tracks, track) }
+                        items(opened.second, key = { "group-${it.id}" }) { track ->
+                            LibraryTrackRow(track, palette, { onPlay(opened.second, track) },
+                                { onLongPress(track) })
+                        }
+                    } else {
+                        items(groups.chunked(2), key = { row -> row.first().first }) { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                row.forEach { (name, tracks) ->
+                                    val label = if (category == 3) name.trimEnd('/').substringAfterLast('/')
+                                        .ifBlank { "Другие папки" } else name
+                                    NeonGlass(palette,
+                                        Modifier.weight(1f).height(166.dp), radius = 23.dp,
+                                        onClick = { openedGroup = name }) {
+                                        Column(Modifier.fillMaxSize().padding(9.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            MarkCover(tracks.first(), Modifier.size(89.dp)
+                                                .clip(RoundedCornerShape(17.dp)))
+                                            Text(label, color = Color.White, maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Text("${tracks.size} треков", color = NeonSubtle, fontSize = 10.sp)
+                                        }
+                                    }
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -782,7 +804,10 @@ private fun EmptyHint(message: String) {
     }
 }
 @Composable
-private fun LibraryTrackRow(track: Track, palette: MarkPalette, onClick: () -> Unit) {
+private fun LibraryTrackRow(
+    track: Track, palette: MarkPalette, onClick: () -> Unit,
+    onLongPress: () -> Unit = {}
+) {
     NeonGlass(palette, Modifier.fillMaxWidth(), radius = 20.dp, onClick = onClick) {
         Row(Modifier.fillMaxWidth().padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
             MarkCover(track, Modifier.size(54.dp).clip(RoundedCornerShape(17.dp)))
