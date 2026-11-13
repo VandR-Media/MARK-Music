@@ -67,18 +67,25 @@ internal fun NeonGlass(
     val tap = if (onClick == null) Modifier else Modifier.clickable(
         interactionSource = interaction, indication = LocalIndication.current, onClick = onClick
     )
-    val motion = if (onClick != null) Modifier.floatingGlassMotion(pressed, palette.accent) else Modifier
+    val motion = Modifier.floatingGlassMotion(pressed, palette.accent, depth = if (onClick == null) .55f else 1f)
     Box(
         modifier.then(motion)
-            .shadow(if (pressed) 3.dp else 12.dp, shape, ambientColor = palette.accent.copy(alpha = .20f),
-                spotColor = palette.secondary.copy(alpha = .20f))
+            .shadow(if (pressed) 4.dp else 15.dp, shape, ambientColor = palette.accent.copy(alpha = .30f),
+                spotColor = palette.secondary.copy(alpha = .27f))
             .clip(shape)
             .background(Brush.verticalGradient(listOf(
-                Color(0xE42C426E), palette.panel, Color(0xDE0C193B)
+                Color(0xAB526B9C), Color(0x9C243E6E), Color(0xA309153A)
             )))
+            .drawWithContent {
+                drawContent()
+                drawRect(Brush.linearGradient(
+                    listOf(Color.White.copy(alpha = .19f), Color.Transparent, palette.secondary.copy(alpha = .055f)),
+                    start = Offset.Zero, end = Offset(size.width, size.height)
+                ))
+            }
             .border(1.dp, Brush.linearGradient(listOf(
-                Color.White.copy(alpha = .40f), palette.accent.copy(alpha = .50f),
-                palette.secondary.copy(alpha = .23f)
+                Color.White.copy(alpha = .67f), palette.accent.copy(alpha = .56f),
+                palette.secondary.copy(alpha = .32f)
             )), shape)
             .then(tap)
     ) {
@@ -151,7 +158,7 @@ internal fun NeonIconTile(
     val tap = if (onClick == null) Modifier else Modifier.clickable(
         interactionSource = interaction, indication = LocalIndication.current, onClick = onClick
     )
-    // Only the active section receives the moving beam; decorative icons stay still.
+    // Active sections get a slow light beam; all tiles get physical depth.
     val shimmer = if (selected) {
         val transition = rememberInfiniteTransition(label = "active-glass-light")
         val phase by transition.animateFloat(
@@ -161,7 +168,7 @@ internal fun NeonIconTile(
         )
         phase
     } else 0f
-    val motion = if (onClick != null || selected) Modifier.floatingGlassMotion(pressed, color) else Modifier
+    val motion = Modifier.floatingGlassMotion(pressed, color, depth = if (selected) 1.15f else .8f)
     Box(
         modifier.size(size).scale(scale).then(motion)
             .shadow(if (selected) 19.dp else 11.dp, shape,
@@ -169,8 +176,8 @@ internal fun NeonIconTile(
                 spotColor = color.copy(alpha = .72f))
             .clip(shape)
             .background(Brush.linearGradient(listOf(
-                Color.White.copy(alpha = .32f), color.copy(alpha = .85f),
-                color.copy(alpha = .44f), Color(0xFF101D49)
+                Color.White.copy(alpha = .40f), color.copy(alpha = .83f),
+                color.copy(alpha = .55f), Color(0x99101D49)
             )))
             .border(1.dp, Brush.linearGradient(listOf(
                 Color.White.copy(alpha = .88f), color.copy(alpha = .85f),
@@ -218,8 +225,8 @@ internal fun NeonRoundButton(
                 ambientColor = color.copy(alpha = .60f), spotColor = color.copy(alpha = .50f))
             .clip(shape)
             .background(Brush.linearGradient(listOf(
-                Color.White.copy(alpha = if (primary) .85f else .30f),
-                color.copy(alpha = if (primary) 1f else .83f), Color(0xFF132D57)
+                Color.White.copy(alpha = if (primary) .75f else .40f),
+                color.copy(alpha = if (primary) .95f else .79f), Color(0xB3132D57)
             )))
             .border(1.5.dp, Color.White.copy(alpha = .65f), shape)
             .clickable(interactionSource = interaction, indication = LocalIndication.current, onClick = onClick),
@@ -245,7 +252,11 @@ internal fun NeonPill(
             .shadow(if (pressed) 3.dp else 12.dp, shape, ambientColor = palette.accent.copy(alpha = .40f),
                 spotColor = palette.accent.copy(alpha = .40f))
             .clip(shape)
-            .background(Brush.horizontalGradient(listOf(palette.accent, Color(0xFF64B2FF), palette.secondary)))
+            .background(Brush.horizontalGradient(listOf(
+                palette.accent.copy(alpha = .88f),
+                Color(0xC864B2FF),
+                palette.secondary.copy(alpha = .87f)
+            )))
             .border(1.dp, Color.White.copy(alpha = .72f), shape)
             .clickable(interactionSource = interaction, indication = LocalIndication.current, onClick = onClick)
             .padding(horizontal = 21.dp, vertical = 13.dp),

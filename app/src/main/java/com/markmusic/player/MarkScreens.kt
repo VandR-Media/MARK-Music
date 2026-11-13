@@ -201,8 +201,9 @@ internal fun MarkLibraryScreen(
             placeholder = { Text("Поиск музыки", fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { NeonGlyph("search", palette.accent, size = 28.dp) },
             shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()
-                .shadow(10.dp, RoundedCornerShape(24.dp), ambientColor = palette.accent.copy(alpha = .2f))
-                .background(Color(0xA5172B50), RoundedCornerShape(24.dp)),
+                .floatingGlassMotion(false, palette.accent, depth = .3f)
+                .shadow(13.dp, RoundedCornerShape(24.dp), ambientColor = palette.accent.copy(alpha = .25f))
+                .background(Color(0x85172B50), RoundedCornerShape(24.dp)),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = palette.accent, unfocusedBorderColor = palette.secondary.copy(alpha = .40f),
                 focusedTextColor = Color.White, unfocusedTextColor = Color.White,
@@ -214,19 +215,28 @@ internal fun MarkLibraryScreen(
             labels.forEachIndexed { index, label ->
                 val active = category == index
                 val chipShape = RoundedCornerShape(18.dp)
+                val interaction = remember { MutableInteractionSource() }
+                val pressed by interaction.collectIsPressedAsState()
                 Box(
                     Modifier.weight(1f).height(41.dp)
+                        .floatingGlassMotion(pressed, palette.accent, depth = if (active) 1f else .65f)
+                        .shadow(if (active) 13.dp else 7.dp, chipShape,
+                            ambientColor = palette.accent.copy(alpha = if (active) .35f else .13f))
                         .clip(chipShape)
                         .background(
-                            if (active) palette.accent.copy(alpha = .24f)
-                            else Color(0x991B2F54),
+                            Brush.verticalGradient(if (active) listOf(
+                                Color.White.copy(alpha = .25f), palette.accent.copy(alpha = .28f),
+                                Color(0x70263D69)
+                            ) else listOf(Color(0x883C527B), Color(0x74111F42))),
                             chipShape
                         )
                         .border(1.dp,
                             if (active) palette.accent else palette.secondary.copy(alpha = .35f),
                             chipShape
                         )
-                        .clickable { onCategoryChange(index) },
+                        .clickable(interactionSource = interaction, indication = LocalIndication.current) {
+                            onCategoryChange(index)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -518,8 +528,15 @@ internal fun MarkBottomNavigation(selected: Int, palette: MarkPalette, onSelect:
                     Modifier.weight(1f)
                         .floatingGlassMotion(pressed, item.third)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (selected == index) item.third.copy(alpha = .12f)
-                            else Color.Transparent)
+                        .background(
+                            if (selected == index) Brush.verticalGradient(listOf(
+                                Color.White.copy(alpha = .17f),
+                                item.third.copy(alpha = .19f),
+                                Color(0x38283964)
+                            )) else Brush.verticalGradient(listOf(
+                                Color.White.copy(alpha = .045f), Color.Transparent
+                            ))
+                        )
                         .clickable(interactionSource = interaction, indication = LocalIndication.current) {
                             onSelect(index)
                         }
