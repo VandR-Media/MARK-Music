@@ -32,6 +32,8 @@ import kotlin.math.abs
 // Provide the State, not its value: only RenderNode/layer redraws when a sensor
 // sample arrives. Recomposition of the entire music library would stutter audio UI.
 internal val LocalGlassTilt = compositionLocalOf<State<Offset>> { mutableStateOf(Offset.Zero) }
+// A multiplier for UI parallax. 1f preserves the original v0.6.6 sensitivity.
+internal val LocalGlassSensitivity = compositionLocalOf { 1f }
 
 @Composable
 internal fun GlassMotionHost(content: @Composable () -> Unit) {
@@ -116,6 +118,7 @@ internal fun Modifier.floatingGlassMotion(
     depth: Float = 1f
 ): Modifier {
     val tilt = LocalGlassTilt.current
+    val sensitivity = LocalGlassSensitivity.current
     val scale by animateFloatAsState(
         targetValue = if (pressed) .952f else 1f,
         animationSpec = spring(dampingRatio = .68f, stiffness = 480f),
@@ -127,7 +130,8 @@ internal fun Modifier.floatingGlassMotion(
         label = "glass-press-lift"
     )
     return this.graphicsLayer {
-        val angle = tilt.value
+        val raw = tilt.value
+        val angle = Offset(raw.x * sensitivity, raw.y * sensitivity)
         val unit = density
         scaleX = scale
         scaleY = scale
