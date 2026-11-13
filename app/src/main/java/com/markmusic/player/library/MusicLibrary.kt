@@ -66,13 +66,13 @@ object MusicLibrary {
                     else path.substringBeforeLast('/', "")
                 val title = cursor.getString(titleIndex).orEmpty().ifBlank { "Без названия" }
                 val displayName = cursor.getString(nameIndex).orEmpty()
-                val lower = "${displayName} ${title} ${folder}".lowercase()
-                val likelyVoice = listOf(
-                    "voice message", "voice_", "voice-", "голосовое", "запись разговора",
-                    "recordings/", "recording_", "whatsapp audio", "telegram audio",
-                    "ptt-", "opus_audio", "диктофон", "audio message"
-                ).any { lower.contains(it) }
-                val isMusic = cursor.getInt(musicIndex) != 0 && !likelyVoice
+                val isMusic = AudioClassifier.isMusic(
+                    title = title, displayName = displayName, folder = folder,
+                    isMusicTag = cursor.getInt(musicIndex) != 0,
+                    artist = cursor.getString(artistIndex).orEmpty(),
+                    album = cursor.getString(albumIndex).orEmpty(),
+                    durationMs = cursor.getLong(durationIndex)
+                )
                 songs.add(Track(
                     id = id,
                     uri = ContentUris.withAppendedId(collection, id),
