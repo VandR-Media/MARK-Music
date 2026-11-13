@@ -1,6 +1,9 @@
 package com.markmusic.player
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
@@ -509,12 +512,17 @@ internal fun MarkBottomNavigation(selected: Int, palette: MarkPalette, onSelect:
             horizontalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             items.forEachIndexed { index, item ->
+                val interaction = remember { MutableInteractionSource() }
+                val pressed by interaction.collectIsPressedAsState()
                 Column(
                     Modifier.weight(1f)
+                        .floatingGlassMotion(pressed, item.third)
                         .clip(RoundedCornerShape(18.dp))
                         .background(if (selected == index) item.third.copy(alpha = .12f)
                             else Color.Transparent)
-                        .clickable { onSelect(index) }
+                        .clickable(interactionSource = interaction, indication = LocalIndication.current) {
+                            onSelect(index)
+                        }
                         .padding(vertical = 3.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
