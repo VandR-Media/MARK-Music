@@ -193,16 +193,8 @@ private fun MarkApp() {
         navigate(2)
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().drawBehind {
-            drawRect(Brush.linearGradient(listOf(palette.start, palette.end)))
-            drawCircle(palette.accent.copy(alpha = .17f), size.minDimension * .48f,
-                androidx.compose.ui.geometry.Offset(size.width * .92f, size.height * .12f))
-            drawCircle(palette.secondary.copy(alpha = .14f), size.minDimension * .36f,
-                androidx.compose.ui.geometry.Offset(size.width * .02f, size.height * .78f))
-            drawRect(Brush.verticalGradient(listOf(Color(0x22051020), Color(0xB8051024))))
-        }.systemBarsPadding()
-    ) {
+    Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+        CosmicVoyageBackground(palette, Modifier.matchParentSize())
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             when (navTab) {
                 0 -> Box(Modifier.weight(1f)) {
