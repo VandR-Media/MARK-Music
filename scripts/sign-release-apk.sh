@@ -41,7 +41,10 @@ fi
   --min-sdk-version 26 \
   --out "$signed" "$unsigned"
 
-report="$("$apksigner" verify --min-sdk-version 26 --verbose --print-certs "$signed")"
+# API 23 forces JAR v1 verification; API 26+ normally chooses v2/v3 and
+# reports v1 as "false" even when the v1 signature is present and valid.
+report="$("$apksigner" verify --min-sdk-version 23 --verbose --print-certs "$signed")"
+"$apksigner" verify --min-sdk-version 26 "$signed"
 printf '%s\n' "$report" | grep -Fq 'Verifies'
 for scheme in v1 v2 v3; do
   printf '%s\n' "$report" | grep -Eq "Verified using ${scheme} scheme .*: true$" || {
