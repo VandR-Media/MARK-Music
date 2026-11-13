@@ -312,7 +312,9 @@ internal fun MarkLibraryScreen(
                                         Column(Modifier.fillMaxSize().padding(9.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            MarkCover(tracks.first(), Modifier.size(89.dp)
+                                            if (category == 3) FolderArtwork(tracks.first(),
+                                                Modifier.size(89.dp).clip(RoundedCornerShape(17.dp)))
+                                            else MarkCover(tracks.first(), Modifier.size(89.dp)
                                                 .clip(RoundedCornerShape(17.dp)))
                                             Text(label, color = Color.White, maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
@@ -846,6 +848,19 @@ private fun LibraryTrackRow(
         }
     }
 }
+@Composable
+private fun FolderArtwork(track: Track, modifier: Modifier) {
+    val context = LocalContext.current
+    val image by produceState<ImageBitmap?>(null, track.folder) {
+        value = MusicLibrary.embeddedCover(context, track.uri)
+            ?: MusicLibrary.folderImage(context, track.folder)
+    }
+    if (image != null) {
+        Image(image!!, contentDescription = null, modifier = modifier,
+            contentScale = ContentScale.Crop)
+    } else MarkCover(track, modifier)
+}
+
 @Composable
 private fun MarkCover(track: Track, modifier: Modifier) {
     val context = LocalContext.current
