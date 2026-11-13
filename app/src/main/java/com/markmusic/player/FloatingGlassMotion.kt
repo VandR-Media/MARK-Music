@@ -34,6 +34,7 @@ import kotlin.math.abs
 internal val LocalGlassTilt = compositionLocalOf<State<Offset>> { mutableStateOf(Offset.Zero) }
 // A multiplier for UI parallax. 1f preserves the original v0.6.6 sensitivity.
 internal val LocalGlassSensitivity = compositionLocalOf { 1f }
+internal val LocalGlassDepth = compositionLocalOf { 1f }
 
 @Composable
 internal fun GlassMotionHost(content: @Composable () -> Unit) {
@@ -119,6 +120,7 @@ internal fun Modifier.floatingGlassMotion(
 ): Modifier {
     val tilt = LocalGlassTilt.current
     val sensitivity = LocalGlassSensitivity.current
+    val depthSetting = LocalGlassDepth.current
     val scale by animateFloatAsState(
         targetValue = if (pressed) .952f else 1f,
         animationSpec = spring(dampingRatio = .68f, stiffness = 480f),
@@ -133,12 +135,13 @@ internal fun Modifier.floatingGlassMotion(
         val raw = tilt.value
         val angle = Offset(raw.x * sensitivity, raw.y * sensitivity)
         val unit = density
+        val effectiveDepth = depth * depthSetting
         scaleX = scale
         scaleY = scale
-        translationX = angle.x * 15f * unit * depth
-        translationY = (lift + angle.y * 10f * depth) * unit
-        rotationY = (-angle.x * 6f * depth).coerceIn(-5f, 5f)
-        rotationX = (angle.y * 5f * depth).coerceIn(-4f, 4f)
+        translationX = angle.x * 15f * unit * effectiveDepth
+        translationY = (lift + angle.y * 10f * effectiveDepth) * unit
+        rotationY = (-angle.x * 6f * effectiveDepth).coerceIn(-5f, 5f)
+        rotationX = (angle.y * 5f * effectiveDepth).coerceIn(-4f, 4f)
         cameraDistance = 64f * density
         // Deliberately NO shadowElevation: that made black rectangles under nav icons.
     }

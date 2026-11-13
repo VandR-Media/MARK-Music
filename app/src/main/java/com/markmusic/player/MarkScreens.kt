@@ -57,7 +57,17 @@ internal val MARK_PALETTES = listOf(
     MarkPalette("JADE_MOON", "Jade Moon", Color(0xFF091D25), Color(0xFF183D3A), Color(0xCB183B46), Color(0xFFB1E8A1), Color(0xFF77CFCC)),
     MarkPalette("FROSTED_LILAC", "Frosted Lilac", Color(0xFF16182F), Color(0xFF3B315C), Color(0xC9293153), Color(0xFFD2B7FF), Color(0xFF8EEBFF)),
     MarkPalette("COPPER_DUSK", "Copper Dusk", Color(0xFF251421), Color(0xFF58332C), Color(0xCD3C2B3D), Color(0xFFFFA877), Color(0xFFF3D38B)),
-    MarkPalette("STELLAR_MINT", "Stellar Mint", Color(0xFF071E2C), Color(0xFF123F4A), Color(0xCB17364A), Color(0xFF73FFE3), Color(0xFFB4A6FF))
+    MarkPalette("STELLAR_MINT", "Stellar Mint", Color(0xFF071E2C), Color(0xFF123F4A), Color(0xCB17364A), Color(0xFF73FFE3), Color(0xFFB4A6FF)),
+    MarkPalette("TROPICAL_FLARE", "Tropical Flare", Color(0xFFF95D70), Color(0xFFFFC75A), Color(0xB9556485), Color(0xFFFF6BA5), Color(0xFFFFF2A0)),
+    MarkPalette("CYAN_SUNRISE", "Cyan Sunrise", Color(0xFF12BED8), Color(0xFFFFCA4E), Color(0xB9556485), Color(0xFF16BFD5), Color(0xFFFFFF9E)),
+    MarkPalette("LIME_MAGENTA", "Lime Magenta", Color(0xFFA1ED3A), Color(0xFFF84AAF), Color(0xB9556485), Color(0xFF59B847), Color(0xFFFFD1F2)),
+    MarkPalette("CORAL_SKY", "Coral Sky", Color(0xFFFF897A), Color(0xFF52CEFF), Color(0xB9556485), Color(0xFFFFA65F), Color(0xFF9AEAFF)),
+    MarkPalette("GOLDEN_ORCHID", "Golden Orchid", Color(0xFFFFD866), Color(0xFFB778FF), Color(0xB9556485), Color(0xFFFFB84E), Color(0xFFDFB5FF)),
+    MarkPalette("MINT_PEACH", "Mint Peach", Color(0xFF58E6C4), Color(0xFFFF9D9F), Color(0xB9556485), Color(0xFF32D9AB), Color(0xFFFFD1BC)),
+    MarkPalette("LAVENDER_DAY", "Lavender Day", Color(0xFFDDA8FF), Color(0xFF7EC9FF), Color(0xB9556485), Color(0xFFC993FF), Color(0xFFB5EDFF)),
+    MarkPalette("SKY_PINK", "Sky Pink", Color(0xFF6ED9FF), Color(0xFFFF84D4), Color(0xB9556485), Color(0xFF53C3FF), Color(0xFFFFD0F3)),
+    MarkPalette("SOLAR_MINT", "Solar Mint", Color(0xFFFFE373), Color(0xFF65E9BB), Color(0xB9556485), Color(0xFFFFA862), Color(0xFFB4FFE3)),
+    MarkPalette("SAPPHIRE_CITRUS", "Sapphire Citrus", Color(0xFF568DFF), Color(0xFFFFBF55), Color(0xB9556485), Color(0xFF89ACFF), Color(0xFFFFEA9C))
 )
 
 internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull { it.key == key } ?: MARK_PALETTES.first()
@@ -158,13 +168,6 @@ internal fun MarkHomeScreen(
                 }
             }
         }
-        item {
-            SectionHeading("Мои плейлисты", "ОТКРЫТЬ", palette, onOpenPlaylists)
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                PlaylistTile("♥", "Любимые треки", "$favoritesCount треков", palette.secondary, onOpenPlaylists)
-                PlaylistTile("♫", "Вся медиатека", "${songs.size} треков", palette.accent) { onOpenLibrary(0) }
-            }
-        }
         if (current != null) {
             item {
                 Text("Сейчас играет", color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -192,9 +195,14 @@ internal fun MarkLibraryScreen(
     loading: Boolean,
     error: String?,
     palette: MarkPalette,
-    onPlay: (List<Track>, Track) -> Unit
+    onPlay: (List<Track>, Track) -> Unit,
+    onLongPress: (Track) -> Unit = {}
 ) {
     val labels = listOf("Треки", "Альбомы", "Исполнители", "Папки")
+    var openedGroup by remember(category) { mutableStateOf<String?>(null) }
+    androidx.activity.compose.BackHandler(enabled = openedGroup != null) {
+        openedGroup = null
+    }
     Column(Modifier.fillMaxSize().padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NeonIconTile("library", palette.accent, size = 53.dp)
@@ -245,6 +253,7 @@ internal fun MarkLibraryScreen(
                             chipShape
                         )
                         .clickable(interactionSource = interaction, indication = LocalIndication.current) {
+                            openedGroup = null
                             onCategoryChange(index)
                         },
                     contentAlignment = Alignment.Center
@@ -273,24 +282,52 @@ internal fun MarkLibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (category == 0) {
-                    items(songs, key = { it.id }) { track -> LibraryTrackRow(track, palette) { onPlay(songs, track) } }
-                } else {
-                    val groups = when (category) {
-                        1 -> songs.groupBy { it.albumId }.values.map { it.first().album to it }
-                            .sortedBy { it.first.lowercase() }
-                        2 -> LibraryGrouping.groupByAlbum(songs) { it.artist }.toList()
-                        else -> LibraryGrouping.groupByFolder(songs) { it.folder }.toList()
+                    items(songs, key = { "song-${it.id}" }) { track ->
+                        LibraryTrackRow(track, palette, { onPlay(songs, track) }, { onLongPress(track) })
                     }
-                    groups.forEach { (name, tracks) ->
-                        item(key = "group-$category-$name") {
-                            Row(Modifier.fillMaxWidth().padding(top = 13.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(name, Modifier.weight(1f), color = palette.accent, fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text("${tracks.size}", color = Color(0xFFB9C9E8), fontSize = 12.sp)
-                            }
+                } else {
+                    val groups: List<Pair<String, List<Track>>> = when (category) {
+                        1 -> songs.groupBy { "${it.albumId}|${it.album}" }.values
+                            .map { it.first().album to it }.sortedBy { it.first.lowercase() }
+                        2 -> songs.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }
+                        else -> songs.groupBy { it.folder }.toList().sortedBy { it.first.lowercase() }
+                    }
+                    val opened = groups.firstOrNull { it.first == openedGroup }
+                    if (opened != null) {
+                        item {
+                            NeonPill("← Все ${labels[category].lowercase()}", palette,
+                                onClick = { openedGroup = null })
+                            Spacer(Modifier.height(8.dp))
                         }
-                        items(tracks, key = { "$category-$name-${it.id}" }) { track ->
-                            LibraryTrackRow(track, palette) { onPlay(tracks, track) }
+                        items(opened.second, key = { "group-${it.id}" }) { track ->
+                            LibraryTrackRow(track, palette, { onPlay(opened.second, track) },
+                                { onLongPress(track) })
+                        }
+                    } else {
+                        items(groups.chunked(2), key = { row -> row.first().first }) { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                row.forEach { (name, tracks) ->
+                                    val label = if (category == 3) name.trimEnd('/').substringAfterLast('/')
+                                        .ifBlank { "Другие папки" } else name
+                                    NeonGlass(palette,
+                                        Modifier.weight(1f).height(166.dp), radius = 23.dp,
+                                        onClick = { openedGroup = name }) {
+                                        Column(Modifier.fillMaxSize().padding(9.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            if (category == 3) FolderArtwork(tracks.first(),
+                                                Modifier.size(89.dp).clip(RoundedCornerShape(17.dp)))
+                                            else MarkCover(tracks.first(), Modifier.size(89.dp)
+                                                .clip(RoundedCornerShape(17.dp)))
+                                            Text(label, color = Color.White, maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Text("${tracks.size} треков", color = NeonSubtle, fontSize = 10.sp)
+                                        }
+                                    }
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -303,59 +340,141 @@ internal fun MarkLibraryScreen(
 internal fun MarkPlaylistScreen(
     favorites: List<Track>,
     recent: List<Track>,
+    otherAudio: List<Track>,
+    userPlaylists: Map<String, Set<Long>>,
+    allSongs: List<Track>,
     palette: MarkPalette,
-    onPlay: (List<Track>, Track) -> Unit
+    onCreate: (String) -> Boolean,
+    onDeletePlaylist: (String) -> Unit,
+    onRemoveTrack: (String, Long) -> Unit,
+    onPlay: (List<Track>, Track) -> Unit,
+    onLongPress: (Track) -> Unit = {}
 ) {
+    var opened by remember { mutableStateOf<String?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    var createError by remember { mutableStateOf(false) }
+    val builtIns = listOf(
+        "Любимые треки" to favorites,
+        "Недавно добавленные" to recent,
+        "Голосовые и другое" to otherAudio
+    )
+    val selectedTracks = when (opened) {
+        null -> emptyList()
+        else -> builtIns.firstOrNull { it.first == opened }?.second
+            ?: allSongs.filter { userPlaylists[opened].orEmpty().contains(it.id) }
+    }
     Column(Modifier.fillMaxSize().padding(top = 14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NeonIconTile("playlist", NeonPink, size = 53.dp)
-            Column {
-                Text("Плейлисты", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-                NeonScript("Музыка под настроение", palette.accent, size = 15)
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NeonIconTile(if (opened == null) "playlist" else "back",
+                NeonPink, size = 50.dp, onClick = { opened = null })
+            Column(Modifier.weight(1f)) {
+                Text(opened ?: "Плейлисты", color = Color.White, fontSize = 23.sp,
+                    fontWeight = FontWeight.ExtraBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                Text(if (opened == null) "Музыка под настроение" else
+                    "${selectedTracks.size} аудиофайлов", color = palette.accent, fontSize = 12.sp)
             }
+            if (opened == null) NeonRoundButton("add", palette.accent,
+                onClick = { creating = true }, size = 44.dp)
         }
-        Spacer(Modifier.height(16.dp))
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(13.dp),
-            contentPadding = PaddingValues(bottom = 15.dp)
-        ) {
-            item {
-                PlaylistTile("♥", "Любимые треки", "${favorites.size} композиций", NeonPink) {
-                    if (favorites.isNotEmpty()) onPlay(favorites, favorites.first())
+        Spacer(Modifier.height(13.dp))
+        if (opened == null) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 15.dp)
+            ) {
+                items(builtIns, key = { it.first }) { (name, tracks) ->
+                    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 23.dp,
+                        onClick = { opened = name }) {
+                        Row(Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            NeonIconTile(
+                                if (name == "Любимые треки") "heart" else
+                                    if (name == "Недавно добавленные") "time" else "wave",
+                                palette.secondary, size = 55.dp)
+                            Spacer(Modifier.width(13.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(name, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("${tracks.size} треков", color = NeonSubtle, fontSize = 12.sp)
+                            }
+                            NeonGlyph("chevron", palette.accent)
+                        }
+                    }
                 }
-            }
-            item {
-                PlaylistTile("✦", "Недавно добавленные", "${recent.size} композиций", palette.accent) {
-                    if (recent.isNotEmpty()) onPlay(recent, recent.first())
-                }
-            }
-            item {
-                NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        NeonIconTile("wave", palette.secondary, size = 45.dp)
-                        Text("Сохраняй понравившуюся музыку сердечком в плеере — она появится здесь.",
-                            color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp)
+                items(userPlaylists.entries.toList(), key = { "custom-${it.key}" }) { entry ->
+                    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 23.dp,
+                        onClick = { opened = entry.key }) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            NeonIconTile("playlist", palette.accent, size = 55.dp)
+                            Spacer(Modifier.width(13.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(entry.key, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("${entry.value.size} треков", color = NeonSubtle, fontSize = 12.sp)
+                            }
+                            NeonGlyph("chevron", palette.accent)
+                        }
                     }
                 }
             }
-            item {
-                Spacer(Modifier.height(4.dp))
-                Text("Любимые треки", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+        } else {
+            if (userPlaylists.containsKey(opened)) {
+                TextButton(onClick = {
+                    val name = opened ?: return@TextButton
+                    onDeletePlaylist(name)
+                    opened = null
+                }) { Text("Удалить плейлист (файлы сохранятся)", color = NeonPink) }
             }
-            if (favorites.isEmpty()) item { EmptyHint("Твои любимые композиции появятся здесь") }
-            else items(favorites, key = { it.id }) { track ->
-                LibraryTrackRow(track, palette) { onPlay(favorites, track) }
-            }
-            item {
-                Spacer(Modifier.height(5.dp))
-                Text("Недавно добавленные", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            if (recent.isEmpty()) item { EmptyHint("Добавь музыку на телефон, чтобы увидеть её здесь") }
-            else items(recent, key = { "recent-${it.id}" }) { track ->
-                LibraryTrackRow(track, palette) { onPlay(recent, track) }
+            if (selectedTracks.isEmpty()) {
+                EmptyHint("Здесь пока нет композиций")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 15.dp)) {
+                    items(selectedTracks, key = { it.id }) { track ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) {
+                                LibraryTrackRow(track, palette,
+                                    { onPlay(selectedTracks, track) }, { onLongPress(track) })
+                            }
+                            if (userPlaylists.containsKey(opened)) {
+                                TextButton(onClick = {
+                                    onRemoveTrack(opened ?: "", track.id)
+                                }) { Text("−", color = palette.accent) }
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+    if (creating) {
+        AlertDialog(
+            onDismissRequest = { creating = false },
+            title = { Text("Новый плейлист", color = Color.White) },
+            text = {
+                Column {
+                    OutlinedTextField(value = newName, onValueChange = { newName = it.take(45) },
+                        label = { Text("Название") }, singleLine = true)
+                    if (createError) Text("Такое имя уже существует или не подходит",
+                        color = NeonPink)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (onCreate(newName)) {
+                        opened = newName.trim()
+                        creating = false
+                        newName = ""
+                        createError = false
+                    } else createError = true
+                }) { Text("Создать", color = palette.accent) }
+            },
+            dismissButton = { TextButton(onClick = { creating = false }) {
+                Text("Отмена", color = NeonSubtle)
+            } },
+            containerColor = Color(0xFF101D40)
+        )
     }
 }
 @Composable
@@ -374,7 +493,11 @@ internal fun MarkPlayerScreen(
     onSeek: (Long) -> Unit,
     onPrevious: () -> Unit,
     onTogglePlayback: () -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    repeatLabel: String,
+    onRepeat: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var dragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
@@ -409,7 +532,8 @@ internal fun MarkPlayerScreen(
 
             NeonGlass(palette, Modifier.size(artworkSize), radius = 27.dp) {
                 MarkCover(track, Modifier.fillMaxSize().padding(5.dp)
-                    .clip(RoundedCornerShape(23.dp)))
+                    .clip(RoundedCornerShape(23.dp))
+                    .combinedClickable(onClick = {}, onLongClick = onDelete))
             }
 
             Row(
@@ -474,6 +598,8 @@ internal fun MarkPlayerScreen(
                 }
             }
 
+            Text(repeatLabel, color = palette.accent, fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold)
             if (playerError != null) Text(
                 playerError, color = Color(0xFFFFA4A4), fontSize = 11.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -484,12 +610,16 @@ internal fun MarkPlayerScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                NeonRoundButton("repeat", palette.secondary, onRepeat, 35.dp)
+                Spacer(Modifier.width(8.dp))
                 NeonRoundButton("previous", palette.secondary, onPrevious, sideControl)
-                Spacer(Modifier.width(25.dp))
+                Spacer(Modifier.width(10.dp))
                 NeonRoundButton(if (playing) "pause" else "play",
                     palette.accent, onTogglePlayback, mainControl, primary = true)
-                Spacer(Modifier.width(25.dp))
+                Spacer(Modifier.width(10.dp))
                 NeonRoundButton("next", palette.secondary, onNext, sideControl)
+                Spacer(Modifier.width(8.dp))
+                NeonRoundButton("add", NeonPink, onAddToPlaylist, 35.dp)
             }
         }
     }
@@ -574,6 +704,9 @@ internal fun MarkThemeDialog(
     onTiltSensitivityChange: (Float) -> Unit,
     voyageSpeed: Float,
     onVoyageSpeedChange: (Float) -> Unit,
+    glassDepth: Float,
+    onGlassDepthChange: (Float) -> Unit,
+    onOpenEqualizer: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val activePalette = markPalette(selected)
@@ -640,6 +773,25 @@ internal fun MarkThemeDialog(
                             color = NeonSubtle, fontSize = 10.sp, lineHeight = 15.sp)
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+                NeonGlass(activePalette, Modifier.fillMaxWidth(), radius = 19.dp) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Объём стекла", Modifier.weight(1f), color = Color.White,
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("${(glassDepth * 100).toInt()}%", color = activePalette.accent)
+                        }
+                        Slider(
+                            value = glassDepth, onValueChange = onGlassDepthChange,
+                            valueRange = 0f..2f,
+                            colors = SliderDefaults.colors(thumbColor = activePalette.accent,
+                                activeTrackColor = activePalette.accent)
+                        )
+                        Text("0% — плоско · 100% — текущий объём · 200% — глубже",
+                            color = NeonSubtle, fontSize = 10.sp)
+                    }
+                }
+                NeonPill("Эквалайзер", activePalette, onClick = onOpenEqualizer, icon = "wave")
                 Text("Цветовые схемы · ${MARK_PALETTES.size}",
                     color = activePalette.accent,
                     fontSize = 13.sp,
@@ -772,9 +924,13 @@ private fun EmptyHint(message: String) {
     }
 }
 @Composable
-private fun LibraryTrackRow(track: Track, palette: MarkPalette, onClick: () -> Unit) {
-    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 20.dp, onClick = onClick) {
-        Row(Modifier.fillMaxWidth().padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun LibraryTrackRow(
+    track: Track, palette: MarkPalette, onClick: () -> Unit,
+    onLongPress: () -> Unit = {}
+) {
+    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 20.dp) {
+        Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongPress)
+            .padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
             MarkCover(track, Modifier.size(54.dp).clip(RoundedCornerShape(17.dp)))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -788,6 +944,19 @@ private fun LibraryTrackRow(track: Track, palette: MarkPalette, onClick: () -> U
         }
     }
 }
+@Composable
+private fun FolderArtwork(track: Track, modifier: Modifier) {
+    val context = LocalContext.current
+    val image by produceState<ImageBitmap?>(null, track.folder) {
+        value = MusicLibrary.embeddedCover(context, track.uri)
+            ?: MusicLibrary.folderImage(context, track.folder)
+    }
+    if (image != null) {
+        Image(image!!, contentDescription = null, modifier = modifier,
+            contentScale = ContentScale.Crop)
+    } else MarkCover(track, modifier)
+}
+
 @Composable
 private fun MarkCover(track: Track, modifier: Modifier) {
     val context = LocalContext.current
