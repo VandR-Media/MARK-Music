@@ -104,7 +104,9 @@ object MusicLibrary {
                 if (!cursor.moveToFirst()) return@use null
                 val uri = ContentUris.withAppendedId(collection, cursor.getLong(0))
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    BitmapFactory.decodeStream(input)?.asImageBitmap()
+                    BitmapFactory.decodeStream(input, null, BitmapFactory.Options().apply {
+                        inSampleSize = 8
+                    })?.asImageBitmap()
                 }
             }
         }.getOrNull()
