@@ -44,7 +44,7 @@ fun MusicVisualizer(
         }
     }
     Canvas(modifier) {
-        drawRect(BASE)
+        drawRect(BASE.copy(alpha = .34f))
         render(style, if (playing) latest else List(64) { 0f }, phase)
     }
 }
@@ -55,7 +55,7 @@ fun EffectPreview(style: VisualStyle, modifier: Modifier = Modifier) {
         List(64) { i -> (.18f + .5f * abs(sin(i * .43f)) * abs(cos(i * .13f))).coerceIn(0f, 1f) }
     }
     Canvas(modifier) {
-        drawRect(BASE)
+        drawRect(BASE.copy(alpha = .34f))
         render(style, illustrativeSpectrum, 0f)
     }
 }
