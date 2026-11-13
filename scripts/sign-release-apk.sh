@@ -53,7 +53,7 @@ for scheme in v1 v2 v3; do
   }
 done
 # Do not accidentally ship an update signed with a new or incorrect key.
-fingerprint='f02b5efb88a28dddccca3148bc88b472365e76bb345a8a750b09482cd686858d'
+fingerprint='f02b5efb88a28ddddcca3148bc88b472365e76bb345a8a750b09482cd686858d'
 printf '%s\n' "$report" | grep -Fqi "Signer #1 certificate SHA-256 digest: $fingerprint" || {
   echo 'ERROR: signing certificate does not match new MARK Audio release key' >&2
   exit 1
