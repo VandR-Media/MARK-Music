@@ -109,6 +109,7 @@ private fun MarkApp() {
     var showThemes by remember { mutableStateOf(false) }
     var showEqualizer by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
+    var showRepeatOptions by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Track?>(null) }
     var userPlaylists by remember { mutableStateOf(PlaylistStore.read(ctx)) }
@@ -338,13 +339,7 @@ private fun MarkApp() {
                                 Player.REPEAT_MODE_ALL -> "Повтор: ${queueScope.lowercase()}"
                                 else -> "Повтор выключен"
                             },
-                            onRepeat = {
-                                controller?.repeatMode = when (repeatMode) {
-                                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
-                                    Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
-                                    else -> Player.REPEAT_MODE_OFF
-                                }
-                            },
+                            onRepeat = { showRepeatOptions = true },
                             onAddToPlaylist = { showAddToPlaylist = true },
                             onDelete = { pendingDelete = current }
                         )
@@ -440,6 +435,54 @@ private fun MarkApp() {
     }
     if (showEqualizer) {
         MarkEqualizerDialog(palette) { showEqualizer = false }
+    }
+    if (showRepeatOptions) {
+        AlertDialog(
+            onDismissRequest = { showRepeatOptions = false },
+            title = { Text("Режим повтора", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Выключен", "Текущий трек", "Альбом", "Папка").forEach { choice ->
+                        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 14.dp,
+                            onClick = {
+                                val p = controller
+                                val track = current
+                                if (p != null) {
+                                    when (choice) {
+                                        "Выключен" -> p.repeatMode = Player.REPEAT_MODE_OFF
+                                        "Текущий трек" -> p.repeatMode = Player.REPEAT_MODE_ONE
+                                        else -> if (track != null) {
+                                            val group = if (choice == "Альбом") {
+                                                songs.filter { it.albumId == track.albumId && it.isMusic }
+                                            } else {
+                                                songs.filter { it.folder == track.folder }
+                                            }
+                                            if (group.isNotEmpty()) {
+                                                val wasPlaying = p.playWhenReady
+                                                val seek = p.currentPosition.coerceAtLeast(0L)
+                                                p.setMediaItems(group.map { it.toMediaItem() },
+                                                    group.indexOfFirst { it.id == track.id }.coerceAtLeast(0),
+                                                    seek)
+                                                queueScope = choice
+                                                p.repeatMode = Player.REPEAT_MODE_ALL
+                                                p.prepare()
+                                                if (wasPlaying) p.play()
+                                            }
+                                        }
+                                    }
+                                }
+                                showRepeatOptions = false
+                            }) {
+                            Text(choice, Modifier.padding(13.dp), color = Color.White)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showRepeatOptions = false }) {
+                Text("Закрыть", color = palette.accent)
+            } },
+            containerColor = Color(0xFF101D40)
+        )
     }
     if (showAddToPlaylist) {
         AlertDialog(
