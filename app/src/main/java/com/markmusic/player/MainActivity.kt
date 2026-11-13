@@ -6,6 +6,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Build
+import android.provider.MediaStore
+import android.widget.Toast
+import org.json.JSONArray
+import androidx.activity.result.IntentSenderRequest
+import com.markmusic.player.library.PlaylistStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,6 +53,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.markmusic.player.audio.PlaybackService
+import com.markmusic.player.audio.MarkEqualizer
 import com.markmusic.player.library.LibraryGrouping
 import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
@@ -101,10 +108,18 @@ private fun MarkApp() {
     fun navigateBack() { navigation = navigation.back() }
     var showEffects by remember { mutableStateOf(false) }
     var showThemes by remember { mutableStateOf(false) }
-    BackHandler(enabled = showEffects || showThemes || navTab != 0) {
+    var showEqualizer by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<Track?>(null) }
+    var userPlaylists by remember { mutableStateOf(PlaylistStore.read(ctx)) }
+    var glassDepth by remember {
+        mutableFloatStateOf(prefs.getFloat("glass_depth", 1f).coerceIn(0f, 2f))
+    }
+    BackHandler(enabled = showEffects || showThemes || showEqualizer || navTab != 0) {
         when {
             showEffects -> showEffects = false
             showThemes -> showThemes = false
+            showEqualizer -> showEqualizer = false
             else -> navigateBack()
         }
     }
@@ -140,6 +155,22 @@ private fun MarkApp() {
     var duration by remember { mutableLongStateOf(0L) }
     var position by remember { mutableLongStateOf(0L) }
     var playerError by remember { mutableStateOf<String?>(null) }
+    var repeatMode by remember { mutableIntStateOf(Player.REPEAT_MODE_OFF) }
+    var queueScope by remember { mutableStateOf("Очередь") }
+    var restoredOnce by remember { mutableStateOf(false) }
+    var deletingId by remember { mutableLongStateOf(-1L) }
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            if (deletingId >= 0 && controller?.currentMediaItem?.mediaId == deletingId.toString()) {
+                controller?.stop()
+                controller?.clearMediaItems()
+            }
+            refresh++
+        }
+        deletingId = -1L
+    }
     DisposableEffect(ctx) {
         val future = MediaController.Builder(ctx, SessionToken(ctx, ComponentName(ctx, PlaybackService::class.java)))
             .buildAsync()
@@ -155,7 +186,9 @@ private fun MarkApp() {
                             mediaId = player.currentMediaItem?.mediaId.orEmpty()
                             duration = player.duration.takeIf { it > 0 } ?: 0L
                             position = player.currentPosition.coerceAtLeast(0L)
+                            repeatMode = player.repeatMode
                         }
+                        override fun onRepeatModeChanged(mode: Int) { repeatMode = mode }
                         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                             playerError = "Не удалось воспроизвести файл: ${error.errorCodeName}"
                         }
@@ -166,6 +199,7 @@ private fun MarkApp() {
                     controller = player
                     playing = player.isPlaying
                     mediaId = player.currentMediaItem?.mediaId.orEmpty()
+                    repeatMode = player.repeatMode
                 }.onFailure { playerError = "Не удалось подключить проигрыватель" }
             }
         }, ctx.mainExecutor)
@@ -185,11 +219,58 @@ private fun MarkApp() {
             delay(350)
         }
     }
+    // Restore the last queue and position once the device library and Media3
+    // are ready. Never replace an already playing background media session.
+    LaunchedEffect(controller, songs) {
+        val p = controller
+        if (!restoredOnce && p != null && songs.isNotEmpty()) {
+            restoredOnce = true
+            if (p.mediaItemCount == 0) {
+                val ids = runCatching { JSONArray(prefs.getString("last_queue", "[]")) }
+                    .getOrNull()
+                val queue = if (ids == null) emptyList() else (0 until ids.length())
+                    .mapNotNull { i -> ids.optString(i).toLongOrNull() }
+                    .mapNotNull { id -> songs.firstOrNull { it.id == id } }
+                if (queue.isNotEmpty()) {
+                    val index = prefs.getInt("last_index", 0).coerceIn(0, queue.lastIndex)
+                    val positionMs = prefs.getLong("last_position", 0L).coerceAtLeast(0L)
+                    p.setMediaItems(queue.map { it.toMediaItem() }, index, positionMs)
+                    p.repeatMode = prefs.getInt("last_repeat", Player.REPEAT_MODE_OFF)
+                    queueScope = prefs.getString("last_scope", "Очередь") ?: "Очередь"
+                    p.prepare()
+                    if (prefs.getBoolean("resume_playing", false)) p.play()
+                }
+            }
+        }
+    }
+    LaunchedEffect(controller) {
+        while (true) {
+            delay(5000)
+            val p = controller ?: continue
+            if (p.mediaItemCount > 0) {
+                val ids = JSONArray()
+                for (i in 0 until p.mediaItemCount) ids.put(p.getMediaItemAt(i).mediaId)
+                prefs.edit().putString("last_queue", ids.toString())
+                    .putInt("last_index", p.currentMediaItemIndex.coerceAtLeast(0))
+                    .putLong("last_position", p.currentPosition.coerceAtLeast(0L))
+                    .putBoolean("resume_playing", p.playWhenReady)
+                    .putInt("last_repeat", p.repeatMode)
+                    .putString("last_scope", queueScope).apply()
+            }
+        }
+    }
+    val musicSongs = remember(songs) { songs.filter { it.isMusic } }
+    val otherAudio = remember(songs) { songs.filterNot { it.isMusic } }
     val current = songs.firstOrNull { it.id.toString() == mediaId }
-    val filtered = remember(songs, query) {
-        songs.filter { "${it.title} ${it.artist} ${it.album} ${it.folder}".contains(query, ignoreCase = true) }
+    val filtered = remember(musicSongs, query) {
+        musicSongs.filter { "${it.title} ${it.artist} ${it.album} ${it.folder}".contains(query, ignoreCase = true) }
     }
     fun playQueue(queue: List<Track>, selected: Track) {
+        queueScope = when {
+            queue.size > 1 && queue.all { it.albumId == selected.albumId } -> "Альбом"
+            queue.size > 1 && queue.all { it.folder == selected.folder } -> "Папка"
+            else -> "Очередь"
+        }
         controller?.apply {
             setMediaItems(queue.map { it.toMediaItem() }, queue.indexOf(selected).coerceAtLeast(0), 0L)
             prepare()
@@ -199,7 +280,10 @@ private fun MarkApp() {
         navigate(2)
     }
 
-    CompositionLocalProvider(LocalGlassSensitivity provides tiltSensitivity) {
+    CompositionLocalProvider(
+        LocalGlassSensitivity provides tiltSensitivity,
+        LocalGlassDepth provides glassDepth
+    ) {
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
         CosmicVoyageBackground(
             palette = palette, speed = voyageSpeed, steering = tiltSensitivity,
