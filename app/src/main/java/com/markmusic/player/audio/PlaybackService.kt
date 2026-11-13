@@ -12,6 +12,12 @@ import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 object AudioSessionBus {
     val sessionId = MutableStateFlow(0)
@@ -21,8 +27,18 @@ object AudioSessionBus {
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private var player: ExoPlayer? = null
+    private val eqScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val eqEngine = MarkEqualizerEngine()
     override fun onCreate() {
         super.onCreate()
+        MarkEqualizer.load(this)
+        eqScope.launch {
+            combine(AudioSessionBus.sessionId, MarkEqualizer.state, MarkEqualizer.enabled) {
+                sessionId, preset, active -> Triple(sessionId, preset, active)
+            }.collect { (sessionId, preset, active) ->
+                eqEngine.update(sessionId, preset, active)
+            }
+        }
         val factory = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
                 context: android.content.Context,
@@ -58,6 +74,8 @@ class PlaybackService : MediaSessionService() {
         if (player?.isPlaying != true) stopSelf()
     }
     override fun onDestroy() {
+        eqScope.cancel()
+        eqEngine.release()
         AudioSessionBus.sessionId.value = 0
         session?.release()
         player?.release()
