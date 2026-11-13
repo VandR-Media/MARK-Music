@@ -8,6 +8,7 @@
         android:allowBackup="false"
         android:label="@string/app_name"
         android:icon="@drawable/mark_logo"
+        android:roundIcon="@drawable/mark_logo"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true">

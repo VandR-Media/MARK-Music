@@ -21,11 +21,21 @@ jobs:
           gradle-version: '8.13'
       - name: Install Android SDK platform
         run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Validate approved artwork assets
+        run: |
+          python3 - <<'PY'
+          import base64, pathlib, struct
+          assets = pathlib.Path("app/src/main/assets")
+          for name in ("mark_audio_logo.webp.b64", "mark_welcome.webp.b64"):
+              data = base64.b64decode((assets / name).read_text().strip(), validate=True)
+              assert data[:4] == b"RIFF" and data[8:12] == b"WEBP", name
+              assert struct.unpack("<I", data[4:8])[0] + 8 == len(data), f"truncated WEBP: {name}"
+          PY
       - name: Unit tests and release build
         shell: bash
         run: |
           set -o pipefail
-          gradle :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Preserve APK signing utility
         if: success()
         shell: bash
@@ -38,10 +48,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.4.0-release-unsigned
+          name: MARK-Audio-v0.5.2-APKs
           path: |
             build.log
             app/build/reports/tests/testDebugUnitTest/**
+            app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/release/app-release-unsigned.apk
             signing-tools/apksigner.jar
             signing-tools/zipalign

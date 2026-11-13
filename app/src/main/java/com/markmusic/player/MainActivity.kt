@@ -94,8 +94,15 @@ private fun MarkApp() {
     var libraryError by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableIntStateOf(0) }
-    var showPlayer by remember { mutableStateOf(false) }
+    var navTab by remember { mutableIntStateOf(0) }
+    var previousNavTab by remember { mutableIntStateOf(0) }
     var showEffects by remember { mutableStateOf(false) }
+    var showThemes by remember { mutableStateOf(false) }
+    var themeKey by remember { mutableStateOf(prefs.getString("theme", "COSMIC_BLUE") ?: "COSMIC_BLUE") }
+    val palette = markPalette(themeKey)
+    var favoriteIds by remember {
+        mutableStateOf(prefs.getStringSet("favorites", mutableSetOf())?.mapNotNull { it.toLongOrNull() }?.toSet().orEmpty())
+    }
     var style by remember {
         mutableStateOf(runCatching { VisualStyle.valueOf(prefs.getString("effect", "PULSE") ?: "PULSE") }
             .getOrDefault(VisualStyle.PULSE))
@@ -173,137 +180,109 @@ private fun MarkApp() {
             play()
         }
         playerError = null
-        showPlayer = true
+        previousNavTab = navTab
+        navTab = 2
     }
 
-    Column(modifier = Modifier.fillMaxSize().drawBehind {
-        drawImage(BrandArtwork.appBackground, dstSize = IntSize(size.width.toInt(), size.height.toInt()), alpha = 0.58f)
-        drawRect(Brush.verticalGradient(listOf(Color(0xB30B1730), Color(0xD90B1730), Color(0xF20B1730))))
-    }.systemBarsPadding().padding(horizontal = 18.dp)) {
-        if (showPlayer && current != null) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showPlayer = false }) { Text("‹  Медиатека", color = CYAN) }
-                Spacer(Modifier.weight(1f))
-                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Audio",
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
-            }
-            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(Modifier.height(6.dp))
-                CoverArtwork(current, Modifier.size(126.dp).clip(RoundedCornerShape(26.dp)))
-                Spacer(Modifier.height(12.dp))
-                Text(current.title, color = Color.White, fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(current.artist, color = SUBTLE, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(16.dp))
-                MusicVisualizer(style, playing,
-                    Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(28.dp)))
-                Spacer(Modifier.height(12.dp))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(style.label, color = CYAN, fontWeight = FontWeight.Bold)
-                        Text("Визуализация звука", color = SUBTLE, fontSize = 12.sp)
-                    }
-                    OutlinedButton(onClick = { showEffects = true }) { Text("20 эффектов") }
+    Box(
+        modifier = Modifier.fillMaxSize().drawBehind {
+            drawRect(Brush.linearGradient(listOf(palette.start, palette.end)))
+            drawCircle(palette.accent.copy(alpha = .07f), size.minDimension * .48f,
+                androidx.compose.ui.geometry.Offset(size.width * .92f, size.height * .12f))
+            drawCircle(palette.secondary.copy(alpha = .07f), size.minDimension * .36f,
+                androidx.compose.ui.geometry.Offset(size.width * .02f, size.height * .78f))
+            drawRect(Brush.verticalGradient(listOf(Color(0x22051020), Color(0xB8051024))))
+        }.systemBarsPadding()
+    ) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+            when (navTab) {
+                0 -> Box(Modifier.weight(1f)) {
+                    MarkHomeScreen(
+                        logo = BrandArtwork.logo(ctx), songs = songs, audioAllowed = audioAllowed,
+                        onRefresh = { refresh++ },
+                        onRequestPermission = { audioLauncher.launch(permission) },
+                        favoritesCount = songs.count { favoriteIds.contains(it.id) },
+                        current = current, playing = playing, palette = palette,
+                        onSearch = { navTab = 1 },
+                        onOpenThemes = { showThemes = true },
+                        onOpenLibrary = { category -> tab = category; query = ""; navTab = 1 },
+                        onOpenPlaylists = { navTab = 3 },
+                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                    )
                 }
-                if (playerError != null) Text(playerError.orEmpty(), color = Color(0xFFFFA4A4), fontSize = 12.sp)
-                SeekAndControls(controller, position, duration, playing)
-                Spacer(Modifier.height(18.dp))
-            }
-        } else {
-            Spacer(Modifier.height(20.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Image(BrandArtwork.logo(ctx), contentDescription = "Логотип MARK Audio",
-                    modifier = Modifier.size(92.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                    Text("Feel the sound. See the music.", color = Color.White,
-                        fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text("MARK AUDIO", fontSize = 11.sp, color = CYAN, letterSpacing = 2.sp)
-                    Text("Feel the sound. See the music.", fontSize = 9.sp, color = SUBTLE, maxLines = 1)
+                1 -> Box(Modifier.weight(1f)) {
+                    MarkLibraryScreen(
+                        songs = filtered, query = query, onQueryChange = { query = it },
+                        category = tab, onCategoryChange = { tab = it },
+                        loading = loading, error = libraryError, palette = palette,
+                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                    )
                 }
-                Surface(shape = CircleShape, color = PANEL, onClick = { refresh++ }) {
-                    Text("↻", Modifier.padding(horizontal = 17.dp, vertical = 11.dp), fontSize = 26.sp, color = CYAN)
-                }
-            }
-            Spacer(Modifier.height(22.dp))
-            Text("Feel the sound. See the music.", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-            Text("${songs.size} композиций на устройстве", color = SUBTLE, fontSize = 13.sp)
-            Spacer(Modifier.height(19.dp))
-            if (!audioAllowed) {
-                ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = PANEL)) {
-                    Column(Modifier.padding(22.dp)) {
-                        Text("Найдём твою музыку", fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Разреши доступ к аудиофайлам. MARK Audio не отправляет их в интернет.", color = SUBTLE)
-                        Spacer(Modifier.height(14.dp))
-                        Button(onClick = { audioLauncher.launch(permission) }) { Text("Открыть медиатеку") }
-                    }
-                }
-            } else {
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it }, singleLine = true,
-                    placeholder = { Text("Поиск музыки, альбома, папки") },
-                    leadingIcon = { Text("⌕", fontSize = 25.sp) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    shape = RoundedCornerShape(19.dp), modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(13.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    listOf("Песни", "Альбомы", "Папки").forEachIndexed { index, label ->
-                        FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(label) })
-                    }
-                }
-                if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (libraryError != null) Text(libraryError.orEmpty(), color = Color(0xFFFFA4A4))
-                Spacer(Modifier.height(7.dp))
-                Box(Modifier.weight(1f)) {
-                    if (!loading && filtered.isEmpty()) {
-                        Text("Музыка пока не найдена. Проверь файлы или обнови медиатеку.",
-                            color = SUBTLE, modifier = Modifier.align(Alignment.Center), textAlign = TextAlign.Center)
+                2 -> Box(Modifier.weight(1f)) {
+                    if (current != null) {
+                        MarkPlayerScreen(
+                            track = current, style = style, playing = playing,
+                            position = position, duration = duration,
+                            isFavorite = favoriteIds.contains(current.id),
+                            playerError = playerError, palette = palette,
+                            onBack = { navTab = previousNavTab },
+                            onEffects = { showEffects = true },
+                            onFavorite = {
+                                val updated = favoriteIds.toMutableSet()
+                                if (!updated.add(current.id)) updated.remove(current.id)
+                                favoriteIds = updated
+                                prefs.edit().putStringSet("favorites", updated.map { it.toString() }.toSet()).apply()
+                            },
+                            onSeek = { controller?.seekTo(it) },
+                            onPrevious = { controller?.seekToPreviousMediaItem() },
+                            onTogglePlayback = { controller?.let { if (it.isPlaying) it.pause() else it.play() } },
+                            onNext = { controller?.seekToNextMediaItem() }
+                        )
                     } else {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            if (tab == 0) {
-                                items(filtered, key = { it.id }) { track ->
-                                    TrackRow(track) { playQueue(filtered, track) }
-                                }
-                            } else {
-                                val groups = if (tab == 1) filtered.groupBy { it.albumId }.values
-                                    .map { it.first().album to it }.sortedBy { it.first.lowercase() }
-                                    else LibraryGrouping.groupByFolder(filtered) { it.folder }.toList()
-                                groups.forEach { (name, tracks) ->
-                                    item(key = "head-$tab-$name") {
-                                        Row(Modifier.fillMaxWidth().padding(top = 13.dp, bottom = 5.dp)) {
-                                            Text(name, Modifier.weight(1f), fontWeight = FontWeight.Bold, color = CYAN,
-                                                maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                            Text("${tracks.size}", color = SUBTLE)
-                                        }
-                                    }
-                                    items(tracks, key = { "$tab-$name-${it.id}" }) { track ->
-                                        TrackRow(track) { playQueue(tracks, track) }
-                                    }
-                                }
-                            }
+                        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center) {
+                            Text("♫", color = palette.accent, fontSize = 54.sp)
+                            Text("Выбери музыку", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                            Text("Запусти любой трек из медиатеки", color = SUBTLE, fontSize = 13.sp)
+                            Spacer(Modifier.height(14.dp))
+                            Button(onClick = { navTab = 1 }) { Text("Открыть медиатеку") }
                         }
                     }
                 }
+                else -> Box(Modifier.weight(1f)) {
+                    MarkPlaylistScreen(
+                        favorites = songs.filter { favoriteIds.contains(it.id) },
+                        recent = songs.sortedByDescending { it.dateAddedSeconds }.take(12),
+                        palette = palette,
+                        onPlay = { queue, selected -> playQueue(queue, selected) }
+                    )
+                }
+            }
+            if (navTab != 2) {
                 if (current != null) {
-                    Surface(onClick = { showPlayer = true }, color = PANEL,
-                        shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
-                        Row(Modifier.padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
-                            CoverArtwork(current, Modifier.size(52.dp).clip(RoundedCornerShape(13.dp)))
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(current.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
-                                Text(current.artist, color = SUBTLE, fontSize = 12.sp, maxLines = 1)
-                            }
-                            TextButton(onClick = { controller?.let { if (it.isPlaying) it.pause() else it.play() } }) {
-                                Text(if (playing) "Ⅱ" else "▶", color = CYAN, fontSize = 25.sp)
-                            }
-                        }
+                    MarkMiniPlayer(
+                        track = current, playing = playing, palette = palette,
+                        onOpen = { previousNavTab = navTab; navTab = 2 },
+                        onToggle = { controller?.let { if (it.isPlaying) it.pause() else it.play() } }
+                    )
+                }
+                MarkBottomNavigation(navTab, palette) { selected ->
+                    if (selected == 2 && current == null) navTab = 1 else {
+                        if (selected == 2) previousNavTab = navTab
+                        navTab = selected
                     }
                 }
             }
+        }
+        if (showThemes) {
+            MarkThemeDialog(
+                selected = themeKey,
+                onSelect = { key ->
+                    themeKey = key
+                    prefs.edit().putString("theme", key).apply()
+                },
+                onDismiss = { showThemes = false }
+            )
         }
     }
     if (showEffects) {
@@ -341,19 +320,7 @@ private fun MarkApp() {
             containerColor = Color(0xFF14284B)
         )
     }
-    if (showWelcome) WelcomeScreen(ctx)
-}
-
-@Composable
-private fun WelcomeScreen(context: Context) {
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(BrandArtwork.logo(context), contentDescription = "Официальный логотип MARK Audio",
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
-            Text("Feel the sound. See the music.", color = Color.White, fontSize = 13.sp,
-                fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
-        }
-    }
+    if (showWelcome) MarkWelcomeScreen(BrandArtwork.welcome(ctx), palette)
 }
 
 @Composable
