@@ -606,6 +606,9 @@ internal fun MarkThemeDialog(
     onTiltSensitivityChange: (Float) -> Unit,
     voyageSpeed: Float,
     onVoyageSpeedChange: (Float) -> Unit,
+    glassDepth: Float,
+    onGlassDepthChange: (Float) -> Unit,
+    onOpenEqualizer: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val activePalette = markPalette(selected)
@@ -672,6 +675,25 @@ internal fun MarkThemeDialog(
                             color = NeonSubtle, fontSize = 10.sp, lineHeight = 15.sp)
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+                NeonGlass(activePalette, Modifier.fillMaxWidth(), radius = 19.dp) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Объём стекла", Modifier.weight(1f), color = Color.White,
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("${(glassDepth * 100).toInt()}%", color = activePalette.accent)
+                        }
+                        Slider(
+                            value = glassDepth, onValueChange = onGlassDepthChange,
+                            valueRange = 0f..2f,
+                            colors = SliderDefaults.colors(thumbColor = activePalette.accent,
+                                activeTrackColor = activePalette.accent)
+                        )
+                        Text("0% — плоско · 100% — текущий объём · 200% — глубже",
+                            color = NeonSubtle, fontSize = 10.sp)
+                    }
+                }
+                NeonPill("Эквалайзер", activePalette, onClick = onOpenEqualizer, icon = "wave")
                 Text("Цветовые схемы · ${MARK_PALETTES.size}",
                     color = activePalette.accent,
                     fontSize = 13.sp,
@@ -808,8 +830,9 @@ private fun LibraryTrackRow(
     track: Track, palette: MarkPalette, onClick: () -> Unit,
     onLongPress: () -> Unit = {}
 ) {
-    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 20.dp, onClick = onClick) {
-        Row(Modifier.fillMaxWidth().padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
+    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 20.dp) {
+        Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongPress)
+            .padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
             MarkCover(track, Modifier.size(54.dp).clip(RoundedCornerShape(17.dp)))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
