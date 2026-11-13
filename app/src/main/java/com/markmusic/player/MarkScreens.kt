@@ -490,7 +490,11 @@ internal fun MarkPlayerScreen(
     onSeek: (Long) -> Unit,
     onPrevious: () -> Unit,
     onTogglePlayback: () -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    repeatLabel: String,
+    onRepeat: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var dragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
@@ -525,7 +529,8 @@ internal fun MarkPlayerScreen(
 
             NeonGlass(palette, Modifier.size(artworkSize), radius = 27.dp) {
                 MarkCover(track, Modifier.fillMaxSize().padding(5.dp)
-                    .clip(RoundedCornerShape(23.dp)))
+                    .clip(RoundedCornerShape(23.dp))
+                    .combinedClickable(onClick = {}, onLongClick = onDelete))
             }
 
             Row(
@@ -590,6 +595,8 @@ internal fun MarkPlayerScreen(
                 }
             }
 
+            Text(repeatLabel, color = palette.accent, fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold)
             if (playerError != null) Text(
                 playerError, color = Color(0xFFFFA4A4), fontSize = 11.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -600,12 +607,16 @@ internal fun MarkPlayerScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                NeonRoundButton("repeat", palette.secondary, onRepeat, 35.dp)
+                Spacer(Modifier.width(8.dp))
                 NeonRoundButton("previous", palette.secondary, onPrevious, sideControl)
-                Spacer(Modifier.width(25.dp))
+                Spacer(Modifier.width(10.dp))
                 NeonRoundButton(if (playing) "pause" else "play",
                     palette.accent, onTogglePlayback, mainControl, primary = true)
-                Spacer(Modifier.width(25.dp))
+                Spacer(Modifier.width(10.dp))
                 NeonRoundButton("next", palette.secondary, onNext, sideControl)
+                Spacer(Modifier.width(8.dp))
+                NeonRoundButton("add", NeonPink, onAddToPlaylist, 35.dp)
             }
         }
     }
