@@ -117,7 +117,10 @@ private fun MarkApp(openPlayerRequests: Int) {
     fun navigate(destination: Int) { navigation = navigation.open(destination) }
     fun navigateBack() { navigation = navigation.back() }
     LaunchedEffect(openPlayerRequests) {
-        if (openPlayerRequests > 0) navigate(2)
+        if (openPlayerRequests > 0) {
+            showWelcome = false
+            navigate(2)
+        }
     }
     var showEffects by remember { mutableStateOf(false) }
     var showThemes by remember { mutableStateOf(false) }
