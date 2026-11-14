@@ -5,6 +5,9 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -501,11 +504,9 @@ internal fun MarkPlayerScreen(
     var deckMode by remember(deckPrefs) {
         mutableStateOf(playerDeckFromPreference(deckPrefs.getString("player_deck_mode", null)))
     }
-    var showDeckPicker by remember { mutableStateOf(false) }
     fun chooseDeck(mode: PlayerDeckMode) {
         deckMode = mode
         deckPrefs.edit().putString("player_deck_mode", mode.name).apply()
-        showDeckPicker = false
     }
     // Distinguish cover loading from "no cover": do not show visual effects
     // briefly for songs that actually have artwork.
@@ -524,6 +525,7 @@ internal fun MarkPlayerScreen(
         val compact = maxHeight < 730.dp
         val gap = if (compact) 6.dp else 9.dp
         val artworkSize = minOf(maxWidth * .94f, maxHeight * (if (compact) .46f else .56f))
+        val swipeThresholdPx = with(LocalDensity.current) { 58.dp.toPx() }
         val mainControl = if (compact) 61.dp else 69.dp
         val sideControl = if (compact) 45.dp else 51.dp
 
@@ -533,38 +535,52 @@ internal fun MarkPlayerScreen(
             verticalArrangement = Arrangement.spacedBy(gap)
         ) {
             Row(
-                Modifier.fillMaxWidth().height(42.dp),
+                Modifier.fillMaxWidth().height(48.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 NeonRoundButton("back", palette.secondary, onBack, 40.dp)
                 Column(
-                    Modifier.clip(RoundedCornerShape(12.dp))
-                        .clickable { showDeckPicker = true }
-                        .padding(horizontal = 9.dp, vertical = 3.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text("СЕЙЧАС ИГРАЕТ", color = Color.White, fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
-                    Text(
-                        if (deckMode == PlayerDeckMode.VINYL) "MARK AUDIO · ВИНИЛ ⌄"
-                        else "MARK AUDIO · МАЯК ⌄",
-                        color = palette.accent, fontSize = 9.sp, letterSpacing = 1.sp
-                    )
+                    Text("MARK AUDIO", color = palette.accent,
+                        fontSize = 9.sp, letterSpacing = 1.6.sp)
                 }
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // The deck uses its own satin-metal frame instead of a glowing glass
-            // overlay, keeping the product appearance photographic and grounded.
+            // Swipe the artwork itself: left OR right cycles between the two
+            // visualizations. No dialog or hidden title button. Selection persists.
             Box(Modifier.size(artworkSize)
-                .clip(RoundedCornerShape(25.dp))
-                .background(Brush.linearGradient(listOf(
-                    Color(0xFFB4B8B7), Color(0xFF41464C),
-                    Color(0xFF13181C), Color(0xFF838B90))))
-                .padding(3.dp)) {
+                .pointerInput(deckMode, swipeThresholdPx) {
+                    var horizontalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { horizontalDrag = 0f },
+                        onHorizontalDrag = { change, delta ->
+                            horizontalDrag += delta
+                            change.consume()
+                        },
+                        onDragEnd = {
+                            if (kotlin.math.abs(horizontalDrag) >= swipeThresholdPx) {
+                                chooseDeck(if (deckMode == PlayerDeckMode.VINYL)
+                                    PlayerDeckMode.MAYAK_203 else PlayerDeckMode.VINYL)
+                            }
+                            horizontalDrag = 0f
+                        },
+                        onDragCancel = { horizontalDrag = 0f }
+                    )
+                }
+                .clip(RoundedCornerShape(if (deckMode == PlayerDeckMode.MAYAK_203)
+                    15.dp else 25.dp))
+                .background(if (deckMode == PlayerDeckMode.MAYAK_203)
+                    Color(0xFF101214) else Color(0xFF3A4048))
+                .padding(if (deckMode == PlayerDeckMode.MAYAK_203) 0.dp else 3.dp)) {
                 Box(Modifier.fillMaxSize()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(if (deckMode == PlayerDeckMode.MAYAK_203)
+                        15.dp else 22.dp))
                     .combinedClickable(onClick = {}, onLongClick = onDelete),
                     contentAlignment = Alignment.Center) {
                     val trackProgress = ((if (dragging) sliderValue else position.toFloat()) /
@@ -584,6 +600,22 @@ internal fun MarkPlayerScreen(
                             )
                         } else {
                             CircularProgressIndicator(color = palette.accent)
+                        }
+                    }
+                    Row(
+                        Modifier.align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = .47f))
+                            .padding(horizontal = 9.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (mode in PlayerDeckMode.entries) {
+                            Box(Modifier.size(if (deckMode == mode) 7.dp else 5.dp)
+                                .clip(CircleShape)
+                                .background(if (deckMode == mode)
+                                    Color(0xFF63E7FF) else Color.White.copy(alpha = .55f)))
                         }
                     }
                 }
@@ -652,53 +684,7 @@ internal fun MarkPlayerScreen(
             }
         }
     }
-    if (showDeckPicker) {
-        AlertDialog(
-            onDismissRequest = { showDeckPicker = false },
-            title = {
-                Text("Выбор проигрывателя", color = Color.White,
-                    fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    for (mode in PlayerDeckMode.entries) {
-                        val title = if (mode == PlayerDeckMode.VINYL)
-                            "Виниловый проигрыватель" else "Маяк-203"
-                        val subtitle = if (mode == PlayerDeckMode.VINYL)
-                            "Пластинка, обложка трека и тонарм"
-                            else "Катушечный магнитофон, лента и стрелочные индикаторы"
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { chooseDeck(mode) }
-                                .padding(horizontal = 5.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = deckMode == mode,
-                                onClick = { chooseDeck(mode) },
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = palette.accent
-                                )
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                Text(title, color = Color.White,
-                                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                Text(subtitle, color = NeonSubtle, fontSize = 11.sp)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDeckPicker = false }) {
-                    Text("Закрыть", color = palette.accent)
-                }
-            },
-            containerColor = Color(0xFF152136)
-        )
-    }
+
 }
 @Composable
 internal fun MarkMiniPlayer(
