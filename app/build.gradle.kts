@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.6.8"
+        versionCode = 17
+        versionName = "0.6.9"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -30,7 +30,7 @@ kotlin {
 
 dependencies {
     val media3 = "1.11.1"
-    implementation(platform("androidx.compose:compose-bom:2025.09.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
