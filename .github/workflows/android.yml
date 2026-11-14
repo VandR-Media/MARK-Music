@@ -21,6 +21,8 @@ jobs:
           gradle-version: '8.13'
       - name: Install Android SDK platform and official signing tools
         run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Download public-domain Mayak-203 photograph for offline packaging
+        run: python3 scripts/fetch-mayak-photo.py
       - name: Verify approved high-resolution artwork
         run: |
           set -euo pipefail
@@ -87,7 +89,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.7.6-aligned-APKs
+          name: MARK-Audio-v0.7.7-aligned-APKs
           path: |
             build.log
             apk-badging.txt
