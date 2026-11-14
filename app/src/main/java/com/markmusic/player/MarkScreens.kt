@@ -27,6 +27,7 @@ import com.markmusic.player.library.LibraryGrouping
 import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
 import com.markmusic.player.visual.VinylTurntable
+import com.markmusic.player.visual.MayakReelToReel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -70,6 +71,12 @@ internal val MARK_PALETTES = listOf(
 )
 
 internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull { it.key == key } ?: MARK_PALETTES.first()
+
+/** Stable names allow the visual selection to survive app restarts and upgrades. */
+internal enum class PlayerDeckMode { VINYL, MAYAK_203 }
+internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
+    PlayerDeckMode.entries.firstOrNull { it.name == value } ?: PlayerDeckMode.VINYL
+
 
 @Composable
 internal fun MarkHomeScreen(
@@ -488,6 +495,18 @@ internal fun MarkPlayerScreen(
     var dragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
     val context = LocalContext.current
+    val deckPrefs = remember(context) {
+        context.getSharedPreferences("mark_music", android.content.Context.MODE_PRIVATE)
+    }
+    var deckMode by remember(deckPrefs) {
+        mutableStateOf(playerDeckFromPreference(deckPrefs.getString("player_deck_mode", null)))
+    }
+    var showDeckPicker by remember { mutableStateOf(false) }
+    fun chooseDeck(mode: PlayerDeckMode) {
+        deckMode = mode
+        deckPrefs.edit().putString("player_deck_mode", mode.name).apply()
+        showDeckPicker = false
+    }
     // Distinguish cover loading from "no cover": do not show visual effects
     // briefly for songs that actually have artwork.
     val coverLoad by produceState<Pair<Boolean, ImageBitmap?>>(
@@ -519,10 +538,19 @@ internal fun MarkPlayerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 NeonRoundButton("back", palette.secondary, onBack, 40.dp)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier.clip(RoundedCornerShape(12.dp))
+                        .clickable { showDeckPicker = true }
+                        .padding(horizontal = 9.dp, vertical = 3.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text("СЕЙЧАС ИГРАЕТ", color = Color.White, fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
-                    Text("MARK AUDIO", color = palette.accent, fontSize = 9.sp, letterSpacing = 2.sp)
+                    Text(
+                        if (deckMode == PlayerDeckMode.VINYL) "MARK AUDIO · ВИНИЛ ⌄"
+                        else "MARK AUDIO · МАЯК ⌄",
+                        color = palette.accent, fontSize = 9.sp, letterSpacing = 1.sp
+                    )
                 }
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
@@ -539,16 +567,24 @@ internal fun MarkPlayerScreen(
                     .clip(RoundedCornerShape(22.dp))
                     .combinedClickable(onClick = {}, onLongClick = onDelete),
                     contentAlignment = Alignment.Center) {
-                    if (coverReady) {
-                        VinylTurntable(
-                            artwork = artwork ?: fallbackLogo,
+                    val trackProgress = ((if (dragging) sliderValue else position.toFloat()) /
+                        duration.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                    when (deckMode) {
+                        PlayerDeckMode.MAYAK_203 -> MayakReelToReel(
                             playing = playing,
-                            progress = ((if (dragging) sliderValue else position.toFloat()) /
-                                duration.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f),
+                            progress = trackProgress,
                             modifier = Modifier.fillMaxSize()
                         )
-                    } else {
-                        CircularProgressIndicator(color = palette.accent)
+                        PlayerDeckMode.VINYL -> if (coverReady) {
+                            VinylTurntable(
+                                artwork = artwork ?: fallbackLogo,
+                                playing = playing,
+                                progress = trackProgress,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            CircularProgressIndicator(color = palette.accent)
+                        }
                     }
                 }
             }
@@ -615,6 +651,53 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("add", NeonPink, onAddToPlaylist, 35.dp)
             }
         }
+    }
+    if (showDeckPicker) {
+        AlertDialog(
+            onDismissRequest = { showDeckPicker = false },
+            title = {
+                Text("Выбор проигрывателя", color = Color.White,
+                    fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    for (mode in PlayerDeckMode.entries) {
+                        val title = if (mode == PlayerDeckMode.VINYL)
+                            "Виниловый проигрыватель" else "Маяк-203"
+                        val subtitle = if (mode == PlayerDeckMode.VINYL)
+                            "Пластинка, обложка трека и тонарм"
+                            else "Катушечный магнитофон, лента и стрелочные индикаторы"
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { chooseDeck(mode) }
+                                .padding(horizontal = 5.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = deckMode == mode,
+                                onClick = { chooseDeck(mode) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = palette.accent
+                                )
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(title, color = Color.White,
+                                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(subtitle, color = NeonSubtle, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDeckPicker = false }) {
+                    Text("Закрыть", color = palette.accent)
+                }
+            },
+            containerColor = Color(0xFF152136)
+        )
     }
 }
 @Composable

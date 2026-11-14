@@ -87,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.7.5-aligned-APKs
+          name: MARK-Audio-v0.7.6-aligned-APKs
           path: |
             build.log
             apk-badging.txt

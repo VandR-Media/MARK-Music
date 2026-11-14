@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "0.7.5"
+        versionCode = 24
+        versionName = "0.7.6"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
