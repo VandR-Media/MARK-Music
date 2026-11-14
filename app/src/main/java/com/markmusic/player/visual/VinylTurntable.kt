@@ -205,34 +205,78 @@ private fun DrawScope.drawTurntableDeck() {
     drawCircle(Color(0xFFCB9AFF).copy(alpha=.17f),s*.052f,power)
 }
 
+
+/**
+ * High-density record surface modeled after real black vinyl: restrained
+ * near-black material, densely packed grooves, broad silver-gray reflections
+ * and thinner iridescent highlights. All paths are drawn at output resolution.
+ */
 private fun DrawScope.drawVinylDisc() {
-    val r = size.minDimension * .498f
+    val r = size.minDimension * .497f
     val c = center
-    drawCircle(Brush.radialGradient(listOf(
-        Color(0xFF131720),Color(0xFF05070C),Color(0xFF1C1F28),
-        Color(0xFF04060B),Color(0xFF282B33))),r,c)
-    // Thin highlights follow microscopic physical grooves; avoid animated
-    // spectrum sampling and expensive shaders.
-    repeat(72) { i ->
-        val fraction = .31f + i * .0091f
-        val alpha = if(i%5==0) .22f else .08f
-        drawCircle(if (i%3==0) Color(0xFFB5C2D1).copy(alpha=alpha)
-            else Color(0xFF9199B6).copy(alpha=alpha*.65f),
-            radius=r*fraction,center=c,style=Stroke(.9f))
-    }
+    drawCircle(Color(0xFF050609), radius = r, center = c)
     drawCircle(
-        brush=Brush.sweepGradient(listOf(
-            Color.Transparent,Color.White.copy(alpha=.16f),
-            Color.Transparent,Color(0xFF8EDCF0).copy(alpha=.11f),
-            Color.Transparent,Color.White.copy(alpha=.11f),
-            Color.Transparent),center=c),
-        radius=r*.975f,center=c)
-    drawCircle(Color(0xFF4B5260),r*.984f,c,style=Stroke(r*.010f))
-    drawCircle(Color.Black.copy(alpha=.38f),r*.306f,c)
-    drawCircle(Color(0xFF7E8492).copy(alpha=.60f),
-        r*.294f,c,style=Stroke(1.5f))
+        brush = Brush.radialGradient(listOf(
+            Color(0xFF0A0B0E), Color(0xFF171A20), Color(0xFF090A0D),
+            Color(0xFF161920), Color(0xFF030408))),
+        radius = r, center = c
+    )
+    // The groove band begins outside the label and ends just before the runout.
+    // Hundreds of fine native-resolution lines avoid the old flat 72-ring look.
+    val count = 256
+    repeat(count) { i ->
+        val t = i.toFloat() / (count - 1)
+        val radius = r * (.303f + t * .672f)
+        val light = when {
+            i % 19 == 0 -> Color(0xFF7A8490).copy(alpha = .29f)
+            i % 7 == 0 -> Color(0xFF727B88).copy(alpha = .16f)
+            i % 2 == 0 -> Color(0xFF4C5665).copy(alpha = .16f)
+            else -> Color(0xFF010204).copy(alpha = .39f)
+        }
+        drawCircle(light, radius, c, style = Stroke(width = .60f))
+    }
+    // Separate mastering bands, lead-in, and the quieter inner run-out region.
+    for (fraction in listOf(.332f,.405f,.535f,.675f,.795f,.880f,.963f)) {
+        drawCircle(Color(0xFF8D98A9).copy(alpha = .22f),
+            radius = r * fraction, center = c, style = Stroke(.9f))
+        drawCircle(Color.Black.copy(alpha = .44f),
+            radius = r * (fraction + .003f), center = c, style = Stroke(1.1f))
+    }
+    drawCircle(Brush.sweepGradient(listOf(
+        Color(0xFF8C929D).copy(alpha = .04f),
+        Color.White.copy(alpha = .15f),
+        Color.Transparent,
+        Color(0xFFB7BDCB).copy(alpha = .04f),
+        Color.White.copy(alpha = .10f),
+        Color.Transparent,
+        Color(0xFF8C929D).copy(alpha = .04f)
+    ), center = c), radius = r * .975f)
+    drawCircle(Color(0xFF525967), radius = r * .989f, center = c,
+        style = Stroke(width = r * .009f))
+    drawCircle(Color.Black.copy(alpha = .35f), radius = r * .302f, center = c)
+    drawCircle(Color(0xFF8F97A2).copy(alpha = .39f),
+        radius = r * .296f, center = c, style = Stroke(width = 1f))
 }
 
+/**
+ * Directional ambient reflection falls on the *same* sector as the record
+ * rotates beneath it. This is distinct from the spinning groove texture.
+ */
+private fun DrawScope.drawRecordReflections() {
+    val s = size.minDimension
+    val platter = Offset(size.width * .435f, size.height * .50f)
+    val radius = s * .394f
+    drawCircle(brush = Brush.sweepGradient(listOf(
+        Color.Transparent,
+        Color(0xFFB8C9D8).copy(alpha = .12f),
+        Color(0xFFD2DAE9).copy(alpha = .19f),
+        Color.Transparent,
+        Color.Transparent,
+        Color(0xFF94A8C3).copy(alpha = .08f),
+        Color.Transparent,
+        Color.Transparent
+    ), center = platter), radius = radius, center = platter)
+}
 /** Static anodized metal tonearm suspended above the spinning LP. */
 private fun DrawScope.drawTonearm(lowering: Float) {
     val w=size.width
