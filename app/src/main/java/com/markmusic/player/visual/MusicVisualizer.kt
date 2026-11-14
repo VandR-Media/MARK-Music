@@ -96,149 +96,344 @@ fun EffectPreview(style: VisualStyle, modifier: Modifier = Modifier) {
     Canvas(modifier) { renderNewScene(style, preview, 1.5f, 0f, 0f) }
 }
 
+
 private fun DrawScope.renderNewScene(
-    style: VisualStyle, bands: List<Float>, time: Float, pitch: Float, roll: Float
+    style: VisualStyle, bands: List<Float>, t: Float, pitch: Float, roll: Float
 ) {
-    val side = size.minDimension
-    val centerPoint = center
-    val variant = style.ordinal / 5
-    val family = style.ordinal % 5
-    val shift = time * (if (family == 1) .36f else .18f)
-    val bass = bands.take(8).average().toFloat().coerceIn(0f, 1f)
-    val energy = bands.average().toFloat().coerceIn(0f, 1f)
-    fun band(i: Int) = bands[(i % bands.size + bands.size) % bands.size].coerceIn(0f, 1f)
-    fun shade(i: Int) = SHADES[(i + variant) % SHADES.size]
-    val tau = (PI * 2.0).toFloat()
-
-    // Ambient volume: gradients suggest depth before the geometry is drawn.
+    val s = size.minDimension
+    val w = size.width
+    val h = size.height
+    val c = center
+    val tau = (PI * 2).toFloat()
+    fun b(i: Int): Float = bands[(i % bands.size + bands.size) % bands.size].coerceIn(0f, 1f)
+    val bass = bands.take(9).average().toFloat().coerceIn(0f, 1f)
+    val mid = bands.drop(12).take(26).average().toFloat().coerceIn(0f, 1f)
+    val treble = bands.drop(38).average().toFloat().coerceIn(0f, 1f)
+    fun ink(i: Int) = SHADES[(i % SHADES.size + SHADES.size) % SHADES.size]
+    fun p(x: Float, y: Float) = Offset(c.x + x * s, c.y + y * s)
+    fun polar(a: Float, r: Float) = p(cos(a) * r, sin(a) * r)
+    fun projected(x: Float, y: Float, z: Float): Offset {
+        val xx = x * cos(pitch) - z * sin(pitch)
+        val zz = x * sin(pitch) + z * cos(pitch)
+        val yy = y * cos(roll) - zz * sin(roll)
+        val d = (1.1f + zz * .65f).coerceAtLeast(.4f)
+        return p(xx / d, yy / d)
+    }
+    fun beam(a: Offset, z: Offset, color: Color, thick: Float = 1.7f, opacity: Float = .85f) {
+        drawLine(color.copy(alpha = opacity * .13f), a, z, thick * 5f, StrokeCap.Round)
+        drawLine(color.copy(alpha = opacity * .36f), a, z, thick * 2.3f, StrokeCap.Round)
+        drawLine(color.copy(alpha = opacity), a, z, thick, StrokeCap.Round)
+    }
+    fun dot(at: Offset, r: Float, color: Color, a: Float = .9f) {
+        drawCircle(color.copy(alpha = a * .16f), r * 2.9f, at)
+        drawCircle(color.copy(alpha = a), r, at)
+    }
+    fun traced(count: Int, color: Color, width: Float = 1.8f, calc: (Int) -> Offset) {
+        var last = calc(0)
+        for (i in 1..count) {
+            val next = calc(i)
+            beam(last, next, color, width)
+            last = next
+        }
+    }
+    // Each named mode below is a separate composition, not a variation of
+    // five reused templates. Every preview depicts its actual live geometry.
     drawRect(Brush.verticalGradient(listOf(
-        Color(0xFF05091C), Color(0xFF131A42), Color(0xFF060B22))))
-    drawCircle(Brush.radialGradient(
-        listOf(shade(0).copy(alpha = .18f + energy * .16f),
-            shade(1).copy(alpha = .08f), Color.Transparent),
-        center = Offset(centerPoint.x + pitch * side, centerPoint.y + roll * side),
-        radius = side * .80f), radius = side * .80f,
-        center = Offset(centerPoint.x + pitch * side, centerPoint.y + roll * side))
+        Color(0xFF040818), Color(0xFF101D3D), Color(0xFF070B21))))
+    val halo = p(sin(t * .11f) * .12f, cos(t * .09f) * .09f)
+    drawCircle(Brush.radialGradient(listOf(
+        ink(style.ordinal).copy(alpha = .12f + bass * .18f),
+        Color.Transparent), halo, s * .68f), s * .68f, halo)
 
-    // Lightweight perspective projective transform. z = 0 is near, z > 0 far.
-    fun project(x: Float, y: Float, z: Float): Offset {
-        val rotatedX = x * cos(pitch) - z * sin(pitch)
-        val rotatedZ = x * sin(pitch) + z * cos(pitch)
-        val rotatedY = y * cos(roll) - rotatedZ * sin(roll)
-        val depth = (1.0f + max(-.3f, rotatedZ) * .62f).coerceAtLeast(.36f)
-        return Offset(centerPoint.x + rotatedX * side / depth,
-            centerPoint.y + rotatedY * side / depth)
-    }
-    fun luminousLine(a: Offset, b: Offset, color: Color, width: Float, alpha: Float = 1f) {
-        // Multiple transparent strokes simulate bloom without GPU blur shaders.
-        drawLine(color.copy(alpha = alpha * .12f), a, b, width * 4.3f, StrokeCap.Round)
-        drawLine(color.copy(alpha = alpha * .34f), a, b, width * 2.0f, StrokeCap.Round)
-        drawLine(color.copy(alpha = alpha * .94f), a, b, width, StrokeCap.Round)
-    }
-    when (family) {
-        0 -> { // Rotating toroidal sculpture / sound crown, curved in 3D.
-            val rings = 5 + variant
-            repeat(rings) { layer ->
-                val radius = .16f + layer * .056f + bass * .035f
-                val inclination = .15f + layer * .32f + shift * (if (layer % 2 == 0) 1 else -1)
-                var previous: Offset? = null
-                repeat(73) { n ->
-                    val angle = n * tau / 72f
-                    val ripple = band(n + layer * 7) * .028f
-                    val localRadius = radius + ripple
-                    val x = cos(angle) * localRadius
-                    val y = sin(angle) * localRadius * cos(inclination)
-                    val z = .15f + sin(angle) * localRadius * sin(inclination) + layer * .025f
-                    val p = project(x, y, z)
-                    previous?.let {
-                        luminousLine(it, p, shade(layer), 1.0f + side * .0022f,
-                            .60f + band(n + layer) * .35f)
+    when (style) {
+        VisualStyle.PULSE -> {
+            // Breathing plasma core, expanding shockwaves and spark corona.
+            drawCircle(Brush.radialGradient(listOf(
+                Color.White.copy(alpha = .9f), CYAN.copy(alpha = .8f),
+                VIOLET.copy(alpha = .25f), Color.Transparent), c, s * (.12f + bass * .10f)),
+                s * (.12f + bass * .10f))
+            repeat(4) { ring ->
+                val r = s * ((ring / 4f + t * .12f) % 1f) * .48f
+                drawCircle(CYAN.copy(alpha = (1f - r / (s * .5f)) * .65f),
+                    r, c, style = Stroke(1.2f + bass * 3f))
+            }
+            repeat(56) { i ->
+                val a = i * tau / 56f
+                val outer = .17f + b(i) * .14f + sin(t * 1.1f + i) * .011f
+                beam(polar(a, .14f), polar(a, outer), ink(i / 14), 1.5f)
+            }
+        }
+        VisualStyle.BARS -> {
+            // Floating skyline with 3D extruded building faces.
+            repeat(32) { i ->
+                val x = (i - 15.5f) / 32f * .93f
+                val z = .10f + (i % 6) * .075f
+                val height = .07f + b(i * 2) * .40f
+                val foot = projected(x, .38f, z)
+                val roof = projected(x, .38f - height, z)
+                val side = projected(x + .016f, .38f - height - .012f, z + .06f)
+                beam(foot, roof, ink(i / 8), 2f + s * .003f)
+                beam(roof, side, Color.White, 1.3f, .55f)
+            }
+            traced(40, CYAN.copy(alpha = .34f), 1.1f) { i ->
+                projected((i / 40f - .5f) * .96f, .40f, .10f)
+            }
+        }
+        VisualStyle.SPIRAL -> {
+            // Double DNA helix: two crossing strands connected by rungs.
+            repeat(2) { strand ->
+                traced(180, if (strand == 0) CYAN else PINK, 2.7f) { i ->
+                    val u = i / 180f
+                    val a = u * tau * 4.0f + t * .64f + strand * PI.toFloat()
+                    projected(cos(a) * .19f, (u - .5f) * .85f, .35f + sin(a) * .19f)
+                }
+            }
+            repeat(36) { i ->
+                val u = i / 35f
+                val a = u * tau * 4f + t * .64f
+                beam(projected(cos(a) * .19f, (u-.5f)*.85f, .35f+sin(a)*.19f),
+                    projected(-cos(a)*.19f, (u-.5f)*.85f, .35f-sin(a)*.19f),
+                    GOLD, 1.1f, .5f + b(i)*.35f)
+            }
+        }
+        VisualStyle.NEBULA -> {
+            // Soft colored gas clouds with slowly drifting luminous filaments.
+            repeat(11) { layer ->
+                val a = layer * 2.39996f + t * .09f
+                val centerCloud = polar(a, .13f + layer * .019f)
+                val radius = s * (.10f + (layer % 4) * .028f + bass * .03f)
+                drawCircle(Brush.radialGradient(listOf(
+                    ink(layer).copy(alpha = .21f), Color.Transparent),
+                    centerCloud, radius), radius, centerCloud)
+            }
+            repeat(95) { i ->
+                val angle = i * 2.39996f + t * .045f
+                val r = sqrt((i + 1) / 95f) * .43f
+                dot(polar(angle, r), 1f + b(i) * 2f, ink(i / 24), .35f + b(i)*.4f)
+            }
+        }
+        VisualStyle.RADIAL -> {
+            // Turbine / sound crown: a true 360-degree spiked spectrum disc.
+            drawCircle(VIOLET.copy(alpha = .16f), s * .20f, c)
+            repeat(96) { i ->
+                val a = i * tau / 96f - PI.toFloat() / 2f
+                val length = .035f + b(i) * .23f
+                beam(polar(a, .18f), polar(a, .18f + length), ink(i / 24),
+                    1.7f + b(i) * 2.1f)
+            }
+            drawCircle(CYAN, s * .177f, c, style = Stroke(2.8f))
+            dot(c, s * .025f, Color.White)
+        }
+        VisualStyle.RIBBON -> {
+            // Wide streaming silk ribbons, flowing across canvas like fabric.
+            repeat(5) { layer ->
+                traced(96, ink(layer), 2.0f + (4 - layer) * .6f) { i ->
+                    val u = i / 96f
+                    val wave = sin(u * tau * 2.5f + t * .8f + layer * .67f)
+                    val envelope = .06f + b(i + layer*9) * .12f
+                    projected((u-.5f)*.96f, wave * envelope + (layer-2f)*.036f,
+                        .15f + layer*.19f + cos(u*tau+t*.25f)*.08f)
+                }
+            }
+        }
+        VisualStyle.STARS -> {
+            // Constellation atlas: points connected by deliberate polygon chains.
+            val nodes = List(38) { i ->
+                val a = i * 2.39996f + t * .015f
+                polar(a, sqrt((i+1)/38f)*.43f)
+            }
+            nodes.forEachIndexed { i, loc ->
+                if (i > 0 && i % 4 != 0) beam(nodes[i-1], loc, VIOLET, 1.2f, .27f)
+                if (i >= 6 && i % 5 == 0) beam(nodes[i-6], loc, CYAN, .9f, .25f)
+                dot(loc, 1.3f + b(i)*3.5f, ink(i / 10))
+            }
+        }
+        VisualStyle.LISSAJOUS -> {
+            // One smooth continuous orbital knot, not a stack of waves.
+            repeat(3) { layer ->
+                traced(340, ink(layer), 1.6f + layer*.55f) { i ->
+                    val a = i / 340f * tau
+                    projected(sin(3*a + t*.30f + layer*.25f)*.32f,
+                        sin(4*a + t*.22f + .65f)*.30f,
+                        .29f + cos(5*a + layer*.50f)*.18f)
+                }
+            }
+        }
+        VisualStyle.GRID -> {
+            // Moving synthwave landscape receding to a horizon.
+            val horizonY = -.18f
+            repeat(17) { i ->
+                val depth = i / 16f
+                val y = horizonY + depth*depth*.74f
+                beam(p(-.50f, y), p(.50f, y), CYAN, 1.1f, .10f + depth*.55f)
+            }
+            repeat(15) { col ->
+                val x = (col-7f)/7f
+                beam(p(x*.09f, horizonY), p(x*.50f, .56f), PINK, 1.1f, .42f)
+            }
+            val sun = p(0f, -.23f)
+            drawCircle(Brush.radialGradient(listOf(PINK.copy(alpha=.7f),
+                GOLD.copy(alpha=.20f),Color.Transparent), sun,s*.20f),s*.20f,sun)
+            traced(100, GOLD, 1.6f) { i ->
+                val x = i / 100f - .5f
+                p(x, -.15f - .04f*sin(x*8f + t*.35f))
+            }
+        }
+        VisualStyle.AURORA -> {
+            // Curtains of translucent aurora stretching vertically.
+            repeat(7) { layer ->
+                val color = ink(layer)
+                repeat(22) { strand ->
+                    val x = (strand/21f - .5f)*.90f
+                    traced(38, color, 1.25f+layer*.3f) { j ->
+                        val v = j/38f
+                        p(x + sin(v*6f+t*.33f+layer*.50f)*(.018f+layer*.006f),
+                            v*.84f-.43f)
                     }
-                    previous = p
-                }
-            }
-            drawCircle(Brush.radialGradient(listOf(
-                shade(2).copy(alpha = .90f), shade(0).copy(alpha = .26f),
-                Color.Transparent), centerPoint, side * .11f), radius = side * .11f)
-        }
-        1 -> { // Traveling perspective tunnel with moving depth planes.
-            repeat(10) { plane ->
-                val z = ((plane / 10f + time * (.085f + variant * .012f)) % 1f) * 3.0f
-                val extent = .45f + bass * .055f
-                val steps = 6 + variant * 2
-                val corners = List(steps) { n ->
-                    val a = n * tau / steps + time * .08f
-                    project(cos(a) * extent, sin(a) * extent, z)
-                }
-                val color = shade(plane)
-                repeat(steps) { n ->
-                    luminousLine(corners[n], corners[(n+1)%steps],
-                        color, 1.15f + side * .0012f,
-                        (.80f - z / 4f).coerceIn(.10f, .90f))
-                }
-            }
-            repeat(12) { spoke ->
-                val a = spoke * tau / 12f
-                val near = project(cos(a) * .46f, sin(a) * .46f, .03f)
-                val far = project(cos(a) * .46f, sin(a) * .46f, 2.8f)
-                drawLine(shade(spoke).copy(alpha = .10f + energy * .15f),
-                    near, far, 1.2f)
-            }
-        }
-        2 -> { // Volumetric layered ribbons, rippling out of screen.
-            repeat(5 + variant) { layer ->
-                val depth = layer * .20f
-                val color = shade(layer)
-                var before: Offset? = null
-                repeat(81) { n ->
-                    val u = n / 80f
-                    val wave = sin(u * tau * (1.5f + variant * .28f) + time * .75f + layer * .62f)
-                    val amplitude = .055f + band(n + layer * 7) * .15f
-                    val x = (u - .5f) * .99f
-                    val y = wave * amplitude + (layer - 3f) * .038f
-                    val z = depth + sin(u * tau + time * .16f + layer) * .13f
-                    val p = project(x, y, z)
-                    before?.let { luminousLine(it, p, color, 1.6f, .85f - layer * .07f) }
-                    before = p
                 }
             }
         }
-        3 -> { // 3D swirling galactic nebula with depth-sized particles.
-            repeat(170) { i ->
-                val seed = i * 2.399963f
-                val r = sqrt((i + .5f) / 170f) * (.43f + band(i) * .05f)
-                val angle = seed + time * (.12f + variant * .04f) + r * (4f + variant)
-                val z = .10f + .55f * (1f + sin(seed * 1.43f + shift)) / 2f
-                val pos = project(cos(angle) * r, sin(angle) * r, z)
-                val pointRadius = (side * (.0025f + band(i) * .006f)) / (1f + z)
-                drawCircle(shade(i / 15).copy(alpha = .12f + band(i) * .50f),
-                    pointRadius * 2.5f, pos)
-                drawCircle(shade(i / 15).copy(alpha = .48f + band(i) * .40f),
-                    pointRadius.coerceAtLeast(.8f), pos)
+        VisualStyle.DIAMOND -> {
+            // A spinning faceted crystal, with distinct front/back faces.
+            val theta = t*.34f
+            fun crystalPoint(i: Int, back: Boolean): Offset {
+                val a = i*tau/6f + theta
+                val radius = if (i%2==0) .32f else .24f
+                return projected(cos(a)*radius, sin(a)*radius,
+                    if (back) .64f else .05f)
             }
-            drawCircle(Brush.radialGradient(listOf(
-                Color.White.copy(alpha = .85f), shade(1).copy(alpha = .38f),
-                Color.Transparent), centerPoint, side * .11f), radius = side * .11f)
+            repeat(6) { i ->
+                beam(crystalPoint(i, false), crystalPoint((i+1)%6, false), CYAN, 2.3f)
+                beam(crystalPoint(i, true), crystalPoint((i+1)%6, true), VIOLET, 1.7f, .47f)
+                beam(crystalPoint(i, false), crystalPoint(i, true), PINK, 1.2f)
+                beam(crystalPoint(i, false), c, GOLD, .9f, .35f)
+            }
+            dot(c, s*.014f, Color.White)
         }
-        else -> { // Extruded spectral pillars with parallax and illuminated caps.
-            repeat(35) { i ->
-                val x = (i - 17f) / 35f * .95f
-                val z = .15f + (i % 5) * .14f
-                val height = .07f + band(i * 2) * .35f + .02f * sin(time * .6f + i)
-                val base = project(x, .31f, z)
-                val top = project(x, .31f - height, z)
-                val upperBack = project(x + .014f, .31f - height - .010f, z + .065f)
-                val tint = shade(i / 7)
-                luminousLine(base, top, tint, side * .007f, .85f)
-                drawLine(Color.White.copy(alpha = .36f), top, upperBack, 1.6f)
-                drawCircle(tint.copy(alpha = .5f), side * .004f, top)
+        VisualStyle.ORBITS -> {
+            // Miniature solar system with eccentric orbital planes and planets.
+            dot(c, s*(.045f+bass*.025f), GOLD)
+            repeat(6) { orbit ->
+                val r = .10f+orbit*.063f
+                traced(115, ink(orbit), 1.1f) { i ->
+                    val a = i*tau/115f
+                    projected(cos(a)*r, sin(a)*r*.61f,
+                        .20f + sin(a)*r*.39f)
+                }
+                val angle = t*(.17f+orbit*.045f) + orbit*1.25f
+                val loc = projected(cos(angle)*r,sin(angle)*r*.61f,
+                    .20f+sin(angle)*r*.39f)
+                dot(loc, s*(.006f + orbit*.0018f + b(orbit)*.008f), ink(orbit))
             }
-            repeat(5) { depth ->
-                val y = .32f + depth * .015f
-                val from = project(-.47f, y, depth * .22f)
-                val to = project(.47f, y, depth * .22f)
-                drawLine(shade(depth).copy(alpha = .14f), from, to, 1f)
+        }
+        VisualStyle.MOUNTAINS -> {
+            // Layered alpine horizon with oscillating jagged peaks.
+            repeat(7) { depth ->
+                val base = .42f - depth*.10f
+                traced(80, ink(depth), 1.35f) { i ->
+                    val x = i/80f-.5f
+                    val peaks = abs(sin(x*13f + depth*1.4f + t*.11f))
+                    val finer = abs(sin(x*29f + depth*.7f))
+                    p(x,base - (peaks*.19f + finer*.055f)*(1f+b(i+depth)*.7f))
+                }
             }
+        }
+        VisualStyle.BLOBS -> {
+            // Metaball-like soft bubbles, not a particle galaxy.
+            repeat(12) { i ->
+                val a = i*tau/12f + t*(if(i%2==0) .21f else -.14f)
+                val r = .09f + .18f * abs(sin(i*1.43f+t*.12f))
+                val loc = polar(a,r)
+                val radius = s*(.035f + b(i)*.045f + (i%4)*.008f)
+                drawCircle(Brush.radialGradient(listOf(
+                    Color.White.copy(alpha=.58f),ink(i).copy(alpha=.35f),
+                    ink(i).copy(alpha=.06f),Color.Transparent),loc,radius*1.75f),
+                    radius*1.75f,loc)
+            }
+        }
+        VisualStyle.RAIN -> {
+            // Falling droplets with distinct gravitational trails.
+            repeat(75) { i ->
+                val x = (i+.5f)/75f-.5f
+                val travel = (t*(.19f+i%7*.025f)+i*.073f)%1.25f
+                val y = travel-.63f
+                val len = .012f+b(i)*.10f
+                beam(p(x,y-len),p(x,y),ink(i/19),1.0f+b(i)*1.8f,.45f+b(i)*.50f)
+            }
+        }
+        VisualStyle.GALAXY -> {
+            // Four spiral arms in a rotating, inclined galactic disc.
+            repeat(200) { i ->
+                val arm = i%4
+                val u = (i/4+.5f)/50f
+                val a = arm*tau/4f + u*4.8f+t*.13f
+                val r = sqrt(u)*.43f
+                val loc = projected(cos(a)*r,sin(a)*r*.48f,
+                    .35f+sin(a)*r*.13f)
+                dot(loc, .7f+b(i)*2.9f, ink(arm),.38f+b(i)*.55f)
+            }
+            dot(c,s*(.025f+bass*.02f),Color.White)
+        }
+        VisualStyle.FIREWORKS -> {
+            // Timed bursts of expanding radial fireworks at independent locations.
+            repeat(5) { burst ->
+                val origin = p((burst-2f)*.17f, sin(burst*2f)*.21f)
+                val age = ((t*.27f + burst*.20f)%1f)
+                repeat(23) { ray ->
+                    val angle = ray*tau/23f+burst
+                    val r = .025f + age*.18f + b(ray+burst)*.10f
+                    val pt = Offset(origin.x+cos(angle)*r*s,
+                        origin.y+sin(angle)*r*s)
+                    dot(pt,1.0f+(1f-age)*3.2f,ink(burst),1f-age*.82f)
+                }
+            }
+        }
+        VisualStyle.TUNNEL -> {
+            // Forward-moving luminous hexagonal corridor in perspective.
+            repeat(12) { ring ->
+                val z = ((ring/12f+t*.13f)%1f)*3.6f
+                val n = 6
+                repeat(n) { side ->
+                    val a = side*tau/n + t*.075f
+                    val next = (side+1)*tau/n + t*.075f
+                    beam(projected(cos(a)*.40f,sin(a)*.40f,z),
+                        projected(cos(next)*.40f,sin(next)*.40f,z),
+                        ink(ring),1.35f,(.86f-z*.18f).coerceAtLeast(.12f))
+                }
+            }
+        }
+        VisualStyle.LIGHTNING -> {
+            // Branching electric discharge, angular rather than smooth.
+            repeat(5) { bolt ->
+                var prev = p((bolt-2f)*.19f,-.44f)
+                repeat(18) { k ->
+                    val y = -.44f + (k+1)*.048f
+                    val jag = sin(k*13.71f+bolt*17.3f+t*1.8f)*
+                        (.024f+b(k+bolt)*.047f)
+                    val next = p((bolt-2f)*.19f+jag,y)
+                    beam(prev,next,if(bolt%2==0) CYAN else VIOLET,1.7f)
+                    if(k%5==0) {
+                        val spur = p((bolt-2f)*.19f+jag+.07f,y+.10f)
+                        beam(next,spur,PINK,1.0f,.65f)
+                    }
+                    prev=next
+                }
+            }
+        }
+        VisualStyle.VINYL -> {
+            // Actual turntable silhouette with grooves, label and tonearm.
+            drawCircle(Color(0xFF111526),s*.42f,c)
+            repeat(18) { groove ->
+                drawCircle(ink(groove).copy(alpha=.10f+b(groove)*.15f),
+                    s*(.15f+groove*.014f),c,style=Stroke(1.05f))
+            }
+            drawCircle(PINK,s*.135f,c)
+            drawCircle(GOLD.copy(alpha=.7f),s*.088f,c,style=Stroke(2.5f))
+            drawCircle(Color(0xFF111526),s*.016f,c)
+            val pivot=p(.36f,-.37f)
+            val needle=p(.09f+sin(t*.15f)*.025f,.25f)
+            beam(pivot,needle,Color.White,3.5f,.7f)
+            dot(pivot,s*.018f,GOLD)
         }
     }
 }
