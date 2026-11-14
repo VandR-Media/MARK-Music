@@ -15,7 +15,11 @@ import urllib.request
 OUTPUT = Path("app/src/main/res/drawable-nodpi/mayak_photo.jpg")
 URLS = (
     "https://upload.wikimedia.org/wikipedia/commons/c/c1/Majak203.jpg",
+    "https://images.weserv.nl/?url=upload.wikimedia.org%2Fwikipedia%2Fcommons%2Fc%2Fc1%2FMajak203.jpg&w=1600&output=jpg",
+    "https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fc%2Fc1%2FMajak203.jpg&w=1600&output=jpg",
     "https://commons.wikimedia.org/wiki/Special:Redirect/file/Majak203.jpg",
+    # Source of the user's exact Mayak-203 reference photo.
+    "https://rw6ase.narod.ru/index1/mag_ml/mg_kat_set_/majak203w2.jpg",
 )
 MAX_BYTES = 3_000_000
 
@@ -51,10 +55,10 @@ def download():
     # Support offline Gradle rebuilds after the photo has been downloaded once.
     if OUTPUT.is_file():
         cached = OUTPUT.read_bytes()
-        if 250_000 < len(cached) < MAX_BYTES and cached.endswith(b"\xff\xd9"):
+        if 50_000 < len(cached) < MAX_BYTES and cached.endswith(b"\xff\xd9"):
             try:
                 w, h = jpeg_dimensions(cached)
-                if w >= 1500 and h >= 1400:
+                if w >= 500 and h >= 400:
                     print(f"Using cached Mayak-203 photograph ({w}x{h})")
                     return
             except ValueError:
@@ -68,16 +72,17 @@ def download():
             })
             with urllib.request.urlopen(req, timeout=65) as response:
                 data = response.read(MAX_BYTES + 1)
-            if not 250_000 < len(data) < MAX_BYTES:
+            if not 50_000 < len(data) < MAX_BYTES:
                 raise ValueError(f"Unexpected photo size: {len(data)} bytes")
             if not data.endswith(b"\xff\xd9"):
                 raise ValueError("Truncated JPEG asset")
             width, height = jpeg_dimensions(data)
-            if width < 1500 or height < 1400:
+            if width < 500 or height < 400:
                 raise ValueError(f"Wrong photo dimensions: {width}x{height}")
             OUTPUT.parent.mkdir(parents=True, exist_ok=True)
             OUTPUT.write_bytes(data)
             print(f"Mayak-203 photograph: {width}x{height}, {len(data)} bytes")
+            print(f"Photographic source: {url}")
             print(f"Photo SHA-256: {hashlib.sha256(data).hexdigest()}")
             return
         except Exception as exc:
