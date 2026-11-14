@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.imageResource
@@ -83,17 +82,17 @@ fun MayakReelToReel(playing: Boolean, progress: Float, modifier: Modifier = Modi
         }
         MayakPhotoReel(
             photo, .278f, .290f, .382f,
-            Modifier.offset(
-                x = leftX - (maxWidth - reelDiameter) / 2f,
-                y = reelY - (maxHeight - reelDiameter) / 2f
-            ).size(reelDiameter).graphicsLayer { rotationZ = supplyAngle.floatValue }
+            Modifier.align(Alignment.TopStart)
+                .offset(x = leftX - reelDiameter / 2f, y = reelY - reelDiameter / 2f)
+                .size(reelDiameter)
+                .graphicsLayer { rotationZ = supplyAngle.floatValue }
         )
         MayakPhotoReel(
             photo, .720f, .290f, .382f,
-            Modifier.offset(
-                x = rightX - (maxWidth - reelDiameter) / 2f,
-                y = reelY - (maxHeight - reelDiameter) / 2f
-            ).size(reelDiameter).graphicsLayer { rotationZ = takeupAngle.floatValue }
+            Modifier.align(Alignment.TopStart)
+                .offset(x = rightX - reelDiameter / 2f, y = reelY - reelDiameter / 2f)
+                .size(reelDiameter)
+                .graphicsLayer { rotationZ = takeupAngle.floatValue }
         )
     }
 }
