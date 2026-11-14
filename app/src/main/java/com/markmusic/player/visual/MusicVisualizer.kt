@@ -60,6 +60,11 @@ fun MusicVisualizer(style: VisualStyle, playing: Boolean, modifier: Modifier = M
             // withFrameNanos is tied to the display refresh. No artificial
             // 15-fps throttle and no busy spinning while the UI is hidden.
             withFrameNanos { now ->
+                // On 120-Hz panels render every other vsync (~60 FPS); on
+                // 60/90-Hz panels keep each vsync. Avoid 120-FPS thermal load.
+                if (lastFrameNs != 0L && now - lastFrameNs < 9_000_000L) {
+                    return@withFrameNanos
+                }
                 val dt = if (lastFrameNs == 0L) 1f / 60f
                     else ((now - lastFrameNs) / 1_000_000_000f).coerceIn(0f, .05f)
                 lastFrameNs = now
