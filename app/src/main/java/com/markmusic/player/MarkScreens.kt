@@ -168,20 +168,7 @@ internal fun MarkHomeScreen(
                 }
             }
         }
-        if (current != null) {
-            item {
-                Text("Сейчас играет", color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    MarkCover(current, Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)))
-                    Spacer(Modifier.width(11.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(current.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(current.artist, color = Color(0xFFB9C9E8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Text(if (playing) "Ⅱ" else "▶", color = palette.accent, fontSize = 25.sp)
-                }
-            }
-        }
+
     }
 }
 
@@ -497,17 +484,30 @@ internal fun MarkPlayerScreen(
     repeatLabel: String,
     onRepeat: () -> Unit,
     onAddToPlaylist: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    queueLabel: String,
+    onOpenQueue: () -> Unit
 ) {
     var dragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
+    val context = LocalContext.current
+    // Distinguish cover loading from "no cover": do not show visual effects
+    // briefly for songs that actually have artwork.
+    val coverLoad by produceState<Pair<Boolean, ImageBitmap?>>(
+        false to null, track.id
+    ) {
+        value = true to MusicLibrary.embeddedCover(context, track.uri)
+    }
+    val coverReady = coverLoad.first
+    val artwork = coverLoad.second
+    val showVisualizer = coverReady && artwork == null
 
     // The playback controls stay visible: the whole screen fits in the height provided
     // by systemBarsPadding(), including on compact Huawei display/font settings.
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxHeight < 730.dp
         val gap = if (compact) 6.dp else 9.dp
-        val artworkSize = minOf(maxWidth * .84f, maxHeight * (if (compact) .31f else .38f))
+        val artworkSize = minOf(maxWidth * .94f, maxHeight * (if (compact) .46f else .56f))
         val mainControl = if (compact) 61.dp else 69.dp
         val sideControl = if (compact) 45.dp else 51.dp
 
@@ -527,13 +527,30 @@ internal fun MarkPlayerScreen(
                         fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
                     Text("MARK AUDIO", color = palette.accent, fontSize = 9.sp, letterSpacing = 2.sp)
                 }
-                NeonRoundButton("effects", palette.accent, onEffects, 40.dp)
+                NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
             NeonGlass(palette, Modifier.size(artworkSize), radius = 27.dp) {
-                MarkCover(track, Modifier.fillMaxSize().padding(5.dp)
+                Box(Modifier.fillMaxSize().padding(5.dp)
                     .clip(RoundedCornerShape(23.dp))
-                    .combinedClickable(onClick = {}, onLongClick = onDelete))
+                    .combinedClickable(onClick = { if (showVisualizer) onEffects() },
+                        onLongClick = onDelete),
+                    contentAlignment = Alignment.Center) {
+                    when {
+                        artwork != null -> Image(artwork, contentDescription = null,
+                            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        showVisualizer -> MusicVisualizer(style, playing, Modifier.fillMaxSize())
+                        else -> CircularProgressIndicator(color = palette.accent)
+                    }
+                }
+            }
+            NeonPill("Список · $queueLabel", palette,
+                onClick = onOpenQueue, icon = "playlist")
+            if (showVisualizer) {
+                TextButton(onClick = onEffects) {
+                    Text("Визуализация: ${style.label} · 20 эффектов",
+                        color = palette.accent, fontSize = 11.sp)
+                }
             }
 
             Row(
@@ -553,33 +570,7 @@ internal fun MarkPlayerScreen(
                     NeonPink, onFavorite, if (compact) 41.dp else 46.dp)
             }
 
-            // Weighted visualizer gets the remaining room instead of pushing playback
-            // buttons below the screen. Its body can compress without scrolling.
-            NeonGlass(palette, Modifier.fillMaxWidth().weight(1f), radius = 22.dp) {
-                Column(Modifier.fillMaxSize().padding(7.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MusicVisualizer(style, playing,
-                        Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(14.dp)))
-                    Row(
-                        Modifier.fillMaxWidth().height(27.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        NeonGlyph("wave", palette.secondary, size = 18.dp)
-                        Spacer(Modifier.width(7.dp))
-                        Text(style.label, Modifier.weight(1f), color = palette.accent,
-                            fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
-                        TextButton(
-                            onClick = onEffects,
-                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
-                            modifier = Modifier.height(27.dp)
-                        ) {
-                            Text("20 эффектов", color = palette.accent,
-                                fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-
+            Spacer(Modifier.weight(1f))
             Column(Modifier.fillMaxWidth()) {
                 Slider(
                     value = if (dragging) sliderValue.coerceIn(0f, duration.coerceAtLeast(1).toFloat())

@@ -127,6 +127,9 @@ private fun MarkApp(openPlayerRequests: Int) {
     var showEqualizer by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     var showRepeatOptions by remember { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
+    var queueIds by remember { mutableStateOf<List<Long>>(emptyList()) }
+    var queueIndex by remember { mutableIntStateOf(0) }
     var newPlaylistName by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Track?>(null) }
     var userPlaylists by remember { mutableStateOf(PlaylistStore.read(ctx)) }
@@ -213,6 +216,10 @@ private fun MarkApp(openPlayerRequests: Int) {
                             duration = player.duration.takeIf { it > 0 } ?: 0L
                             position = player.currentPosition.coerceAtLeast(0L)
                             repeatMode = player.repeatMode
+                            queueIds = (0 until player.mediaItemCount).mapNotNull {
+                                player.getMediaItemAt(it).mediaId.toLongOrNull()
+                            }
+                            queueIndex = player.currentMediaItemIndex.coerceAtLeast(0)
                         }
                         override fun onRepeatModeChanged(mode: Int) { repeatMode = mode }
                         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -226,6 +233,10 @@ private fun MarkApp(openPlayerRequests: Int) {
                     playing = player.isPlaying
                     mediaId = player.currentMediaItem?.mediaId.orEmpty()
                     repeatMode = player.repeatMode
+                    queueIds = (0 until player.mediaItemCount).mapNotNull {
+                        player.getMediaItemAt(it).mediaId.toLongOrNull()
+                    }
+                    queueIndex = player.currentMediaItemIndex.coerceAtLeast(0)
                 }.onFailure { playerError = "Не удалось подключить проигрыватель" }
             }
         }, ctx.mainExecutor)
@@ -292,9 +303,15 @@ private fun MarkApp(openPlayerRequests: Int) {
         musicSongs.filter { "${it.title} ${it.artist} ${it.album} ${it.folder}".contains(query, ignoreCase = true) }
     }
     fun playQueue(queue: List<Track>, selected: Track) {
+        val ids = queue.map { it.id }.toSet()
+        val matchingUserPlaylist = userPlaylists.entries.firstOrNull {
+            it.value.isNotEmpty() && it.value == ids
+        }?.key
         queueScope = when {
-            queue.size > 1 && queue.all { it.albumId == selected.albumId } -> "Альбом"
-            queue.size > 1 && queue.all { it.folder == selected.folder } -> "Папка"
+            matchingUserPlaylist != null -> matchingUserPlaylist
+            queue.size > 1 && queue.all { it.albumId == selected.albumId } -> selected.album
+            queue.size > 1 && queue.all { it.folder == selected.folder } ->
+                selected.folder.trimEnd('/').substringAfterLast('/').ifBlank { "Папка" }
             else -> "Очередь"
         }
         controller?.apply {
@@ -366,7 +383,9 @@ private fun MarkApp(openPlayerRequests: Int) {
                             },
                             onRepeat = { showRepeatOptions = true },
                             onAddToPlaylist = { showAddToPlaylist = true },
-                            onDelete = { pendingDelete = current }
+                            onDelete = { pendingDelete = current },
+                            queueLabel = queueScope,
+                            onOpenQueue = { showQueue = true }
                         )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -460,6 +479,57 @@ private fun MarkApp(openPlayerRequests: Int) {
     }
     if (showEqualizer) {
         MarkEqualizerDialog(palette) { showEqualizer = false }
+    }
+    if (showQueue) {
+        AlertDialog(
+            onDismissRequest = { showQueue = false },
+            title = {
+                Column {
+                    Text("Сейчас в очереди", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("$queueScope · ${queueIds.size} треков",
+                        color = palette.accent, fontSize = 12.sp)
+                }
+            },
+            text = {
+                val queue = queueIds.mapNotNull { id -> songs.firstOrNull { it.id == id } }
+                LazyColumn(modifier = Modifier.heightIn(max = 440.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    items(queueIds.size) { index ->
+                        val song = songs.firstOrNull { it.id == queueIds[index] }
+                        if (song != null) {
+                            NeonGlass(palette, Modifier.fillMaxWidth(), radius = 15.dp,
+                                onClick = {
+                                    controller?.seekToDefaultPosition(index)
+                                    controller?.play()
+                                    showQueue = false
+                                }) {
+                                Row(Modifier.padding(9.dp),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Text(if (index == queueIndex) "▶" else "${index + 1}",
+                                        Modifier.width(27.dp), color = palette.accent,
+                                        fontSize = 12.sp)
+                                    Column(Modifier.weight(1f)) {
+                                        Text(song.title, color = Color.White, maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            fontWeight = if (index == queueIndex) FontWeight.Bold
+                                                else FontWeight.Normal)
+                                        Text(song.artist, color = NeonSubtle, fontSize = 11.sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                    Text(time(song.durationMs), color = NeonSubtle, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQueue = false }) {
+                    Text("Закрыть", color = palette.accent)
+                }
+            },
+            containerColor = Color(0xFF101D40)
+        )
     }
     if (showRepeatOptions) {
         AlertDialog(
