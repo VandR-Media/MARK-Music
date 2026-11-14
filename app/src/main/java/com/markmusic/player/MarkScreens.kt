@@ -79,6 +79,14 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 internal enum class PlayerDeckMode { VINYL, MAYAK_203 }
 internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
     PlayerDeckMode.entries.firstOrNull { it.name == value } ?: PlayerDeckMode.VINYL
+internal fun playerDeckAfterSwipe(
+    current: PlayerDeckMode, distancePx: Float, thresholdPx: Float
+): PlayerDeckMode {
+    if (kotlin.math.abs(distancePx) < thresholdPx) return current
+    // With exactly two pages, either direction leads to the other one.
+    return if (current == PlayerDeckMode.VINYL)
+        PlayerDeckMode.MAYAK_203 else PlayerDeckMode.VINYL
+}
 
 
 @Composable
@@ -564,10 +572,10 @@ internal fun MarkPlayerScreen(
                             change.consume()
                         },
                         onDragEnd = {
-                            if (kotlin.math.abs(horizontalDrag) >= swipeThresholdPx) {
-                                chooseDeck(if (deckMode == PlayerDeckMode.VINYL)
-                                    PlayerDeckMode.MAYAK_203 else PlayerDeckMode.VINYL)
-                            }
+                            val next = playerDeckAfterSwipe(
+                                deckMode, horizontalDrag, swipeThresholdPx
+                            )
+                            if (next != deckMode) chooseDeck(next)
                             horizontalDrag = 0f
                         },
                         onDragCancel = { horizontalDrag = 0f }
