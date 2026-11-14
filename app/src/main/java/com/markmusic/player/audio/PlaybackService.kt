@@ -8,10 +8,6 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,19 +38,7 @@ class PlaybackService : MediaSessionService() {
                 eqEngine.update(sessionId, preset, active)
             }
         }
-        val factory = object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: android.content.Context,
-                enableFloatOutput: Boolean,
-                enableAudioOutputPlaybackParams: Boolean
-            ): AudioSink =
-                DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf(TeeAudioProcessor(AudioSpectrumBus)))
-                    .setEnableFloatOutput(false)
-                    .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
-                    .build()
-        }
-        val p = ExoPlayer.Builder(this, factory).build()
+        val p = ExoPlayer.Builder(this).build()
         p.setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true

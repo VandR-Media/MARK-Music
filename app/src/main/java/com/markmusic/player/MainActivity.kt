@@ -57,9 +57,6 @@ import com.markmusic.player.audio.MarkEqualizer
 import com.markmusic.player.library.LibraryGrouping
 import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
-import com.markmusic.player.visual.EffectPreview
-import com.markmusic.player.visual.MusicVisualizer
-import com.markmusic.player.visual.VisualStyle
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -122,7 +119,6 @@ private fun MarkApp(openPlayerRequests: Int) {
             navigate(2)
         }
     }
-    var showEffects by remember { mutableStateOf(false) }
     var showThemes by remember { mutableStateOf(false) }
     var showEqualizer by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
@@ -136,9 +132,8 @@ private fun MarkApp(openPlayerRequests: Int) {
     var glassDepth by remember {
         mutableFloatStateOf(prefs.getFloat("glass_depth", 1f).coerceIn(0f, 2f))
     }
-    BackHandler(enabled = showEffects || showThemes || showEqualizer || navTab != 0) {
+    BackHandler(enabled = showThemes || showEqualizer || navTab != 0) {
         when {
-            showEffects -> showEffects = false
             showThemes -> showThemes = false
             showEqualizer -> showEqualizer = false
             else -> navigateBack()
@@ -154,10 +149,6 @@ private fun MarkApp(openPlayerRequests: Int) {
     }
     var favoriteIds by remember {
         mutableStateOf(prefs.getStringSet("favorites", mutableSetOf())?.mapNotNull { it.toLongOrNull() }?.toSet().orEmpty())
-    }
-    var style by remember {
-        mutableStateOf(runCatching { VisualStyle.valueOf(prefs.getString("effect", "PULSE") ?: "PULSE") }
-            .getOrDefault(VisualStyle.PULSE))
     }
 
     LaunchedEffect(audioAllowed, refresh) {
@@ -360,12 +351,11 @@ private fun MarkApp(openPlayerRequests: Int) {
                 2 -> Box(Modifier.weight(1f)) {
                     if (current != null) {
                         MarkPlayerScreen(
-                            track = current, style = style, playing = playing,
+                            track = current, playing = playing,
                             position = position, duration = duration,
                             isFavorite = favoriteIds.contains(current.id),
                             playerError = playerError, palette = palette,
                             onBack = { navigateBack() },
-                            onEffects = { showEffects = true },
                             onFavorite = {
                                 val updated = favoriteIds.toMutableSet()
                                 if (!updated.add(current.id)) updated.remove(current.id)
@@ -641,41 +631,6 @@ private fun MarkApp(openPlayerRequests: Int) {
             dismissButton = { TextButton(onClick = { pendingDelete = null }) {
                 Text("Отмена", color = palette.accent)
             } }, containerColor = Color(0xFF101D40)
-        )
-    }
-    if (showEffects) {
-        AlertDialog(
-            onDismissRequest = { showEffects = false },
-            title = { Text("Выбери свою вселенную") },
-            text = {
-                Box(Modifier.heightIn(max = 470.dp).clip(RoundedCornerShape(20.dp))) {
-                    Image(BrandArtwork.dialogBackground, contentDescription = null,
-                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.36f)
-                    Box(Modifier.fillMaxSize().background(Color(0x99101A36)))
-                    LazyVerticalGrid(GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(VisualStyle.entries.toList()) { item ->
-                            Surface(onClick = {
-                                style = item
-                                prefs.edit().putString("effect", item.name).apply()
-                                showEffects = false
-                            }, shape = RoundedCornerShape(13.dp),
-                                color = if (style == item) Color(0xFF324D67) else Color(0xFF20253F),
-                                modifier = Modifier.height(112.dp)) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    EffectPreview(item, Modifier.fillMaxWidth().height(76.dp)
-                                        .padding(6.dp).clip(RoundedCornerShape(9.dp)))
-                                    Text(item.label, fontSize = 12.sp, textAlign = TextAlign.Center,
-                                        color = if (style == item) CYAN else Color.White,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showEffects = false }) { Text("Закрыть") } },
-            containerColor = Color(0xFF14284B)
         )
     }
     if (showWelcome) MarkWelcomeScreen(BrandArtwork.welcome(ctx), palette)

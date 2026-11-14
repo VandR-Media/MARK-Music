@@ -26,8 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.markmusic.player.library.LibraryGrouping
 import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
-import com.markmusic.player.visual.MusicVisualizer
-import com.markmusic.player.visual.VisualStyle
+import com.markmusic.player.visual.VinylTurntable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -467,7 +466,6 @@ internal fun MarkPlaylistScreen(
 @Composable
 internal fun MarkPlayerScreen(
     track: Track,
-    style: VisualStyle,
     playing: Boolean,
     position: Long,
     duration: Long,
@@ -475,7 +473,6 @@ internal fun MarkPlayerScreen(
     playerError: String?,
     palette: MarkPalette,
     onBack: () -> Unit,
-    onEffects: () -> Unit,
     onFavorite: () -> Unit,
     onSeek: (Long) -> Unit,
     onPrevious: () -> Unit,
@@ -500,7 +497,7 @@ internal fun MarkPlayerScreen(
     }
     val coverReady = coverLoad.first
     val artwork = coverLoad.second
-    val showVisualizer = coverReady && artwork == null
+    val fallbackLogo = remember(context) { BrandArtwork.logo(context) }
 
     // The playback controls stay visible: the whole screen fits in the height provided
     // by systemBarsPadding(), including on compact Huawei display/font settings.
@@ -533,25 +530,21 @@ internal fun MarkPlayerScreen(
             NeonGlass(palette, Modifier.size(artworkSize), radius = 27.dp) {
                 Box(Modifier.fillMaxSize().padding(5.dp)
                     .clip(RoundedCornerShape(23.dp))
-                    .combinedClickable(onClick = { if (showVisualizer) onEffects() },
-                        onLongClick = onDelete),
+                    .combinedClickable(onClick = {}, onLongClick = onDelete),
                     contentAlignment = Alignment.Center) {
-                    when {
-                        artwork != null -> Image(artwork, contentDescription = null,
-                            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        showVisualizer -> MusicVisualizer(style, playing, Modifier.fillMaxSize())
-                        else -> CircularProgressIndicator(color = palette.accent)
+                    if (coverReady) {
+                        VinylTurntable(
+                            artwork = artwork ?: fallbackLogo,
+                            playing = playing,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        CircularProgressIndicator(color = palette.accent)
                     }
                 }
             }
             NeonPill("Список · $queueLabel", palette,
                 onClick = onOpenQueue, icon = "playlist")
-            if (showVisualizer) {
-                TextButton(onClick = onEffects) {
-                    Text("Визуализация: ${style.label} · 20 эффектов",
-                        color = palette.accent, fontSize = 11.sp)
-                }
-            }
 
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 52.dp),
