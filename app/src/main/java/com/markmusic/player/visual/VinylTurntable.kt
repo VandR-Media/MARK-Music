@@ -2,22 +2,16 @@ package com.markmusic.player.visual
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.ui.platform.LocalContext
-import android.content.Context
-import android.graphics.BitmapFactory
-import android.util.Base64
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -36,6 +30,8 @@ import kotlin.coroutines.coroutineContext
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.atan2
 
 /**
  * Single realistic-style vinyl turntable, replacing the complete effect catalog.
@@ -47,11 +43,17 @@ import kotlin.math.sin
 fun VinylTurntable(
     artwork: ImageBitmap,
     playing: Boolean,
+    progress: Float,
     modifier: Modifier = Modifier
 ) {
     val foreground = LocalVisualActive.current.value
-    val context = LocalContext.current
-    val photo = remember(context) { loadTurntablePhoto(context) }
+    // The original bundled deck was only 128px and became visibly blurry
+    // on high-density Huawei displays. Draw at native screen resolution instead.
+    val trackProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 240, easing = LinearEasing),
+        label = "stylus-groove-progress"
+    )
     var degrees by remember { mutableFloatStateOf(0f) }
     val armLowering by animateFloatAsState(
         targetValue = if (playing) 1f else 0f,
@@ -82,11 +84,8 @@ fun VinylTurntable(
         val platterY = maxHeight * .104f
         val labelSize = platterSize * .29f
 
-        if (photo != null) {
-            Image(bitmap = photo, contentDescription = "Корпус винилового проигрывателя",
-                modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-        }
-        Canvas(Modifier.fillMaxSize()) { drawTurntableDeck(drawBase = photo == null) }
+        // Static precision geometry: no bitmap enlargement and no downloaded assets.
+        Canvas(Modifier.fillMaxSize()) { drawTurntableDeck() }
         Box(Modifier
             .offset(x = platterX - (maxWidth - platterSize) / 2f,
                 y = platterY - (maxHeight - platterSize) / 2f)
@@ -115,18 +114,19 @@ fun VinylTurntable(
             }
         }
         Canvas(Modifier.fillMaxSize()) {
-            drawTonearm(armLowering)
+            drawTonearm(armLowering, trackProgress)
+            // Directional studio reflections are fixed relative to the deck.
+            drawRecordReflections()
         }
     }
 }
 
 /** Gradients, shadows, controls, engraved lines and metallic highlights. */
-private fun DrawScope.drawTurntableDeck(drawBase: Boolean) {
+private fun DrawScope.drawTurntableDeck() {
     val s = size.minDimension
     val w = size.width
     val h = size.height
     fun pt(x: Float, y: Float) = Offset(x * w, y * h)
-    if (drawBase) {
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
             Color(0xFF66718A), Color(0xFF151C2B), Color(0xFF090F19),
@@ -144,7 +144,6 @@ private fun DrawScope.drawTurntableDeck(drawBase: Boolean) {
         size = Size(w * .95f, h * .918f),
         cornerRadius = CornerRadius(s * .045f)
     )
-    }
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
             Color(0xFF57D4EF).copy(alpha = .85f),
@@ -269,12 +268,3 @@ private fun DrawScope.drawTonearm(lowering: Float) {
         tip+Offset(-s*.019f,s*.020f))
 }
 
-/** Offline cached still image. The animated LP and tonearm are rendered above it.
- * If an older APK or asset corruption is encountered, the vector deck remains
- * available as a complete non-crashing fallback. No network requests.
- */
-private fun loadTurntablePhoto(context: Context): ImageBitmap? = runCatching {
-    val encoded = context.assets.open("mark_turntable_base.b64").bufferedReader().use { it.readText() }
-    val bytes = Base64.decode(encoded, Base64.DEFAULT)
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-}.getOrNull()
