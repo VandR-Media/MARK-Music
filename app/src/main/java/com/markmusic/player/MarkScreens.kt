@@ -168,20 +168,7 @@ internal fun MarkHomeScreen(
                 }
             }
         }
-        if (current != null) {
-            item {
-                Text("Сейчас играет", color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    MarkCover(current, Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)))
-                    Spacer(Modifier.width(11.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(current.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(current.artist, color = Color(0xFFB9C9E8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Text(if (playing) "Ⅱ" else "▶", color = palette.accent, fontSize = 25.sp)
-                }
-            }
-        }
+
     }
 }
 
