@@ -7,6 +7,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -50,8 +52,30 @@ fun MusicVisualizer(
         }
     }
     Canvas(modifier) {
-        drawRect(BASE.copy(alpha = .34f))
-        render(style, if (active) latest else List(64) { 0f }, phase)
+        // The visualizer occupies the full album-art surface. Soft luminous layers
+        // give depth without an extra inset box or heavyweight blur shaders.
+        val strength = if (active) latest.take(12).average().toFloat().coerceIn(0f, 1f) else 0f
+        drawRect(Brush.verticalGradient(listOf(
+            Color(0xFF061228), Color(0xFF181440), Color(0xFF050E25)
+        )))
+        drawCircle(
+            brush = Brush.radialGradient(listOf(
+                CYAN.copy(alpha = .13f + strength * .24f),
+                VIOLET.copy(alpha = .09f), Color.Transparent
+            ), center = center, radius = size.minDimension * .70f),
+            radius = size.minDimension * .70f
+        )
+        drawCircle(
+            brush = Brush.radialGradient(listOf(
+                PINK.copy(alpha = .11f), Color.Transparent
+            ), center = Offset(size.width * .67f, size.height * .36f),
+                radius = size.minDimension * .45f),
+            radius = size.minDimension * .45f,
+            center = Offset(size.width * .67f, size.height * .36f)
+        )
+        scale(1.30f, 1.30f, pivot = center) {
+            render(style, if (active) latest else List(64) { 0f }, phase)
+        }
     }
 }
 
