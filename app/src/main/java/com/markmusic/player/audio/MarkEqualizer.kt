@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 
 /**
- * Five user-facing EQ points, interpolated across the bands actually supported
+ * Sixteen user-facing EQ points, interpolated across the bands actually supported
  * by the handset's native equalizer. Values are in decibels, conservatively
  * clamped to the supported range to avoid clipping on Huawei audio hardware.
  */
@@ -128,7 +128,7 @@ class MarkEqualizerEngine {
             if (count <= 0) return
             for (index in 0 until count) {
                 val hz = eq.getCenterFreq(index.toShort()) / 1000f
-                val gain = interpolate(centerHz, preset.gains, hz)
+                val gain = MarkEqualizer.interpolate(MarkEqualizer.centerHz, preset.gains, hz)
                 // Limiting to 6 dB avoids extreme distortion on small speakers.
                 val millibels = (gain.coerceIn(-6f, 6f) * 100f).toInt()
                     .coerceIn(range[0].toInt(), range[1].toInt()).toShort()
