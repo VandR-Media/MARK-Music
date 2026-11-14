@@ -6,6 +6,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +47,8 @@ fun VinylTurntable(
     modifier: Modifier = Modifier
 ) {
     val foreground = LocalVisualActive.current.value
+    val context = LocalContext.current
+    val photo = remember(context) { loadTurntablePhoto(context) }
     var degrees by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(playing, foreground) {
@@ -67,8 +74,11 @@ fun VinylTurntable(
         val platterY = maxHeight * .104f
         val labelSize = platterSize * .29f
 
-        Canvas(Modifier.fillMaxSize()) {
-            drawTurntableDeck()
+        if (photo != null) {
+            Image(bitmap = photo, contentDescription = "Корпус винилового проигрывателя",
+                modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+        } else {
+            Canvas(Modifier.fillMaxSize()) { drawTurntableDeck() }
         }
         Box(Modifier
             .offset(x = platterX - (maxWidth - platterSize) / 2f,
@@ -249,3 +259,13 @@ private fun DrawScope.drawTonearm(playing: Boolean) {
     drawCircle(Color(0xFFE2E4EF),s*.006f,
         tip+Offset(-s*.019f,s*.020f))
 }
+
+/** Offline cached still image. The animated LP and tonearm are rendered above it.
+ * If an older APK or asset corruption is encountered, the vector deck remains
+ * available as a complete non-crashing fallback. No network requests.
+ */
+private fun loadTurntablePhoto(context: Context): ImageBitmap? = runCatching {
+    val encoded = context.assets.open("mark_turntable_base.b64").bufferedReader().use { it.readText() }
+    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+}.getOrNull()
