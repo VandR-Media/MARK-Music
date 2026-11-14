@@ -85,9 +85,8 @@ fun VinylTurntable(
         if (photo != null) {
             Image(bitmap = photo, contentDescription = "Корпус винилового проигрывателя",
                 modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-        } else {
-            Canvas(Modifier.fillMaxSize()) { drawTurntableDeck() }
         }
+        Canvas(Modifier.fillMaxSize()) { drawTurntableDeck(drawBase = photo == null) }
         Box(Modifier
             .offset(x = platterX - (maxWidth - platterSize) / 2f,
                 y = platterY - (maxHeight - platterSize) / 2f)
@@ -122,11 +121,12 @@ fun VinylTurntable(
 }
 
 /** Gradients, shadows, controls, engraved lines and metallic highlights. */
-private fun DrawScope.drawTurntableDeck() {
+private fun DrawScope.drawTurntableDeck(drawBase: Boolean) {
     val s = size.minDimension
     val w = size.width
     val h = size.height
     fun pt(x: Float, y: Float) = Offset(x * w, y * h)
+    if (drawBase) {
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
             Color(0xFF66718A), Color(0xFF151C2B), Color(0xFF090F19),
@@ -144,6 +144,7 @@ private fun DrawScope.drawTurntableDeck() {
         size = Size(w * .95f, h * .918f),
         cornerRadius = CornerRadius(s * .045f)
     )
+    }
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
             Color(0xFF57D4EF).copy(alpha = .85f),
