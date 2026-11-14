@@ -16,6 +16,8 @@ import kotlin.math.sqrt
  */
 internal object AudioSpectrumBus : TeeAudioProcessor.AudioBufferSink {
     val spectrum = MutableStateFlow(List(64) { 0f })
+    // The PCM analyzer should be dormant when the visualizer is not on screen.
+    @Volatile var enabled = false
     @Volatile private var channels = 2
     @Volatile private var encoding = C.ENCODING_PCM_16BIT
     @Volatile private var lastPublishNs = 0L
@@ -34,9 +36,9 @@ internal object AudioSpectrumBus : TeeAudioProcessor.AudioBufferSink {
     }
 
     override fun handleBuffer(buffer: ByteBuffer) {
-        if (encoding != C.ENCODING_PCM_16BIT) return
+        if (!enabled || encoding != C.ENCODING_PCM_16BIT) return
         val now = System.nanoTime()
-        if (now - lastPublishNs < 65_000_000L) return
+        if (now - lastPublishNs < 120_000_000L) return
         lastPublishNs = now
         val copy = buffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder())
         val frameBytes = 2 * channels
