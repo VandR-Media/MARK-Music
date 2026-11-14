@@ -2,22 +2,16 @@ package com.markmusic.player.visual
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.ui.platform.LocalContext
-import android.content.Context
-import android.graphics.BitmapFactory
-import android.util.Base64
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -47,11 +41,17 @@ import kotlin.math.sin
 fun VinylTurntable(
     artwork: ImageBitmap,
     playing: Boolean,
+    progress: Float,
     modifier: Modifier = Modifier
 ) {
     val foreground = LocalVisualActive.current.value
-    val context = LocalContext.current
-    val photo = remember(context) { loadTurntablePhoto(context) }
+    // The original bundled deck was only 128px and became visibly blurry
+    // on high-density Huawei displays. Draw at native screen resolution instead.
+    val trackProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 240, easing = LinearEasing),
+        label = "stylus-groove-progress"
+    )
     var degrees by remember { mutableFloatStateOf(0f) }
     val armLowering by animateFloatAsState(
         targetValue = if (playing) 1f else 0f,
@@ -82,11 +82,8 @@ fun VinylTurntable(
         val platterY = maxHeight * .104f
         val labelSize = platterSize * .29f
 
-        if (photo != null) {
-            Image(bitmap = photo, contentDescription = "Корпус винилового проигрывателя",
-                modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-        }
-        Canvas(Modifier.fillMaxSize()) { drawTurntableDeck(drawBase = photo == null) }
+        // Static precision geometry: no bitmap enlargement and no downloaded assets.
+        Canvas(Modifier.fillMaxSize()) { drawTurntableDeck() }
         Box(Modifier
             .offset(x = platterX - (maxWidth - platterSize) / 2f,
                 y = platterY - (maxHeight - platterSize) / 2f)
@@ -115,18 +112,19 @@ fun VinylTurntable(
             }
         }
         Canvas(Modifier.fillMaxSize()) {
-            drawTonearm(armLowering)
+            // Reflection belongs below the tonearm, not above its metal surface.
+            drawRecordReflections()
+            drawTonearm(armLowering, trackProgress)
         }
     }
 }
 
 /** Gradients, shadows, controls, engraved lines and metallic highlights. */
-private fun DrawScope.drawTurntableDeck(drawBase: Boolean) {
+private fun DrawScope.drawTurntableDeck() {
     val s = size.minDimension
     val w = size.width
     val h = size.height
     fun pt(x: Float, y: Float) = Offset(x * w, y * h)
-    if (drawBase) {
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
             Color(0xFF66718A), Color(0xFF151C2B), Color(0xFF090F19),
@@ -144,7 +142,6 @@ private fun DrawScope.drawTurntableDeck(drawBase: Boolean) {
         size = Size(w * .95f, h * .918f),
         cornerRadius = CornerRadius(s * .045f)
     )
-    }
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
             Color(0xFF57D4EF).copy(alpha = .85f),
@@ -206,75 +203,132 @@ private fun DrawScope.drawTurntableDeck(drawBase: Boolean) {
     drawCircle(Color(0xFFCB9AFF).copy(alpha=.17f),s*.052f,power)
 }
 
-private fun DrawScope.drawVinylDisc() {
-    val r = size.minDimension * .498f
-    val c = center
-    drawCircle(Brush.radialGradient(listOf(
-        Color(0xFF131720),Color(0xFF05070C),Color(0xFF1C1F28),
-        Color(0xFF04060B),Color(0xFF282B33))),r,c)
-    // Thin highlights follow microscopic physical grooves; avoid animated
-    // spectrum sampling and expensive shaders.
-    repeat(72) { i ->
-        val fraction = .31f + i * .0091f
-        val alpha = if(i%5==0) .22f else .08f
-        drawCircle(if (i%3==0) Color(0xFFB5C2D1).copy(alpha=alpha)
-            else Color(0xFF9199B6).copy(alpha=alpha*.65f),
-            radius=r*fraction,center=c,style=Stroke(.9f))
-    }
-    drawCircle(
-        brush=Brush.sweepGradient(listOf(
-            Color.Transparent,Color.White.copy(alpha=.16f),
-            Color.Transparent,Color(0xFF8EDCF0).copy(alpha=.11f),
-            Color.Transparent,Color.White.copy(alpha=.11f),
-            Color.Transparent),center=c),
-        radius=r*.975f,center=c)
-    drawCircle(Color(0xFF4B5260),r*.984f,c,style=Stroke(r*.010f))
-    drawCircle(Color.Black.copy(alpha=.38f),r*.306f,c)
-    drawCircle(Color(0xFF7E8492).copy(alpha=.60f),
-        r*.294f,c,style=Stroke(1.5f))
-}
 
-/** Static anodized metal tonearm suspended above the spinning LP. */
-private fun DrawScope.drawTonearm(lowering: Float) {
-    val w=size.width
-    val h=size.height
-    val s=size.minDimension
-    fun at(x:Float,y:Float)=Offset(x*w,y*h)
-    val pivot=at(.882f,.190f)
-    // When paused the cartridge lifts slightly away from the groove.
-    val tip=at(.768f - .046f * lowering, .465f + .080f * lowering)
-    val elbow=at(.818f - .023f * lowering, .357f + .028f * lowering)
-    val armStart=at(.852f,.236f)
-    drawLine(Color.Black.copy(alpha=.72f),
-        armStart + Offset(s*.008f,s*.014f),
-        elbow + Offset(s*.008f,s*.014f),s*.023f,StrokeCap.Round)
-    drawLine(Color.Black.copy(alpha=.72f),
-        elbow + Offset(s*.008f,s*.014f),
-        tip + Offset(s*.008f,s*.014f),s*.023f,StrokeCap.Round)
-    drawLine(Color(0xFF131924),armStart,elbow,s*.026f,StrokeCap.Round)
-    drawLine(Brush.linearGradient(listOf(Color(0xFFE9EEF9),
-        Color(0xFF6E7B90),Color(0xFF1A2230))),
-        armStart,elbow,s*.018f,StrokeCap.Round)
-    drawLine(Color(0xFF252F43),elbow,tip,s*.022f,StrokeCap.Round)
-    drawLine(Color(0xFFD3DCEA),elbow,tip,s*.011f,StrokeCap.Round)
-    drawCircle(Brush.radialGradient(listOf(
-        Color(0xFFE4D6B5),Color(0xFF9F813C),Color(0xFF191F2B)),
-        center=pivot,radius=s*.026f),s*.027f,pivot)
-    drawCircle(Color(0xFF131923),s*.010f,pivot)
-    drawLine(Color(0xFF18212C),tip,tip+Offset(-s*.019f,s*.020f),
-        s*.030f,StrokeCap.Square)
-    drawLine(Color(0xFFD0BD93),tip,tip+Offset(-s*.019f,s*.020f),
-        s*.014f,StrokeCap.Square)
-    drawCircle(Color(0xFFE2E4EF),s*.006f,
-        tip+Offset(-s*.019f,s*.020f))
-}
-
-/** Offline cached still image. The animated LP and tonearm are rendered above it.
- * If an older APK or asset corruption is encountered, the vector deck remains
- * available as a complete non-crashing fallback. No network requests.
+/**
+ * High-density record surface modeled after real black vinyl: restrained
+ * near-black material, densely packed grooves, broad silver-gray reflections
+ * and thinner iridescent highlights. All paths are drawn at output resolution.
  */
-private fun loadTurntablePhoto(context: Context): ImageBitmap? = runCatching {
-    val encoded = context.assets.open("mark_turntable_base.b64").bufferedReader().use { it.readText() }
-    val bytes = Base64.decode(encoded, Base64.DEFAULT)
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-}.getOrNull()
+private fun DrawScope.drawVinylDisc() {
+    val r = size.minDimension * .497f
+    val c = center
+    drawCircle(Color(0xFF050609), radius = r, center = c)
+    drawCircle(
+        brush = Brush.radialGradient(listOf(
+            Color(0xFF0A0B0E), Color(0xFF171A20), Color(0xFF090A0D),
+            Color(0xFF161920), Color(0xFF030408))),
+        radius = r, center = c
+    )
+    // The groove band begins outside the label and ends just before the runout.
+    // Hundreds of fine native-resolution lines avoid the old flat 72-ring look.
+    val count = 256
+    repeat(count) { i ->
+        val t = i.toFloat() / (count - 1)
+        val radius = r * (.303f + t * .672f)
+        val light = when {
+            i % 19 == 0 -> Color(0xFF7A8490).copy(alpha = .29f)
+            i % 7 == 0 -> Color(0xFF727B88).copy(alpha = .16f)
+            i % 2 == 0 -> Color(0xFF4C5665).copy(alpha = .16f)
+            else -> Color(0xFF010204).copy(alpha = .39f)
+        }
+        drawCircle(light, radius, c, style = Stroke(width = .60f))
+    }
+    // Separate mastering bands, lead-in, and the quieter inner run-out region.
+    for (fraction in listOf(.332f,.405f,.535f,.675f,.795f,.880f,.963f)) {
+        drawCircle(Color(0xFF8D98A9).copy(alpha = .22f),
+            radius = r * fraction, center = c, style = Stroke(.9f))
+        drawCircle(Color.Black.copy(alpha = .44f),
+            radius = r * (fraction + .003f), center = c, style = Stroke(1.1f))
+    }
+    drawCircle(Brush.sweepGradient(listOf(
+        Color(0xFF8C929D).copy(alpha = .04f),
+        Color.White.copy(alpha = .15f),
+        Color.Transparent,
+        Color(0xFFB7BDCB).copy(alpha = .04f),
+        Color.White.copy(alpha = .10f),
+        Color.Transparent,
+        Color(0xFF8C929D).copy(alpha = .04f)
+    ), center = c), radius = r * .975f)
+    drawCircle(Color(0xFF525967), radius = r * .989f, center = c,
+        style = Stroke(width = r * .009f))
+    drawCircle(Color.Black.copy(alpha = .35f), radius = r * .302f, center = c)
+    drawCircle(Color(0xFF8F97A2).copy(alpha = .39f),
+        radius = r * .296f, center = c, style = Stroke(width = 1f))
+}
+
+/**
+ * Directional ambient reflection falls on the *same* sector as the record
+ * rotates beneath it. This is distinct from the spinning groove texture.
+ */
+private fun DrawScope.drawRecordReflections() {
+    val s = size.minDimension
+    val platter = Offset(size.width * .435f, size.height * .50f)
+    val radius = s * .394f
+    drawCircle(brush = Brush.sweepGradient(listOf(
+        Color.Transparent,
+        Color(0xFFB8C9D8).copy(alpha = .12f),
+        Color(0xFFD2DAE9).copy(alpha = .19f),
+        Color.Transparent,
+        Color.Transparent,
+        Color(0xFF94A8C3).copy(alpha = .08f),
+        Color.Transparent,
+        Color.Transparent
+    ), center = platter), radius = radius, center = platter)
+}
+
+/**
+ * The stylus follows a circular arc around its real tonearm pivot, not a
+ * straight line toward the spindle. Groove radius travels from about 0.36
+ * to 0.16 of the deck size as the current track progresses.
+ *
+ * Angle range was derived from intersecting the stylus-pivot circle with
+ * the record's outer and inner playback radii. Pausing lifts the cartridge
+ * without losing its groove position.
+ */
+internal fun stylusOnRecord(progress: Float): Pair<Float, Float> {
+    val t = progress.coerceIn(0f, 1f)
+    val angle = 1.814f + (2.304f - 1.814f) * t
+    return Pair(.882f + .43f * cos(angle), .190f + .43f * sin(angle))
+}
+
+private fun DrawScope.drawTonearm(lowering: Float, progress: Float) {
+    val w = size.width
+    val h = size.height
+    val s = size.minDimension
+    fun at(x: Float, y: Float) = Offset(x * w, y * h)
+    val pivot = at(.882f, .190f)
+    val pos = stylusOnRecord(progress)
+    // Cartridge raises a little when playback is paused.
+    val lift = 1f - lowering
+    val tip = at(pos.first + .012f * lift, pos.second - .032f * lift)
+    val elbow = Offset(
+        pivot.x + (tip.x - pivot.x) * .60f - s * .021f,
+        pivot.y + (tip.y - pivot.y) * .60f - s * .008f
+    )
+    val armStart = at(.862f, .237f)
+
+    // Soft cast shadow, dark underlay and multiple metallic facets.
+    val shadow = Offset(s * .009f, s * .014f)
+    drawLine(Color.Black.copy(alpha = .63f), armStart + shadow,
+        elbow + shadow, s * .023f, StrokeCap.Round)
+    drawLine(Color.Black.copy(alpha = .63f), elbow + shadow,
+        tip + shadow, s * .022f, StrokeCap.Round)
+    drawLine(Color(0xFF141922), armStart, elbow, s * .025f, StrokeCap.Round)
+    drawLine(Brush.linearGradient(listOf(
+        Color(0xFFEEF2F7), Color(0xFF717E91), Color(0xFF1A2330))),
+        armStart, elbow, s * .018f, StrokeCap.Round)
+    drawLine(Color(0xFF1A2030), elbow, tip, s * .022f, StrokeCap.Round)
+    drawLine(Color(0xFFCAD5E4), elbow, tip, s * .013f, StrokeCap.Round)
+    drawLine(Color.White.copy(alpha = .52f), elbow + Offset(-s*.002f, 0f),
+        tip + Offset(-s*.002f, 0f), s * .003f, StrokeCap.Round)
+
+    // Pivot/counterweight stays fixed while the cartridge traces the record.
+    drawCircle(Brush.radialGradient(listOf(
+        Color(0xFFF1DFBB), Color(0xFFA98C54), Color(0xFF202739)),
+        center = pivot, radius = s * .026f), s * .027f, pivot)
+    drawCircle(Color(0xFF161B25), s * .011f, pivot)
+    val cartridge = tip + Offset(-s*.015f, s*.013f)
+    drawLine(Color(0xFF0F141C), tip, cartridge, s * .028f, StrokeCap.Square)
+    drawLine(Color(0xFFD7C8A8), tip, cartridge, s * .014f, StrokeCap.Square)
+    drawCircle(Color(0xFFE5E8EF), s * .006f, cartridge)
+}

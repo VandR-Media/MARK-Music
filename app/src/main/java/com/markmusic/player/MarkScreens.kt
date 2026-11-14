@@ -536,6 +536,8 @@ internal fun MarkPlayerScreen(
                         VinylTurntable(
                             artwork = artwork ?: fallbackLogo,
                             playing = playing,
+                            progress = ((if (dragging) sliderValue else position.toFloat()) /
+                                duration.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f),
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
