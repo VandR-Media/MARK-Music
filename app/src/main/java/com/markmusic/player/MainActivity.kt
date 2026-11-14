@@ -303,9 +303,15 @@ private fun MarkApp(openPlayerRequests: Int) {
         musicSongs.filter { "${it.title} ${it.artist} ${it.album} ${it.folder}".contains(query, ignoreCase = true) }
     }
     fun playQueue(queue: List<Track>, selected: Track) {
+        val ids = queue.map { it.id }.toSet()
+        val matchingUserPlaylist = userPlaylists.entries.firstOrNull {
+            it.value.isNotEmpty() && it.value == ids
+        }?.key
         queueScope = when {
-            queue.size > 1 && queue.all { it.albumId == selected.albumId } -> "Альбом"
-            queue.size > 1 && queue.all { it.folder == selected.folder } -> "Папка"
+            matchingUserPlaylist != null -> matchingUserPlaylist
+            queue.size > 1 && queue.all { it.albumId == selected.albumId } -> selected.album
+            queue.size > 1 && queue.all { it.folder == selected.folder } ->
+                selected.folder.trimEnd('/').substringAfterLast('/').ifBlank { "Папка" }
             else -> "Очередь"
         }
         controller?.apply {
