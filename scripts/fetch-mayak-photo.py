@@ -13,14 +13,13 @@ import struct
 import urllib.request
 
 OUTPUT = Path("app/src/main/res/drawable-nodpi/mayak_photo.jpg")
+# Official public-domain original is mirrored by a deterministic 1600px JPEG
+# proxy to avoid Wikimedia's GitHub-runner HTTP 429 rate limit.
 URLS = (
-    "https://upload.wikimedia.org/wikipedia/commons/c/c1/Majak203.jpg",
     "https://images.weserv.nl/?url=upload.wikimedia.org%2Fwikipedia%2Fcommons%2Fc%2Fc1%2FMajak203.jpg&w=1600&output=jpg",
     "https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fc%2Fc1%2FMajak203.jpg&w=1600&output=jpg",
-    "https://commons.wikimedia.org/wiki/Special:Redirect/file/Majak203.jpg",
-    # Source of the user's exact Mayak-203 reference photo.
-    "https://rw6ase.narod.ru/index1/mag_ml/mg_kat_set_/majak203w2.jpg",
 )
+EXPECTED_SHA256 = "86bed8bfc18ac6504eae2ff4ad50f438b008ce76a985f2ea3c9af3daf669a138"
 MAX_BYTES = 3_000_000
 
 
@@ -58,7 +57,7 @@ def download():
         if 50_000 < len(cached) < MAX_BYTES and cached.endswith(b"\xff\xd9"):
             try:
                 w, h = jpeg_dimensions(cached)
-                if w >= 500 and h >= 400:
+                if (w, h) == (1600, 1545) and hashlib.sha256(cached).hexdigest() == EXPECTED_SHA256:
                     print(f"Using cached Mayak-203 photograph ({w}x{h})")
                     return
             except ValueError:
@@ -77,8 +76,11 @@ def download():
             if not data.endswith(b"\xff\xd9"):
                 raise ValueError("Truncated JPEG asset")
             width, height = jpeg_dimensions(data)
-            if width < 500 or height < 400:
+            if (width, height) != (1600, 1545):
                 raise ValueError(f"Wrong photo dimensions: {width}x{height}")
+            digest = hashlib.sha256(data).hexdigest()
+            if digest != EXPECTED_SHA256:
+                raise ValueError("Photograph SHA-256 differs from previously verified CI release asset")
             OUTPUT.parent.mkdir(parents=True, exist_ok=True)
             OUTPUT.write_bytes(data)
             print(f"Mayak-203 photograph: {width}x{height}, {len(data)} bytes")
