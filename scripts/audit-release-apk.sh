@@ -11,7 +11,7 @@ test -s "$apk"
 bt="${ANDROID_HOME:?ANDROID_HOME is required}/build-tools/36.0.0"
 permissions="$("$bt/aapt" dump permissions "$apk")"
 badging="$("$bt/aapt" dump badging "$apk")"
-grep -Fq "package: name='com.markmusic.player' versionCode='18' versionName='0.7.0'" <<< "$badging" || {
+grep -Fq "package: name='com.markmusic.player' versionCode='19' versionName='0.7.1'" <<< "$badging" || {
   echo "ERROR: Wrong application ID or version in packaged APK" >&2
   exit 1
 }
