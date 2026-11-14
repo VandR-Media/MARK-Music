@@ -281,9 +281,9 @@ private fun DrawScope.drawMayakTapePath() {
     fun at(x: Float, y: Float) = Offset(w * x, h * y)
     val path = Path().apply {
         moveTo(w * .279f, h * .481f)
-        cubicBezierTo(w * .30f, h * .518f, w * .334f, h * .545f, w * .385f, h * .544f)
+        cubicTo(w * .30f, h * .518f, w * .334f, h * .545f, w * .385f, h * .544f)
         lineTo(w * .615f, h * .544f)
-        cubicBezierTo(w * .665f, h * .545f, w * .699f, h * .518f, w * .72f, h * .481f)
+        cubicTo(w * .665f, h * .545f, w * .699f, h * .518f, w * .72f, h * .481f)
     }
     drawPath(path, Color.Black.copy(alpha = .74f),
         style = Stroke(s * .012f, cap = StrokeCap.Round))
