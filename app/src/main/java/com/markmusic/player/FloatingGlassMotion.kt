@@ -35,12 +35,15 @@ internal val LocalGlassTilt = compositionLocalOf<State<Offset>> { mutableStateOf
 // A multiplier for UI parallax. 1f preserves the original v0.6.6 sensitivity.
 internal val LocalGlassSensitivity = compositionLocalOf { 1f }
 internal val LocalGlassDepth = compositionLocalOf { 1f }
+// Visual effects run only while the activity is actually foreground/resumed.
+internal val LocalVisualActive = compositionLocalOf<State<Boolean>> { mutableStateOf(false) }
 
 @Composable
 internal fun GlassMotionHost(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val tilt = remember { mutableStateOf(Offset.Zero) }
+    val visualActive = remember { mutableStateOf(false) }
     DisposableEffect(context, owner) {
         val manager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         val sensor = manager?.getDefaultSensor(Sensor.TYPE_GRAVITY)
@@ -79,7 +82,7 @@ internal fun GlassMotionHost(content: @Composable () -> Unit) {
                 smoothX = 0f
                 smoothY = 0f
                 tilt.value = Offset.Zero
-                registered = manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+                registered = manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
             }
         }
         fun stop() {
@@ -88,19 +91,32 @@ internal fun GlassMotionHost(content: @Composable () -> Unit) {
         }
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> start()
-                Lifecycle.Event.ON_STOP -> stop()
+                Lifecycle.Event.ON_RESUME -> {
+                    visualActive.value = true
+                    start()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    visualActive.value = false
+                    stop()
+                }
                 else -> Unit
             }
         }
         owner.lifecycle.addObserver(observer)
-        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) start()
+        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            visualActive.value = true
+            start()
+        }
         onDispose {
             owner.lifecycle.removeObserver(observer)
             stop()
+            visualActive.value = false
         }
     }
-    CompositionLocalProvider(LocalGlassTilt provides tilt) { content() }
+    CompositionLocalProvider(
+        LocalGlassTilt provides tilt,
+        LocalVisualActive provides visualActive
+    ) { content() }
 }
 
 @Composable
