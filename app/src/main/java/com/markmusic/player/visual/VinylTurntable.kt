@@ -6,6 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.platform.LocalContext
 import android.content.Context
 import android.graphics.BitmapFactory
@@ -50,6 +53,11 @@ fun VinylTurntable(
     val context = LocalContext.current
     val photo = remember(context) { loadTurntablePhoto(context) }
     var degrees by remember { mutableFloatStateOf(0f) }
+    val armLowering by animateFloatAsState(
+        targetValue = if (playing) 1f else 0f,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "tonearm"
+    )
 
     LaunchedEffect(playing, foreground) {
         if (!playing || !foreground) return@LaunchedEffect
@@ -108,7 +116,7 @@ fun VinylTurntable(
             }
         }
         Canvas(Modifier.fillMaxSize()) {
-            drawTonearm(playing)
+            drawTonearm(armLowering)
         }
     }
 }
@@ -226,15 +234,15 @@ private fun DrawScope.drawVinylDisc() {
 }
 
 /** Static anodized metal tonearm suspended above the spinning LP. */
-private fun DrawScope.drawTonearm(playing: Boolean) {
+private fun DrawScope.drawTonearm(lowering: Float) {
     val w=size.width
     val h=size.height
     val s=size.minDimension
     fun at(x:Float,y:Float)=Offset(x*w,y*h)
     val pivot=at(.882f,.190f)
     // When paused the cartridge lifts slightly away from the groove.
-    val tip=if(playing) at(.722f,.545f) else at(.768f,.465f)
-    val elbow=if(playing) at(.795f,.385f) else at(.818f,.357f)
+    val tip=at(.768f - .046f * lowering, .465f + .080f * lowering)
+    val elbow=at(.818f - .023f * lowering, .357f + .028f * lowering)
     val armStart=at(.852f,.236f)
     drawLine(Color.Black.copy(alpha=.72f),
         armStart + Offset(s*.008f,s*.014f),
