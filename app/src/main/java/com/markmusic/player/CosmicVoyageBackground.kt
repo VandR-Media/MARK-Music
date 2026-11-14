@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlin.coroutines.coroutineContext
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,19 +32,23 @@ internal fun CosmicVoyageBackground(
     modifier: Modifier = Modifier
 ) {
     val tilt = LocalGlassTilt.current
+    val visualActive = LocalVisualActive.current.value
     // Persistent phase: changing the slider does not restart the voyage.
     // The triangle wave reverses seamlessly, including at zero speed.
     var phase by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(speed) {
+    LaunchedEffect(speed, visualActive) {
+        if (!visualActive || speed <= 0f) return@LaunchedEffect
         var previousFrame = 0L
         while (coroutineContext.isActive) {
             withFrameNanos { now ->
                 if (previousFrame != 0L && speed > 0f) {
-                    val seconds = ((now - previousFrame) / 1_000_000_000f).coerceIn(0f, .1f)
+                    val seconds = ((now - previousFrame) / 1_000_000_000f).coerceIn(0f, .2f)
                     phase = (phase + seconds * speed / 110f) % 2f
                 }
                 previousFrame = now
             }
+            // Cosmic dust is intentionally slow: 10-12 FPS is enough, 60 is wasteful.
+            delay(90)
         }
     }
     Canvas(modifier.fillMaxSize()) {
@@ -81,7 +86,7 @@ internal fun CosmicVoyageBackground(
         for (layer in 0..2) {
             val parallax = (layer + 1) * 16f
             val drift = (layer + 1) * t * 18f
-            for (i in 0 until 29) {
+            for (i in 0 until 20) {
                 val seed = i * 73 + layer * 191
                 val px = ((seed * 47 + 83) % 997) / 997f * w
                 val py = ((seed * 67 + 167) % 991) / 991f * h
