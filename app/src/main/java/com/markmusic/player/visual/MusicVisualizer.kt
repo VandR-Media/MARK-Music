@@ -1,6 +1,7 @@
 package com.markmusic.player.visual
 
 import com.markmusic.player.audio.AudioSpectrumBus
+import com.markmusic.player.LocalVisualActive
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,17 +36,22 @@ fun MusicVisualizer(
     playing: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val active = LocalVisualActive.current.value && playing
+    DisposableEffect(active) {
+        AudioSpectrumBus.enabled = active
+        onDispose { AudioSpectrumBus.enabled = false }
+    }
     val latest by AudioSpectrumBus.spectrum.collectAsState()
     var phase by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(playing) {
-        while (true) {
-            if (playing) phase += 0.024f
-            delay(if (playing) 33 else 100)
+    LaunchedEffect(active) {
+        while (active) {
+            phase += 0.048f
+            delay(66) // 15 FPS, enough for a decorative visualization
         }
     }
     Canvas(modifier) {
         drawRect(BASE.copy(alpha = .34f))
-        render(style, if (playing) latest else List(64) { 0f }, phase)
+        render(style, if (active) latest else List(64) { 0f }, phase)
     }
 }
 
