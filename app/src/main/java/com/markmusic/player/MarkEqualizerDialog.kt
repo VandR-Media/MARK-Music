@@ -1,8 +1,9 @@
 package com.markmusic.player
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,84 +12,130 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.markmusic.player.audio.MarkEqPreset
 import com.markmusic.player.audio.MarkEqualizer
+import kotlin.math.roundToInt
 
+/** Full-height, readable sixteen-band EQ with immediate preset previews.
+ * The Android hardware effect might have fewer physical bands. MarkEqualizerEngine
+ * interpolates these sixteen points onto the bands supported by the device.
+ */
 @Composable
 internal fun MarkEqualizerDialog(palette: MarkPalette, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val current by MarkEqualizer.state.collectAsState()
+    val selected by MarkEqualizer.state.collectAsState()
     val enabled by MarkEqualizer.enabled.collectAsState()
-    var custom by remember { mutableStateOf(MarkEqualizer.custom(context)) }
-    var editing by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Эквалайзер MARK Audio", color = Color.White, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var manualChanged by remember { mutableStateOf(false) }
+    var gains by remember { mutableStateOf(selected.gains) }
+    LaunchedEffect(selected) {
+        if (!manualChanged) gains = selected.gains
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(.96f).fillMaxHeight(.94f),
+            shape = RoundedCornerShape(26.dp),
+            color = Color(0xEF0E1B3F),
+            shadowElevation = 18.dp
+        ) {
+            Column(Modifier.padding(horizontal = 17.dp, vertical = 14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Включить обработку звука", color = Color.White,
-                        modifier = Modifier.weight(1f))
-                    Switch(checked = enabled, onCheckedChange = {
-                        MarkEqualizer.setEnabled(context, it)
-                    })
+                    Text("Эквалайзер", Modifier.weight(1f),
+                        color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                    TextButton(onClick = onDismiss) { Text("Готово", color = palette.accent) }
                 }
-                Text("16 готовых настроек, включая MARK Deep Bass",
-                    color = NeonSubtle)
-                LazyColumn(modifier = Modifier.heightIn(max = 235.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    items(MarkEqualizer.presets) { preset ->
-                        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 13.dp,
-                            onClick = {
-                                MarkEqualizer.select(context, preset)
-                                editing = false
-                            }) {
-                            Text(preset.title + if (current.title == preset.title) "  ✓" else "",
-                                modifier = Modifier.padding(12.dp),
-                                color = if (current.title == preset.title) palette.accent else Color.White)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Обработка звука", Modifier.weight(1f), color = Color.White)
+                    Switch(enabled, onCheckedChange = { MarkEqualizer.setEnabled(context, it) })
+                }
+                Box {
+                    NeonGlass(palette, Modifier.fillMaxWidth(), radius = 16.dp,
+                        onClick = { menuExpanded = true }) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Активная настройка", color = NeonSubtle, fontSize = 11.sp)
+                                Text(selected.title, color = palette.accent, fontWeight = FontWeight.Bold)
+                            }
+                            Text("▾", color = Color.White, fontSize = 22.sp)
                         }
                     }
+                    DropdownMenu(expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier.background(Color(0xFF142448))) {
+                        MarkEqualizer.presets.forEach { preset ->
+                            DropdownMenuItem(text = {
+                                Text(preset.title,
+                                    color = if (preset.title == selected.title) palette.accent else Color.White)
+                            }, onClick = {
+                                manualChanged = false
+                                gains = preset.gains
+                                MarkEqualizer.select(context, preset)
+                                menuExpanded = false
+                            })
+                        }
+                        DropdownMenuItem(text = { Text("Мой сохранённый пресет", color = palette.accent) },
+                            onClick = {
+                                val custom = MarkEqualizer.custom(context)
+                                manualChanged = false
+                                gains = custom
+                                MarkEqualizer.select(context, MarkEqPreset(MarkEqualizer.CUSTOM, custom))
+                                menuExpanded = false
+                            })
+                    }
                 }
-                HorizontalDivider(color = palette.secondary.copy(alpha = .45f))
+                Spacer(Modifier.height(9.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Свой пресет", color = Color.White, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f))
-                    TextButton(onClick = {
-                        custom = MarkEqualizer.custom(context)
-                        editing = !editing
-                    }) { Text(if (editing) "Скрыть" else "Настроить", color = palette.accent) }
+                    Text("16 частотных полос", Modifier.weight(1f), color = Color.White,
+                        fontWeight = FontWeight.Bold)
+                    Text("−6…+6 dB", color = NeonSubtle, fontSize = 11.sp)
                 }
-                if (editing) {
-                    MarkEqualizer.frequencies.forEachIndexed { index, frequency ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(frequency, color = NeonSubtle, modifier = Modifier.width(66.dp))
-                            Slider(
-                                value = custom[index],
-                                onValueChange = { value ->
-                                    custom = custom.toMutableList().also { it[index] = value }
+                Text("Выбор пресета сразу обновляет все полосы и звук",
+                    color = NeonSubtle, fontSize = 11.sp)
+                Spacer(Modifier.height(6.dp))
+                LazyColumn(Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    itemsIndexed(MarkEqualizer.centerHz) { index, _ ->
+                        val value = gains.getOrElse(index) { 0f }
+                        Row(Modifier.fillMaxWidth().height(36.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text(MarkEqualizer.frequencies[index], Modifier.width(48.dp),
+                                color = NeonSubtle, fontSize = 11.sp)
+                            Slider(value = value,
+                                onValueChange = { next ->
+                                    val updated = gains.toMutableList()
+                                    updated[index] = next
+                                    gains = updated
+                                    manualChanged = true
+                                    MarkEqualizer.select(context,
+                                        MarkEqPreset(MarkEqualizer.CUSTOM, updated))
                                 },
                                 valueRange = -6f..6f,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text("${custom[index].toInt()} dB", color = Color.White,
-                                modifier = Modifier.width(44.dp))
+                                modifier = Modifier.weight(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = palette.accent,
+                                    activeTrackColor = palette.accent,
+                                    inactiveTrackColor = palette.secondary.copy(alpha = .25f)))
+                            Text("${if (value > 0f) "+" else ""}${value.roundToInt()}",
+                                Modifier.width(30.dp), color = Color.White,
+                                fontSize = 11.sp, maxLines = 1)
                         }
                     }
-                    NeonPill("Сохранить мой пресет", palette, onClick = {
-                        MarkEqualizer.select(context, MarkEqPreset(MarkEqualizer.CUSTOM, custom),
-                            saveCustom = true)
-                        editing = false
-                    })
-                } else if (current.title == MarkEqualizer.CUSTOM) {
-                    Text("Активен сохранённый пользовательский пресет",
-                        color = palette.accent)
                 }
-                Text("Доступность и диапазоны зависят от аудиосистемы устройства. Для басов лучше использовать наушники.", color = NeonSubtle)
+                Spacer(Modifier.height(6.dp))
+                NeonPill("Сохранить мой пресет", palette, onClick = {
+                    MarkEqualizer.select(context,
+                        MarkEqPreset(MarkEqualizer.CUSTOM, gains), saveCustom = true)
+                    manualChanged = false
+                })
+                Text("16 управляющих полос адаптируются к возможностям аудиочипа.",
+                    color = NeonSubtle, fontSize = 10.sp)
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Готово", color = palette.accent) } },
-        containerColor = Color(0xFF101D40),
-        shape = RoundedCornerShape(26.dp)
-    )
+        }
+    }
 }
