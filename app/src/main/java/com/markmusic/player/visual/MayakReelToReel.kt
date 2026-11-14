@@ -60,40 +60,52 @@ fun MayakReelToReel(playing: Boolean, progress: Float, modifier: Modifier = Modi
     }
 
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        // Relative coordinates mirror the source photograph. The image stays
-        // in its original square-ish frame; no vector chassis or fake labels.
-        val reelDiameter = maxWidth * .382f
-        val reelY = maxHeight * .290f
-        val leftX = maxWidth * .278f
-        val rightX = maxWidth * .720f
+        // Preserve the aspect ratio of an authentic photograph. In particular,
+        // wooden side rails and round reels must never be stretched to a square.
+        val aspect = photo.width.toFloat() / photo.height
+        val machineWidth = minOf(maxWidth, maxHeight * aspect)
+        val machineHeight = machineWidth / aspect
+        val widePhoto = aspect > 1.18f
+        // Both museum photo and the user's reference capture show the same
+        // real Mayak-203, but are framed at different aspect ratios.
+        val leftRatio = if (widePhoto) .30f else .278f
+        val rightRatio = if (widePhoto) .684f else .720f
+        val yRatio = if (widePhoto) .322f else .290f
+        val diameterRatio = if (widePhoto) .354f else .382f
+        val diameter = machineWidth * diameterRatio
+        val reelY = machineHeight * yRatio
+        val leftX = machineWidth * leftRatio
+        val rightX = machineWidth * rightRatio
 
-        Canvas(Modifier.fillMaxSize()) {
-            drawImage(
-                image = photo,
-                dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                filterQuality = FilterQuality.High
-            )
-            // Cover the stationary reel image under its rotating counterpart;
-            // window cut-outs show an authentic shadowed tape well.
-            for (x in listOf(.278f, .720f)) {
-                drawCircle(Color(0xFF101315), radius = size.width * .190f,
-                    center = Offset(size.width * x, size.height * .290f))
+        Box(Modifier.size(machineWidth, machineHeight)) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawImage(
+                    image = photo,
+                    dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                    filterQuality = FilterQuality.High
+                )
+                // The original reel image is completely covered by moving photo
+                // layers. The stationary controls / branding remain photographic.
+                for (x in listOf(leftRatio, rightRatio)) {
+                    drawCircle(Color(0xFF101315), radius = size.width * diameterRatio * .5f,
+                        center = Offset(size.width * x, size.height * yRatio))
+                }
             }
+            MayakPhotoReel(
+                photo, leftRatio, yRatio, diameterRatio,
+                Modifier.align(Alignment.TopStart)
+                    .offset(x = leftX - diameter / 2f, y = reelY - diameter / 2f)
+                    .size(diameter)
+                    .graphicsLayer { rotationZ = supplyAngle.floatValue }
+            )
+            MayakPhotoReel(
+                photo, rightRatio, yRatio, diameterRatio,
+                Modifier.align(Alignment.TopStart)
+                    .offset(x = rightX - diameter / 2f, y = reelY - diameter / 2f)
+                    .size(diameter)
+                    .graphicsLayer { rotationZ = takeupAngle.floatValue }
+            )
         }
-        MayakPhotoReel(
-            photo, .278f, .290f, .382f,
-            Modifier.align(Alignment.TopStart)
-                .offset(x = leftX - reelDiameter / 2f, y = reelY - reelDiameter / 2f)
-                .size(reelDiameter)
-                .graphicsLayer { rotationZ = supplyAngle.floatValue }
-        )
-        MayakPhotoReel(
-            photo, .720f, .290f, .382f,
-            Modifier.align(Alignment.TopStart)
-                .offset(x = rightX - reelDiameter / 2f, y = reelY - reelDiameter / 2f)
-                .size(reelDiameter)
-                .graphicsLayer { rotationZ = takeupAngle.floatValue }
-        )
     }
 }
 
@@ -105,7 +117,7 @@ private fun MayakPhotoReel(
         val w = photo.width
         val h = photo.height
         val cw = (w * sourceDiameter).roundToInt().coerceAtLeast(1)
-        val ch = (h * sourceDiameter).roundToInt().coerceAtLeast(1)
+        val ch = cw.coerceAtMost(h)
         val sx = (w * x - cw / 2f).roundToInt().coerceIn(0, (w-cw).coerceAtLeast(0))
         val sy = (h * y - ch / 2f).roundToInt().coerceIn(0, (h-ch).coerceAtLeast(0))
         val circle = Path().apply { addOval(Rect(Offset.Zero, size)) }
