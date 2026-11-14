@@ -48,6 +48,17 @@ def jpeg_dimensions(raw):
 
 
 def download():
+    # Support offline Gradle rebuilds after the photo has been downloaded once.
+    if OUTPUT.is_file():
+        cached = OUTPUT.read_bytes()
+        if 250_000 < len(cached) < MAX_BYTES and cached.endswith(b"\xff\xd9"):
+            try:
+                w, h = jpeg_dimensions(cached)
+                if w >= 1500 and h >= 1400:
+                    print(f"Using cached Mayak-203 photograph ({w}x{h})")
+                    return
+            except ValueError:
+                pass
     errors = []
     for url in URLS:
         try:
