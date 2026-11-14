@@ -3,6 +3,7 @@ package com.markmusic.player.visual
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,7 +53,9 @@ fun VinylTurntable(
         animationSpec = tween(durationMillis = 240, easing = LinearEasing),
         label = "stylus-groove-progress"
     )
-    var degrees by remember { mutableFloatStateOf(0f) }
+    // State is read only by the graphics layer. Each frame updates the layer
+    // transform, NOT the entire turntable composition or its 256 groove paths.
+    val rotation = remember { mutableFloatStateOf(0f) }
     val armLowering by animateFloatAsState(
         targetValue = if (playing) 1f else 0f,
         animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
@@ -61,17 +64,19 @@ fun VinylTurntable(
 
     LaunchedEffect(playing, foreground) {
         if (!playing || !foreground) return@LaunchedEffect
-        var lastNs = 0L
+        var previousFrameNs: Long? = null
         while (coroutineContext.isActive) {
-            withFrameNanos { ns ->
-                if (lastNs == 0L) {
-                    lastNs = ns
-                    return@withFrameNanos
+            withFrameNanos { frameNs ->
+                // No frame throttling: 120 Hz displays have 8.33 ms frames.
+                // Skipping frames below 9 ms caused alternating angle updates.
+                previousFrameNs?.let { previous ->
+                    if (frameNs > previous) {
+                        rotation.floatValue = advanceVinylRotation(
+                            rotation.floatValue, frameNs - previous
+                        )
+                    }
                 }
-                if (ns - lastNs < 9_000_000L) return@withFrameNanos
-                val delta = ((ns - lastNs) / 1_000_000_000f).coerceIn(0f, .08f)
-                lastNs = ns
-                degrees = (degrees + delta * 200f) % 360f
+                previousFrameNs = frameNs
             }
         }
     }
@@ -88,11 +93,13 @@ fun VinylTurntable(
             .offset(x = platterX - (maxWidth - platterSize) / 2f,
                 y = platterY - (maxHeight - platterSize) / 2f)
             .size(platterSize)
-            .graphicsLayer { rotationZ = degrees },
+            .graphicsLayer { rotationZ = rotation.floatValue },
             contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize()) {
-                drawVinylDisc()
-            }
+            // The static artwork is recorded in the rotating RenderNode layer.
+            // Rotation changes a GPU transform instead of redrawing every groove.
+            Canvas(Modifier.fillMaxSize().drawWithCache {
+                onDrawBehind { drawVinylDisc() }
+            }) { }
             Image(
                 bitmap = artwork,
                 contentDescription = "Этикетка пластинки",
@@ -119,90 +126,145 @@ fun VinylTurntable(
     }
 }
 
-/** Gradients, shadows, controls, engraved lines and metallic highlights. */
+/**
+ * Speed of a 33 1/3 RPM long-playing record. Pure rotation math is unit tested
+ * at 60, 90, and 120 Hz so no display refresh rate is artificially throttled.
+ */
+internal fun advanceVinylRotation(currentDegrees: Float, elapsedNanos: Long): Float {
+    if (elapsedNanos <= 0L) return currentDegrees
+    return ((currentDegrees.toDouble() +
+        elapsedNanos.toDouble() * (200.0 / 1_000_000_000.0)) % 360.0).toFloat()
+}
+
+/** A satin graphite hi-fi plinth with brushed-aluminium machined components. */
 private fun DrawScope.drawTurntableDeck() {
     val s = size.minDimension
     val w = size.width
     val h = size.height
     fun pt(x: Float, y: Float) = Offset(x * w, y * h)
+
+    // Raised chassis, chamfered black anodized body, directional softbox lighting.
+    drawRoundRect(Color.Black.copy(alpha = .47f),
+        topLeft = pt(.018f, .035f), size = Size(w * .969f, h * .947f),
+        cornerRadius = CornerRadius(s * .046f))
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
-            Color(0xFF66718A), Color(0xFF151C2B), Color(0xFF090F19),
-            Color(0xFF31384D), Color(0xFF101727)),
-            start = pt(0f, 0f), end = pt(1f, 1f)),
-        topLeft = pt(.013f, .024f),
-        size = Size(w * .974f, h * .945f),
-        cornerRadius = CornerRadius(s * .050f)
-    )
-    drawRoundRect(
-        brush = Brush.verticalGradient(listOf(
-            Color(0xFF2C3545), Color(0xFF151C2A), Color(0xFF0D1221),
-            Color(0xFF192238))),
-        topLeft = pt(.025f, .033f),
-        size = Size(w * .95f, h * .918f),
-        cornerRadius = CornerRadius(s * .045f)
+            Color(0xFF767A7D), Color(0xFF34383E), Color(0xFF161A1F),
+            Color(0xFF2B3037), Color(0xFF62686E)),
+            start = pt(0f, 0f), end = pt(.98f, .98f)),
+        topLeft = pt(.012f, .015f), size = Size(w * .974f, h * .939f),
+        cornerRadius = CornerRadius(s * .048f)
     )
     drawRoundRect(
         brush = Brush.linearGradient(listOf(
-            Color(0xFF57D4EF).copy(alpha = .85f),
-            Color(0xFF667589), Color(0xFFB465EF).copy(alpha = .74f)),
-            start = pt(.01f,.03f), end = pt(.98f,.91f)),
-        topLeft = pt(.025f, .032f), size = Size(w * .95f, h * .918f),
-        cornerRadius = CornerRadius(s * .045f),
-        style = Stroke(s * .003f)
+            Color(0xFF464A4D), Color(0xFF23282D), Color(0xFF12171D),
+            Color(0xFF20252C), Color(0xFF30353A)),
+            start = pt(.05f, 0f), end = pt(.95f, 1f)),
+        topLeft = pt(.024f, .028f), size = Size(w * .950f, h * .907f),
+        cornerRadius = CornerRadius(s * .041f)
     )
-    repeat(4) { i ->
-        val x = if (i % 2 == 0) .070f else .931f
-        val y = if (i < 2) .076f else .905f
-        val at = pt(x,y)
-        drawCircle(Color(0xFF06090F), s * .025f, at)
+    // Hairline aluminium chamfer and restrained studio reflections.
+    drawRoundRect(
+        brush = Brush.linearGradient(listOf(
+            Color(0xFFBEC2C4).copy(alpha = .62f),
+            Color(0xFF8C9399).copy(alpha = .25f),
+            Color(0xFF07090C).copy(alpha = .50f),
+            Color(0xFF969A9C).copy(alpha = .29f))),
+        topLeft = pt(.024f, .028f), size = Size(w * .950f, h * .907f),
+        cornerRadius = CornerRadius(s * .041f), style = Stroke(s * .0022f)
+    )
+    // Fine horizontal machining marks. These are stationary, not animated.
+    repeat(52) { i ->
+        val y = .049f + i * .0168f
+        val alpha = if (i % 4 == 0) .037f else .012f
+        drawLine(Color(0xFFCBD0D3).copy(alpha = alpha),
+            pt(.044f, y), pt(.955f, y), s * .0009f)
+    }
+    drawRoundRect(
+        brush = Brush.linearGradient(listOf(
+            Color.White.copy(alpha = .052f),
+            Color.Transparent, Color.White.copy(alpha = .012f))),
+        topLeft = pt(.033f, .040f), size = Size(w * .931f, h * .884f),
+        cornerRadius = CornerRadius(s * .035f)
+    )
+
+    // Four recessed metal fasteners with machined grooves, not neon dots.
+    for (i in 0..3) {
+        val x = if (i % 2 == 0) .074f else .925f
+        val y = if (i < 2) .078f else .884f
+        val at = pt(x, y)
+        drawCircle(Color(0xFF080C0F), s * .023f, at)
         drawCircle(Brush.radialGradient(listOf(
-            Color(0xFFE0E3EE), Color(0xFF555F70), Color(0xFF171C29)),
-            center = at, radius = s * .021f), s * .021f, at)
-        drawLine(Color(0xFF263246), Offset(at.x - s*.010f,at.y - s*.010f),
-            Offset(at.x + s*.010f,at.y + s*.010f), s*.003f)
+            Color(0xFFDFE1E2), Color(0xFF8D9499), Color(0xFF3B4249),
+            Color(0xFF171B21)), center = at, radius = s * .021f),
+            s * .019f, at)
+        drawLine(Color(0xFF33383F),
+            at + Offset(-s * .009f, s * .003f),
+            at + Offset(s * .009f, -s * .003f), s * .0025f)
     }
 
-    // Heavily shaded platter bearing behind the rotating record.
     val platter = pt(.435f, .50f)
-    val r = s * .405f
-    drawCircle(Color.Black.copy(alpha = .65f),r * 1.055f,
-        platter + Offset(s*.006f,s*.014f))
+    val radius = s * .405f
+    drawCircle(Color.Black.copy(alpha = .80f),
+        radius * 1.065f, platter + Offset(s * .008f, s * .014f))
     drawCircle(Brush.radialGradient(listOf(
-        Color(0xFF9AA2B0), Color(0xFF1C2333), Color(0xFFBDC0C4),
-        Color(0xFF161B28)), center=platter, radius = r*1.04f), r*1.037f, platter)
-    repeat(85) { i ->
-        val a = 2f * PI.toFloat() * i / 85f
-        val inner = Offset(platter.x + cos(a)*r*1.005f,
-            platter.y + sin(a)*r*1.005f)
-        drawCircle(if (i%3==0) Color(0xFFF4CDA4) else Color(0xFF858C99),
-            s*.0021f, inner)
+        Color(0xFF0A0D12), Color(0xFF91989E), Color(0xFF282F35),
+        Color(0xFFB8BCBE), Color(0xFF272B31)),
+        center = platter, radius = radius * 1.055f),
+        radius * 1.046f, platter)
+    drawCircle(Color(0xFF090B0E), radius * 1.013f, platter)
+    drawCircle(Color(0xFFB6BCC0).copy(alpha = .62f),
+        radius * 1.038f, platter, style = Stroke(s * .0026f))
+    // Stroboscopic ring etched into the circumference of the heavy platter.
+    repeat(120) { i ->
+        val a = 2.0 * PI * i / 120.0
+        val inner = Offset(platter.x + cos(a).toFloat() * radius * 1.021f,
+            platter.y + sin(a).toFloat() * radius * 1.021f)
+        drawCircle(
+            if (i % 5 == 0) Color(0xFFD4D7D8) else Color(0xFF777F86),
+            s * .0017f, inner
+        )
     }
 
-    // Tonearm bearing socket and an adjustable speed dial.
-    val socket=pt(.882f,.190f)
-    drawCircle(Color(0xFF080C16),s*.087f,socket + Offset(s*.003f,s*.008f))
+    // Precision pivot bearing with concentric chrome and dark steel rings.
+    val socket = pt(.882f, .190f)
+    drawCircle(Color(0xFF070A0F), s * .091f,
+        socket + Offset(s * .004f, s * .006f))
     drawCircle(Brush.radialGradient(listOf(
-        Color(0xFFCED5DF), Color(0xFF525A69), Color(0xFF151922)),
-        center=socket, radius=s*.081f),s*.080f,socket)
-    drawCircle(Color(0xFF080D17),s*.054f,socket)
+        Color(0xFFFAFBFA), Color(0xFF8B9297), Color(0xFF272D32),
+        Color(0xFF717B85), Color(0xFF11161C)),
+        center = socket - Offset(s * .012f, s * .015f), radius = s * .123f),
+        s * .083f, socket)
+    drawCircle(Color(0xFF1D2227), s * .058f, socket)
+    drawCircle(Color(0xFFB4BBC0).copy(alpha = .71f),
+        s * .058f, socket, style = Stroke(s * .003f))
     drawCircle(Brush.radialGradient(listOf(
-        Color(0xFFF8D996), Color(0xFFA8752C), Color(0xFF201A18)),
-        center=socket, radius=s*.035f),s*.036f,socket)
+        Color(0xFFD6D7D4), Color(0xFF7C8183), Color(0xFF282E34)),
+        center = socket, radius = s * .040f), s * .039f, socket)
+    drawCircle(Color(0xFF31373B), s * .012f, socket)
 
-    val knob=pt(.874f,.830f)
-    drawCircle(Color(0xFF050810),s*.068f,knob + Offset(s*.003f,s*.006f))
+    // Sturdy machined speed knob and a low-intensity operating indicator.
+    val knob = pt(.874f, .818f)
+    drawCircle(Color.Black.copy(alpha = .60f), s * .070f,
+        knob + Offset(s * .004f, s * .007f))
     drawCircle(Brush.linearGradient(listOf(
-        Color(0xFFE0E4F3), Color(0xFF373E4F), Color(0xFFB9B4C1))),
-        s*.054f,knob)
-    drawCircle(Color(0xFF242B3D),s*.039f,knob)
-    drawLine(Color(0xFF4CE0FF),knob,knob + Offset(0f,-s*.034f),s*.004f)
-    val power=pt(.118f,.860f)
-    drawCircle(Color(0xFF080617),s*.056f,power)
-    drawCircle(Color(0xFFAA74F7),s*.043f,power,style=Stroke(s*.007f))
-    drawCircle(Color(0xFFCB9AFF).copy(alpha=.17f),s*.052f,power)
-}
+        Color(0xFFEBEDEF), Color(0xFF747D83), Color(0xFF242B32),
+        Color(0xFFAFB4B7))), s * .057f, knob)
+    drawCircle(Brush.radialGradient(listOf(
+        Color(0xFF434B54), Color(0xFF151B22))),
+        s * .045f, knob)
+    drawCircle(Color(0xFF939BA2), s * .045f, knob,
+        style = Stroke(s * .0019f))
+    drawLine(Color(0xFFE0D4B8), knob,
+        knob + Offset(0f, -s * .033f), s * .004f, StrokeCap.Round)
 
+    val power = pt(.120f, .852f)
+    drawCircle(Color(0xFF090E12), s * .047f, power)
+    drawCircle(Color(0xFF4C565B), s * .040f, power,
+        style = Stroke(s * .005f))
+    drawCircle(Color(0xFFE2AF79), s * .008f, power)
+    drawCircle(Color(0xFFF1C28C).copy(alpha = .11f), s * .024f, power)
+}
 
 /**
  * High-density record surface modeled after real black vinyl: restrained
@@ -215,8 +277,8 @@ private fun DrawScope.drawVinylDisc() {
     drawCircle(Color(0xFF050609), radius = r, center = c)
     drawCircle(
         brush = Brush.radialGradient(listOf(
-            Color(0xFF0A0B0E), Color(0xFF171A20), Color(0xFF090A0D),
-            Color(0xFF161920), Color(0xFF030408))),
+            Color(0xFF0E1114), Color(0xFF1D2124), Color(0xFF080A0D),
+            Color(0xFF171A1C), Color(0xFF020305))),
         radius = r, center = c
     )
     // The groove band begins outside the label and ends just before the runout.
@@ -249,8 +311,8 @@ private fun DrawScope.drawVinylDisc() {
         Color.Transparent,
         Color(0xFF8C929D).copy(alpha = .04f)
     ), center = c), radius = r * .975f)
-    drawCircle(Color(0xFF525967), radius = r * .989f, center = c,
-        style = Stroke(width = r * .009f))
+    drawCircle(Color(0xFF8D9091).copy(alpha = .54f), radius = r * .989f, center = c,
+        style = Stroke(width = r * .006f))
     drawCircle(Color.Black.copy(alpha = .35f), radius = r * .302f, center = c)
     drawCircle(Color(0xFF8F97A2).copy(alpha = .39f),
         radius = r * .296f, center = c, style = Stroke(width = 1f))
@@ -266,11 +328,11 @@ private fun DrawScope.drawRecordReflections() {
     val radius = s * .394f
     drawCircle(brush = Brush.sweepGradient(listOf(
         Color.Transparent,
-        Color(0xFFB8C9D8).copy(alpha = .12f),
-        Color(0xFFD2DAE9).copy(alpha = .19f),
+        Color(0xFFC2CBD0).copy(alpha = .07f),
+        Color(0xFFE3E5E3).copy(alpha = .13f),
         Color.Transparent,
         Color.Transparent,
-        Color(0xFF94A8C3).copy(alpha = .08f),
+        Color(0xFFB3BFC5).copy(alpha = .06f),
         Color.Transparent,
         Color.Transparent
     ), center = platter), radius = radius, center = platter)
@@ -298,7 +360,6 @@ private fun DrawScope.drawTonearm(lowering: Float, progress: Float) {
     fun at(x: Float, y: Float) = Offset(x * w, y * h)
     val pivot = at(.882f, .190f)
     val pos = stylusOnRecord(progress)
-    // Cartridge raises a little when playback is paused.
     val lift = 1f - lowering
     val tip = at(pos.first + .012f * lift, pos.second - .032f * lift)
     val elbow = Offset(
@@ -306,29 +367,77 @@ private fun DrawScope.drawTonearm(lowering: Float, progress: Float) {
         pivot.y + (tip.y - pivot.y) * .60f - s * .008f
     )
     val armStart = at(.862f, .237f)
-
-    // Soft cast shadow, dark underlay and multiple metallic facets.
     val shadow = Offset(s * .009f, s * .014f)
-    drawLine(Color.Black.copy(alpha = .63f), armStart + shadow,
-        elbow + shadow, s * .023f, StrokeCap.Round)
-    drawLine(Color.Black.copy(alpha = .63f), elbow + shadow,
-        tip + shadow, s * .022f, StrokeCap.Round)
-    drawLine(Color(0xFF141922), armStart, elbow, s * .025f, StrokeCap.Round)
-    drawLine(Brush.linearGradient(listOf(
-        Color(0xFFEEF2F7), Color(0xFF717E91), Color(0xFF1A2330))),
-        armStart, elbow, s * .018f, StrokeCap.Round)
-    drawLine(Color(0xFF1A2030), elbow, tip, s * .022f, StrokeCap.Round)
-    drawLine(Color(0xFFCAD5E4), elbow, tip, s * .013f, StrokeCap.Round)
-    drawLine(Color.White.copy(alpha = .52f), elbow + Offset(-s*.002f, 0f),
-        tip + Offset(-s*.002f, 0f), s * .003f, StrokeCap.Round)
 
-    // Pivot/counterweight stays fixed while the cartridge traces the record.
+    // Realistic stepped rear counterweight behind the gimbal bearing.
+    val rear = at(.936f, .099f)
+    drawLine(Color.Black.copy(alpha = .68f), pivot + shadow,
+        rear + shadow, s * .027f, StrokeCap.Round)
+    drawLine(Brush.linearGradient(listOf(
+        Color(0xFFE1E5E5), Color(0xFF7B8388), Color(0xFF22272C))),
+        pivot, rear, s * .016f, StrokeCap.Round)
+    drawCircle(Color.Black.copy(alpha = .7f),
+        s * .047f, rear + Offset(s * .004f, s * .006f))
+    drawCircle(Brush.linearGradient(listOf(
+        Color(0xFFF2F1EC), Color(0xFF7C8589), Color(0xFF252C32),
+        Color(0xFF9FA4A5))),
+        s * .043f, rear)
+    drawCircle(Color(0xFF353B40), s * .029f, rear)
+    drawCircle(Color(0xFFBFC3C3).copy(alpha = .78f),
+        s * .029f, rear, style = Stroke(s * .0027f))
+    drawCircle(Color(0xFF1A1F24), s * .013f, rear)
+
+    // Cast shadows below a two-section metal tube.
+    drawLine(Color.Black.copy(alpha = .64f), armStart + shadow,
+        elbow + shadow, s * .029f, StrokeCap.Round)
+    drawLine(Color.Black.copy(alpha = .66f), elbow + shadow,
+        tip + shadow, s * .024f, StrokeCap.Round)
+    drawLine(Color(0xFF1A2026), armStart, elbow,
+        s * .028f, StrokeCap.Round)
+    drawLine(Brush.linearGradient(listOf(
+        Color(0xFFFCFDFB), Color(0xFFB7BEC1), Color(0xFF5C686F),
+        Color(0xFF1E2A30))),
+        armStart, elbow, s * .020f, StrokeCap.Round)
+    drawLine(Color.White.copy(alpha = .44f),
+        armStart + Offset(-s * .003f, -s * .001f),
+        elbow + Offset(-s * .003f, -s * .001f),
+        s * .003f, StrokeCap.Round)
     drawCircle(Brush.radialGradient(listOf(
-        Color(0xFFF1DFBB), Color(0xFFA98C54), Color(0xFF202739)),
-        center = pivot, radius = s * .026f), s * .027f, pivot)
-    drawCircle(Color(0xFF161B25), s * .011f, pivot)
-    val cartridge = tip + Offset(-s*.015f, s*.013f)
-    drawLine(Color(0xFF0F141C), tip, cartridge, s * .028f, StrokeCap.Square)
-    drawLine(Color(0xFFD7C8A8), tip, cartridge, s * .014f, StrokeCap.Square)
-    drawCircle(Color(0xFFE5E8EF), s * .006f, cartridge)
+        Color(0xFFD9DBD8), Color(0xFF676F75), Color(0xFF11191F)),
+        center = elbow, radius = s * .024f), s * .023f, elbow)
+
+    drawLine(Color(0xFF1C2329), elbow, tip,
+        s * .024f, StrokeCap.Round)
+    drawLine(Brush.linearGradient(listOf(
+        Color(0xFFE4E8E7), Color(0xFF9FAAB0), Color(0xFF3D4850))),
+        elbow, tip, s * .016f, StrokeCap.Round)
+    drawLine(Color.White.copy(alpha = .36f),
+        elbow + Offset(-s * .002f, 0f),
+        tip + Offset(-s * .002f, 0f),
+        s * .0028f, StrokeCap.Round)
+
+    // Headshell and diamond stylus. The cartridge lifts when paused.
+    val cartridge = tip + Offset(-s * .017f, s * .013f)
+    drawLine(Color.Black.copy(alpha = .56f),
+        tip + shadow * .55f, cartridge + shadow * .55f,
+        s * .031f, StrokeCap.Round)
+    drawLine(Color(0xFF0A0F14), tip, cartridge,
+        s * .027f, StrokeCap.Round)
+    drawLine(Brush.linearGradient(listOf(
+        Color(0xFFDFDCD2), Color(0xFF646B6D), Color(0xFF20272D))),
+        tip, cartridge, s * .017f, StrokeCap.Round)
+    drawCircle(Color(0xFFCBD0CD), s * .006f, cartridge)
+    drawCircle(Color(0xFFF5F2EA), s * .0027f,
+        cartridge + Offset(-s * .004f, s * .007f))
+
+    // A restrained gimbal cap is drawn last, so the arm feels properly mounted.
+    drawCircle(Color(0xFF10161C), s * .035f,
+        pivot + Offset(s * .003f, s * .003f))
+    drawCircle(Brush.radialGradient(listOf(
+        Color(0xFFF7F6F0), Color(0xFFA3ACB0), Color(0xFF434B51),
+        Color(0xFF161B22)), center = pivot, radius = s * .034f),
+        s * .029f, pivot)
+    drawCircle(Color(0xFF252C32), s * .010f, pivot)
+    drawCircle(Color.White.copy(alpha = .58f), s * .0035f,
+        pivot - Offset(s * .007f, s * .007f))
 }
