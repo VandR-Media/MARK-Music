@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.content.Intent
 import android.provider.MediaStore
 import android.widget.Toast
 import org.json.JSONArray
@@ -69,21 +70,31 @@ private val PANEL = Color(0xCC14284B)
 private val SUBTLE = Color(0xFFD2DCF5)
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val ACTION_OPEN_PLAYER = "com.markmusic.player.OPEN_PLAYER"
+    }
+    private val openPlayerRequests = mutableIntStateOf(0)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(11, 23, 48)
         window.navigationBarColor = android.graphics.Color.rgb(11, 23, 48)
+        if (intent?.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = CYAN, secondary = VIOLET,
                 background = BG, surface = PANEL, onSurface = Color.White
-            )) { GlassMotionHost { MarkApp() } }
+            )) { GlassMotionHost { MarkApp(openPlayerRequests.intValue) } }
         }
     }
 }
 
 @Composable
-private fun MarkApp() {
+private fun MarkApp(openPlayerRequests: Int) {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("mark_music", Context.MODE_PRIVATE) }
     val permission = remember {
@@ -105,6 +116,9 @@ private fun MarkApp() {
     val navTab = navigation.current
     fun navigate(destination: Int) { navigation = navigation.open(destination) }
     fun navigateBack() { navigation = navigation.back() }
+    LaunchedEffect(openPlayerRequests) {
+        if (openPlayerRequests > 0) navigate(2)
+    }
     var showEffects by remember { mutableStateOf(false) }
     var showThemes by remember { mutableStateOf(false) }
     var showEqualizer by remember { mutableStateOf(false) }
