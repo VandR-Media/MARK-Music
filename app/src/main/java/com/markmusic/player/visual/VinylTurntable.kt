@@ -30,8 +30,6 @@ import kotlin.coroutines.coroutineContext
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.sqrt
-import kotlin.math.atan2
 
 /**
  * Single realistic-style vinyl turntable, replacing the complete effect catalog.
@@ -114,9 +112,9 @@ fun VinylTurntable(
             }
         }
         Canvas(Modifier.fillMaxSize()) {
-            drawTonearm(armLowering, trackProgress)
-            // Directional studio reflections are fixed relative to the deck.
+            // Reflection belongs below the tonearm, not above its metal surface.
             drawRecordReflections()
+            drawTonearm(armLowering, trackProgress)
         }
     }
 }
@@ -277,38 +275,60 @@ private fun DrawScope.drawRecordReflections() {
         Color.Transparent
     ), center = platter), radius = radius, center = platter)
 }
-/** Static anodized metal tonearm suspended above the spinning LP. */
-private fun DrawScope.drawTonearm(lowering: Float) {
-    val w=size.width
-    val h=size.height
-    val s=size.minDimension
-    fun at(x:Float,y:Float)=Offset(x*w,y*h)
-    val pivot=at(.882f,.190f)
-    // When paused the cartridge lifts slightly away from the groove.
-    val tip=at(.768f - .046f * lowering, .465f + .080f * lowering)
-    val elbow=at(.818f - .023f * lowering, .357f + .028f * lowering)
-    val armStart=at(.852f,.236f)
-    drawLine(Color.Black.copy(alpha=.72f),
-        armStart + Offset(s*.008f,s*.014f),
-        elbow + Offset(s*.008f,s*.014f),s*.023f,StrokeCap.Round)
-    drawLine(Color.Black.copy(alpha=.72f),
-        elbow + Offset(s*.008f,s*.014f),
-        tip + Offset(s*.008f,s*.014f),s*.023f,StrokeCap.Round)
-    drawLine(Color(0xFF131924),armStart,elbow,s*.026f,StrokeCap.Round)
-    drawLine(Brush.linearGradient(listOf(Color(0xFFE9EEF9),
-        Color(0xFF6E7B90),Color(0xFF1A2230))),
-        armStart,elbow,s*.018f,StrokeCap.Round)
-    drawLine(Color(0xFF252F43),elbow,tip,s*.022f,StrokeCap.Round)
-    drawLine(Color(0xFFD3DCEA),elbow,tip,s*.011f,StrokeCap.Round)
-    drawCircle(Brush.radialGradient(listOf(
-        Color(0xFFE4D6B5),Color(0xFF9F813C),Color(0xFF191F2B)),
-        center=pivot,radius=s*.026f),s*.027f,pivot)
-    drawCircle(Color(0xFF131923),s*.010f,pivot)
-    drawLine(Color(0xFF18212C),tip,tip+Offset(-s*.019f,s*.020f),
-        s*.030f,StrokeCap.Square)
-    drawLine(Color(0xFFD0BD93),tip,tip+Offset(-s*.019f,s*.020f),
-        s*.014f,StrokeCap.Square)
-    drawCircle(Color(0xFFE2E4EF),s*.006f,
-        tip+Offset(-s*.019f,s*.020f))
+
+/**
+ * The stylus follows a circular arc around its real tonearm pivot, not a
+ * straight line toward the spindle. Groove radius travels from about 0.36
+ * to 0.16 of the deck size as the current track progresses.
+ *
+ * Angle range was derived from intersecting the stylus-pivot circle with
+ * the record's outer and inner playback radii. Pausing lifts the cartridge
+ * without losing its groove position.
+ */
+internal fun stylusOnRecord(progress: Float): Pair<Float, Float> {
+    val t = progress.coerceIn(0f, 1f)
+    val angle = 1.814f + (2.304f - 1.814f) * t
+    return Pair(.882f + .43f * cos(angle), .190f + .43f * sin(angle))
 }
 
+private fun DrawScope.drawTonearm(lowering: Float, progress: Float) {
+    val w = size.width
+    val h = size.height
+    val s = size.minDimension
+    fun at(x: Float, y: Float) = Offset(x * w, y * h)
+    val pivot = at(.882f, .190f)
+    val pos = stylusOnRecord(progress)
+    // Cartridge raises a little when playback is paused.
+    val lift = 1f - lowering
+    val tip = at(pos.first + .012f * lift, pos.second - .032f * lift)
+    val elbow = Offset(
+        pivot.x + (tip.x - pivot.x) * .60f - s * .021f,
+        pivot.y + (tip.y - pivot.y) * .60f - s * .008f
+    )
+    val armStart = at(.862f, .237f)
+
+    // Soft cast shadow, dark underlay and multiple metallic facets.
+    val shadow = Offset(s * .009f, s * .014f)
+    drawLine(Color.Black.copy(alpha = .63f), armStart + shadow,
+        elbow + shadow, s * .023f, StrokeCap.Round)
+    drawLine(Color.Black.copy(alpha = .63f), elbow + shadow,
+        tip + shadow, s * .022f, StrokeCap.Round)
+    drawLine(Color(0xFF141922), armStart, elbow, s * .025f, StrokeCap.Round)
+    drawLine(Brush.linearGradient(listOf(
+        Color(0xFFEEF2F7), Color(0xFF717E91), Color(0xFF1A2330))),
+        armStart, elbow, s * .018f, StrokeCap.Round)
+    drawLine(Color(0xFF1A2030), elbow, tip, s * .022f, StrokeCap.Round)
+    drawLine(Color(0xFFCAD5E4), elbow, tip, s * .013f, StrokeCap.Round)
+    drawLine(Color.White.copy(alpha = .52f), elbow + Offset(-s*.002f, 0f),
+        tip + Offset(-s*.002f, 0f), s * .003f, StrokeCap.Round)
+
+    // Pivot/counterweight stays fixed while the cartridge traces the record.
+    drawCircle(Brush.radialGradient(listOf(
+        Color(0xFFF1DFBB), Color(0xFFA98C54), Color(0xFF202739)),
+        center = pivot, radius = s * .026f), s * .027f, pivot)
+    drawCircle(Color(0xFF161B25), s * .011f, pivot)
+    val cartridge = tip + Offset(-s*.015f, s*.013f)
+    drawLine(Color(0xFF0F141C), tip, cartridge, s * .028f, StrokeCap.Square)
+    drawLine(Color(0xFFD7C8A8), tip, cartridge, s * .014f, StrokeCap.Square)
+    drawCircle(Color(0xFFE5E8EF), s * .006f, cartridge)
+}
