@@ -1,6 +1,8 @@
 package com.markmusic.player.audio
 
 import android.content.Intent
+import android.app.PendingIntent
+import com.markmusic.player.MainActivity
 import org.json.JSONArray
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -63,7 +65,17 @@ class PlaybackService : MediaSessionService() {
             }
         })
         player = p
-        session = MediaSession.Builder(this, p).build()
+        val openPlayerIntent = Intent(this, MainActivity::class.java).apply {
+            action = MainActivity.ACTION_OPEN_PLAYER
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        val openPlayer = PendingIntent.getActivity(
+            this, 100, openPlayerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        session = MediaSession.Builder(this, p)
+            .setSessionActivity(openPlayer)
+            .build()
         AudioSessionBus.sessionId.value = p.audioSessionId
     }
     // The service is exported for Android media controls, but arbitrary apps must not
