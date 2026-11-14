@@ -38,6 +38,9 @@ jobs:
       - name: Install SDK components
         run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
 
+      - name: Download public-domain Mayak-203 photograph for offline packaging
+        run: python3 scripts/fetch-mayak-photo.py
+
       - name: Clean build and unit tests
         run: gradle clean :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace
 

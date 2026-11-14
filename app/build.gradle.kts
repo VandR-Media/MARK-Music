@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 24
-        versionName = "0.7.6"
+        versionCode = 25
+        versionName = "0.7.7"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -43,3 +43,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     testImplementation("junit:junit:4.13.2")
 }
+    
+// The Mayak image is a real public-domain photograph, downloaded only when
+// building the APK; the installed music player remains fully offline.
+val prepareMayakPhoto by tasks.registering(Exec::class) {
+    workingDir = rootProject.projectDir
+    commandLine("python3", "scripts/fetch-mayak-photo.py")
+    outputs.file("src/main/res/drawable-nodpi/mayak_photo.jpg")
+}
+tasks.named("preBuild").configure { dependsOn(prepareMayakPhoto) }
