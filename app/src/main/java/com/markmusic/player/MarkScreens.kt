@@ -527,9 +527,16 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            NeonGlass(palette, Modifier.size(artworkSize), radius = 27.dp) {
-                Box(Modifier.fillMaxSize().padding(5.dp)
-                    .clip(RoundedCornerShape(23.dp))
+            // The deck uses its own satin-metal frame instead of a glowing glass
+            // overlay, keeping the product appearance photographic and grounded.
+            Box(Modifier.size(artworkSize)
+                .clip(RoundedCornerShape(25.dp))
+                .background(Brush.linearGradient(listOf(
+                    Color(0xFFB4B8B7), Color(0xFF41464C),
+                    Color(0xFF13181C), Color(0xFF838B90))))
+                .padding(3.dp)) {
+                Box(Modifier.fillMaxSize()
+                    .clip(RoundedCornerShape(22.dp))
                     .combinedClickable(onClick = {}, onLongClick = onDelete),
                     contentAlignment = Alignment.Center) {
                     if (coverReady) {
