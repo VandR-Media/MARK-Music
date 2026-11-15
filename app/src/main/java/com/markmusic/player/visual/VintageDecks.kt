@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import com.markmusic.player.LocalVisualActive
 import com.markmusic.player.R
 import com.markmusic.player.audio.AudioMeterFrame
+import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.isActive
 import kotlin.coroutines.coroutineContext
 import kotlin.math.PI
@@ -88,7 +89,6 @@ fun VintageDeck(
     positionMs: Long,
     durationMs: Long,
     trackTitle: String,
-    audioMeter: AudioMeterFrame,
     modifier: Modifier = Modifier
 ) {
     val art = when (machine) {
@@ -99,6 +99,9 @@ fun VintageDeck(
         VintageMachine.JUKEBOX -> ImageBitmap.imageResource(R.drawable.jukebox)
     }
     val active = LocalVisualActive.current.value
+    // Keep 30 Hz audio sampling recomposition inside this active apparatus,
+    // not in the overall now-playing screen and its playback controls.
+    val audioMeter by AudioMeterBus.levels.collectAsState()
     val currentProgress = rememberUpdatedState(
         if (durationMs > 0L) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
     )
