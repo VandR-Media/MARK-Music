@@ -1,0 +1,28 @@
+name: MARK Cosmic - FREE TRELLIS2 API Probe
+on:
+  push:
+    branches:
+      - experiment/trellis2-free-mark-cosmic-20261116
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trellis-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Gradio client
+        run: python -m pip install --quiet 'gradio_client>=1.8,<3'
+      - name: Test anonymous Space API (no GPU generation)
+        run: python scripts/experiments/trellis2_probe.py
+      - name: Publish diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MARK-Cosmic-TRELLIS2-API-probe
+          path: trellis-test-result/
+          if-no-files-found: ignore
