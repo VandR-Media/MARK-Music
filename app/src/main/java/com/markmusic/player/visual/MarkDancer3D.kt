@@ -219,8 +219,9 @@ private class MarkDancerRenderer : GLSurfaceView.Renderer {
 
         // Two legs really bend at their knees; alternation follows audio.
         for (side in listOf(-1f, 1f)) {
-            val lifting = max(0f, sin(dancePhase + if (side < 0f) 0f else PI.toFloat()))
-                * (.26f + amplitude * .34f) * poseEnergy
+            val legOffset = if (side < 0f) 0f else PI.toFloat()
+            val lifting = max(0f, sin(dancePhase + legOffset)) *
+                (.26f + amplitude * .34f) * poseEnergy
             val hip = Point(side * .255f, -.65f, 0f)
             val knee = Point(side * (.31f + .09f * lifting), -1.18f + .10f * lifting,
                 .10f + .18f * lifting)
@@ -237,8 +238,9 @@ private class MarkDancerRenderer : GLSurfaceView.Renderer {
 
         // Articulated shoulders, elbows and wrist/cuffs sweep out of the screen.
         for (side in listOf(-1f, 1f)) {
-            val swing = sin(dancePhase + if (side < 0f) PI.toFloat() else 0f)
-                * (.23f + .31f * amplitude) * poseEnergy
+            val armOffset = if (side < 0f) PI.toFloat() else 0f
+            val swing = sin(dancePhase + armOffset) *
+                (.23f + .31f * amplitude) * poseEnergy
             val raise = beat * .38f + abs(swing) * .20f
             val shoulder = Point(side * .54f, .36f, 0f)
             val elbow = Point(side * (.77f + .10f * amplitude),
