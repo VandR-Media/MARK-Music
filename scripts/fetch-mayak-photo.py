@@ -23,7 +23,7 @@ URLS = (
 )
 # Stable source photograph: no resizing/cropping by CDN, so geometric reel
 # positions always match the image. Check source SHA after first verified CI.
-EXPECTED_SOURCE_SHA256 = None
+EXPECTED_SOURCE_SHA256 = "e1ece4e3c0715d0538980425193640c361efd42510714a581798a72002689121"
 MAX_BYTES = 5_000_000
 
 
