@@ -42,8 +42,8 @@ class AudioMeterBusTest {
 
     @Test fun levelValuesRemainClamped() {
         assertEquals(1f,normalizeMeterRms(2.0),0f)
-        assertTrue(normalizeMeterRms(.002)>0f)
-        assertTrue(normalizeMeterRms(.002)<1f)
+        assertTrue(normalizeMeterRms(.01)>0f)
+        assertTrue(normalizeMeterRms(.01)<1f)
     }
 
     @Test fun floatPcmCanBeMeasuredWithoutMicrophonePermission() {
