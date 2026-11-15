@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One free anonymous Hunyuan mini Turbo by frogleo; approved concept only."""
-import base64,json,traceback,sys,time
+import base64,json,traceback,sys,time,os
 from pathlib import Path
 from gradio_client import Client,handle_file
 from PIL import Image
@@ -15,7 +15,7 @@ def report(s,**kwargs):
 try:
     inp.write_bytes(base64.b64decode(Path("scripts/experiments/mark_cosmic_front.jpg.b64").read_text().strip(),validate=True))
     Image.open(inp).verify()
-    client=Client("frogleo/Image-to-3D",verbose=False,download_files=str(root))
+    client=Client("frogleo/Image-to-3D",verbose=False,download_files=str(root),hf_token=os.environ.get("HF_TOKEN") or None)
     api=client.view_api(return_format="dict",print_info=False)
     endpoints=list(api.get("named_endpoints",{}))
     print("Available functions:",endpoints,flush=True)
