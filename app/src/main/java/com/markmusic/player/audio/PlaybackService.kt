@@ -7,6 +7,12 @@ import org.json.JSONArray
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import android.content.Context
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -38,7 +44,22 @@ class PlaybackService : MediaSessionService() {
                 eqEngine.update(sessionId, preset, active)
             }
         }
-        val p = ExoPlayer.Builder(this).build()
+        // A pass-through tee reads PCM for authentic studio VU/LED meters.
+        // No RECORD_AUDIO permission and no file/network access are involved.
+        val rendererFactory = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioOutputPlaybackParams: Boolean
+            ): AudioSink = DefaultAudioSink.Builder(context)
+                .setEnableFloatOutput(false)
+                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+                .setAudioProcessors(arrayOf<AudioProcessor>(
+                    TeeAudioProcessor(MeterAudioBufferSink())
+                ))
+                .build()
+        }
+        val p = ExoPlayer.Builder(this, rendererFactory).build()
         p.setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true
@@ -89,6 +110,8 @@ class PlaybackService : MediaSessionService() {
         savePlaybackPosition()
         eqScope.cancel()
         eqEngine.release()
+        AudioMeterBus.enabled.set(false)
+        AudioMeterBus.clear()
         AudioSessionBus.sessionId.value = 0
         session?.release()
         player?.release()
