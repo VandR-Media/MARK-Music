@@ -19,6 +19,13 @@ class PlayerDeckModeTest {
             playerDeckFromPreference(PlayerDeckMode.VESNA_202_1.name))
     }
 
+    @Test fun savesAndRestoresAllFiveNewApparatusModes() {
+        for (mode in listOf(PlayerDeckMode.CD, PlayerDeckMode.MINIDISC,
+            PlayerDeckMode.DAT, PlayerDeckMode.RADIO, PlayerDeckMode.JUKEBOX)) {
+            assertEquals(mode, playerDeckFromPreference(mode.name))
+        }
+    }
+
     @Test fun savedVinylChoiceIsRestored() {
         assertEquals(PlayerDeckMode.VINYL,
             playerDeckFromPreference(PlayerDeckMode.VINYL.name))
