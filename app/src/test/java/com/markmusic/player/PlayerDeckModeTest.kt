@@ -14,6 +14,11 @@ class PlayerDeckModeTest {
             playerDeckFromPreference(PlayerDeckMode.MAYAK_203.name))
     }
 
+    @Test fun savedVesnaChoiceIsRestored() {
+        assertEquals(PlayerDeckMode.VESNA_202_1,
+            playerDeckFromPreference(PlayerDeckMode.VESNA_202_1.name))
+    }
+
     @Test fun savedVinylChoiceIsRestored() {
         assertEquals(PlayerDeckMode.VINYL,
             playerDeckFromPreference(PlayerDeckMode.VINYL.name))

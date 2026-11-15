@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "0.7.8"
+        versionCode = 27
+        versionName = "0.7.9"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -51,4 +51,9 @@ val prepareMayakPhoto by tasks.registering(Exec::class) {
     commandLine("python3", "scripts/fetch-mayak-photo.py")
     outputs.file("src/main/res/drawable-nodpi/mayak_photo.jpg")
 }
-tasks.named("preBuild").configure { dependsOn(prepareMayakPhoto) }
+val prepareVesnaPhoto by tasks.registering(Exec::class) {
+    workingDir = rootProject.projectDir
+    commandLine("python3", "scripts/fetch-vesna-photo.py")
+    outputs.file("src/main/res/drawable-nodpi/vesna_202_photo.jpg")
+}
+tasks.named("preBuild").configure { dependsOn(prepareMayakPhoto, prepareVesnaPhoto) }
