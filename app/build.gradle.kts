@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "0.7.11"
+        versionCode = 30
+        versionName = "0.7.12"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -59,9 +59,9 @@ val prepareVesnaPhoto by tasks.registering(Exec::class) {
 val prepareVintageArtwork by tasks.registering(Exec::class) {
     workingDir = rootProject.projectDir
     commandLine("python3", "scripts/prepare-vintage-art.py")
-    inputs.file(rootProject.file("scripts/assets/five_vintage_decks.txt"))
+    inputs.file(rootProject.file("scripts/assets/tube_radio.txt"))
     inputs.file(rootProject.file("scripts/prepare-vintage-art.py"))
-    listOf("cd_deck", "minidisc_deck", "dat_deck", "tube_radio", "jukebox")
+    listOf("tube_radio")
         .forEach { outputs.file("src/main/res/drawable-nodpi/" + it + ".webp") }
 }
 tasks.named("preBuild").configure {
