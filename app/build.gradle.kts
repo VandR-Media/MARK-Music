@@ -62,7 +62,7 @@ val prepareVintageArtwork by tasks.registering(Exec::class) {
     inputs.file(rootProject.file("scripts/assets/five_vintage_decks.txt"))
     inputs.file(rootProject.file("scripts/prepare-vintage-art.py"))
     listOf("cd_deck", "minidisc_deck", "dat_deck", "tube_radio", "jukebox")
-        .forEach { outputs.file("src/main/res/drawable-nodpi/$"+"{it}.webp") }
+        .forEach { outputs.file("src/main/res/drawable-nodpi/" + it + ".webp") }
 }
 tasks.named("preBuild").configure {
     dependsOn(prepareMayakPhoto, prepareVesnaPhoto, prepareVintageArtwork)
