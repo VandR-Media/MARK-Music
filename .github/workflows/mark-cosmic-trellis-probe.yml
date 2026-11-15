@@ -1,4 +1,4 @@
-name: MARK Cosmic - FREE TRELLIS2 API Probe
+name: MARK Cosmic - FREE TRELLIS2 3D Generation Test
 on:
   push:
     branches:
@@ -9,7 +9,7 @@ permissions:
 jobs:
   trellis-probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,10 +19,13 @@ jobs:
         run: python -m pip install --quiet 'gradio_client>=1.8,<3'
       - name: Test anonymous Space API (no GPU generation)
         run: python scripts/experiments/trellis2_probe.py
+      - name: Try FREE 3D generation of approved MARK Cosmic
+        timeout-minutes: 12
+        run: python scripts/experiments/trellis2_generate.py
       - name: Publish diagnostic report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MARK-Cosmic-TRELLIS2-API-probe
+          name: MARK-Cosmic-TRELLIS2-free-3D-result
           path: trellis-test-result/
           if-no-files-found: ignore
