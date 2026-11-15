@@ -6,6 +6,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.*
@@ -512,6 +520,8 @@ internal fun MarkPlayerScreen(
     var deckMode by remember(deckPrefs) {
         mutableStateOf(playerDeckFromPreference(deckPrefs.getString("player_deck_mode", null)))
     }
+    // -1 = swipe left, +1 = swipe right. Animations follow finger direction.
+    var deckSwipeDirection by remember { mutableIntStateOf(-1) }
     fun chooseDeck(mode: PlayerDeckMode) {
         deckMode = mode
         deckPrefs.edit().putString("player_deck_mode", mode.name).apply()
@@ -575,39 +585,61 @@ internal fun MarkPlayerScreen(
                             val next = playerDeckAfterSwipe(
                                 deckMode, horizontalDrag, swipeThresholdPx
                             )
-                            if (next != deckMode) chooseDeck(next)
+                            if (next != deckMode) {
+                                deckSwipeDirection = if (horizontalDrag < 0f) -1 else 1
+                                chooseDeck(next)
+                            }
                             horizontalDrag = 0f
                         },
                         onDragCancel = { horizontalDrag = 0f }
                     )
                 }
-                .clip(RoundedCornerShape(if (deckMode == PlayerDeckMode.MAYAK_203)
-                    15.dp else 25.dp))
-                .background(if (deckMode == PlayerDeckMode.MAYAK_203)
-                    Color(0xFF101214) else Color(0xFF3A4048))
-                .padding(if (deckMode == PlayerDeckMode.MAYAK_203) 0.dp else 3.dp)) {
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF11161B))
+                .padding(2.dp)) {
                 Box(Modifier.fillMaxSize()
-                    .clip(RoundedCornerShape(if (deckMode == PlayerDeckMode.MAYAK_203)
-                        15.dp else 22.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .combinedClickable(onClick = {}, onLongClick = onDelete),
                     contentAlignment = Alignment.Center) {
                     val trackProgress = ((if (dragging) sliderValue else position.toFloat()) /
                         duration.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
-                    when (deckMode) {
-                        PlayerDeckMode.MAYAK_203 -> MayakReelToReel(
-                            playing = playing,
-                            progress = trackProgress,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        PlayerDeckMode.VINYL -> if (coverReady) {
-                            VinylTurntable(
-                                artwork = artwork ?: fallbackLogo,
-                                playing = playing,
-                                progress = trackProgress,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            CircularProgressIndicator(color = palette.accent)
+                    // A physical horizontal slide, not an instant replacement.
+                    // On a left swipe the old machine moves left, the next enters
+                    // from the right; right swipes mirror that movement.
+                    AnimatedContent(
+                        targetState = deckMode,
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = {
+                            val direction = -deckSwipeDirection
+                            (slideInHorizontally(
+                                animationSpec = tween(370, easing = FastOutSlowInEasing),
+                                initialOffsetX = { width -> width * direction }
+                            ) + fadeIn(animationSpec = tween(230))) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = tween(370, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { width -> -width * direction }
+                                ) + fadeOut(animationSpec = tween(230)))
+                        },
+                        label = "physical-deck-swipe"
+                    ) { visibleDeck ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            when (visibleDeck) {
+                                PlayerDeckMode.MAYAK_203 -> MayakReelToReel(
+                                    playing = playing,
+                                    progress = trackProgress,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.VINYL -> if (coverReady) {
+                                    VinylTurntable(
+                                        artwork = artwork ?: fallbackLogo,
+                                        playing = playing,
+                                        progress = trackProgress,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    CircularProgressIndicator(color = palette.accent)
+                                }
+                            }
                         }
                     }
                     Row(
