@@ -40,8 +40,8 @@ import com.markmusic.player.library.Track
 import com.markmusic.player.visual.VinylTurntable
 import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
-import com.markmusic.player.visual.VintageDeck
-import com.markmusic.player.visual.VintageMachine
+import com.markmusic.player.visual.TubeRadioDeck
+import com.markmusic.player.visual.MarkDancer3D
 import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -89,19 +89,16 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
 internal enum class PlayerDeckMode {
-    VINYL, MAYAK_203, VESNA_202_1, CD, MINIDISC, DAT, RADIO, JUKEBOX
+    VINYL, MAYAK_203, VESNA_202_1, RADIO, MARK_3D
 }
 
-internal fun PlayerDeckMode.vintageMachine(): VintageMachine? = when (this) {
-    PlayerDeckMode.CD -> VintageMachine.CD
-    PlayerDeckMode.MINIDISC -> VintageMachine.MINIDISC
-    PlayerDeckMode.DAT -> VintageMachine.DAT
-    PlayerDeckMode.RADIO -> VintageMachine.RADIO
-    PlayerDeckMode.JUKEBOX -> VintageMachine.JUKEBOX
-    else -> null
-}
+/** Previously selected discarded visualizations migrate to the new mascot. */
 internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
-    PlayerDeckMode.entries.firstOrNull { it.name == value } ?: PlayerDeckMode.VINYL
+    when (value) {
+        "CD", "MINIDISC", "DAT", "JUKEBOX" -> PlayerDeckMode.MARK_3D
+        else -> PlayerDeckMode.entries.firstOrNull { it.name == value }
+            ?: PlayerDeckMode.VINYL
+    }
 internal fun playerDeckAfterSwipe(
     current: PlayerDeckMode, distancePx: Float, thresholdPx: Float
 ): PlayerDeckMode {
@@ -542,7 +539,7 @@ internal fun MarkPlayerScreen(
     val visualForeground = LocalVisualActive.current.value
     DisposableEffect(deckMode, visualForeground, playing) {
         AudioMeterBus.enabled.set(visualForeground && playing &&
-            deckMode.vintageMachine() != null)
+            (deckMode == PlayerDeckMode.RADIO || deckMode == PlayerDeckMode.MARK_3D))
         if (!playing || !visualForeground) AudioMeterBus.clear()
         onDispose {
             AudioMeterBus.enabled.set(false)
@@ -599,8 +596,8 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // Swipe the artwork itself: left and right cycle among three
-            // visualizations. No dialog or hidden title button. Selection persists.
+            // Swipe through the five available visualizations with a directional
+            // slide: Vinyl, Mayak, Vesna, valve radio and 3-D dancing Mark.
             Box(Modifier.size(artworkSize)
                 .pointerInput(deckMode, swipeThresholdPx) {
                     var horizontalDrag = 0f
@@ -664,16 +661,12 @@ internal fun MarkPlayerScreen(
                                     trackTitle = track.title,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.CD,
-                                PlayerDeckMode.MINIDISC,
-                                PlayerDeckMode.DAT,
-                                PlayerDeckMode.RADIO,
-                                PlayerDeckMode.JUKEBOX -> VintageDeck(
-                                    machine = requireNotNull(visibleDeck.vintageMachine()),
+                                PlayerDeckMode.RADIO -> TubeRadioDeck(
                                     playing = playing,
-                                    positionMs = position,
-                                    durationMs = duration,
-                                    trackTitle = track.title,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.MARK_3D -> MarkDancer3D(
+                                    playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 PlayerDeckMode.VINYL -> if (coverReady) {

@@ -4,9 +4,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerDeckSwipeTest {
-    @Test fun allEightDecksAreReachableInBothDirections() {
-        val modes = PlayerDeckMode.entries
-        assertEquals(8, modes.size)
+    @Test fun allFiveDecksAreReachableInBothDirections() {
+        val modes = listOf(
+            PlayerDeckMode.VINYL, PlayerDeckMode.MAYAK_203,
+            PlayerDeckMode.VESNA_202_1, PlayerDeckMode.RADIO,
+            PlayerDeckMode.MARK_3D
+        )
+        assertEquals(modes, PlayerDeckMode.entries)
         var forward = PlayerDeckMode.VINYL
         repeat(modes.size) { i ->
             forward = playerDeckAfterSwipe(forward, -100f, 60f)
@@ -22,7 +26,7 @@ class PlayerDeckSwipeTest {
         assertEquals(PlayerDeckMode.VINYL, backward)
     }
 
-    @Test fun tinyDragOrTapNeverChangesVisualization() {
+    @Test fun smallGesturesDoNotChangeVisualization() {
         for (mode in PlayerDeckMode.entries) {
             assertEquals(mode, playerDeckAfterSwipe(mode, 0f, 60f))
             assertEquals(mode, playerDeckAfterSwipe(mode, 59.9f, 60f))
@@ -30,10 +34,10 @@ class PlayerDeckSwipeTest {
         }
     }
 
-    @Test fun thresholdDistanceAlwaysChangesByOneMode() {
-        assertEquals(PlayerDeckMode.MAYAK_203,
-            playerDeckAfterSwipe(PlayerDeckMode.VINYL, -60f, 60f))
-        assertEquals(PlayerDeckMode.JUKEBOX,
+    @Test fun swipesReachTheDancingMarkBothWays() {
+        assertEquals(PlayerDeckMode.MARK_3D,
+            playerDeckAfterSwipe(PlayerDeckMode.RADIO, -60f, 60f))
+        assertEquals(PlayerDeckMode.MARK_3D,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, 60f, 60f))
     }
 }

@@ -25,7 +25,7 @@ jobs:
         run: python3 scripts/fetch-mayak-photo.py
       - name: Verify and stage straight-on Весна-202-1 image
         run: python3 scripts/fetch-vesna-photo.py
-      - name: Stage and verify five photographic MARK AUDIO visualizers
+      - name: Stage and verify remaining valve radio photograph
         run: python3 scripts/prepare-vintage-art.py
       - name: Verify approved high-resolution artwork
         run: |
@@ -93,7 +93,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MARK-Audio-v0.7.11-aligned-APKs
+          name: MARK-Audio-v0.7.12-aligned-APKs
           path: |
             build.log
             apk-badging.txt
