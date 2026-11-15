@@ -1,8 +1,5 @@
 name: MARK Cosmic - FREE Stable Fast 3D Test
 on:
-  push:
-    branches:
-      - experiment/trellis2-free-mark-cosmic-20261116
   workflow_dispatch:
 permissions:
   contents: read
