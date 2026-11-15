@@ -40,6 +40,9 @@ import com.markmusic.player.library.Track
 import com.markmusic.player.visual.VinylTurntable
 import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
+import com.markmusic.player.visual.VintageDeck
+import com.markmusic.player.visual.VintageMachine
+import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -85,7 +88,18 @@ internal val MARK_PALETTES = listOf(
 internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull { it.key == key } ?: MARK_PALETTES.first()
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
-internal enum class PlayerDeckMode { VINYL, MAYAK_203, VESNA_202_1 }
+internal enum class PlayerDeckMode {
+    VINYL, MAYAK_203, VESNA_202_1, CD, MINIDISC, DAT, RADIO, JUKEBOX
+}
+
+internal fun PlayerDeckMode.vintageMachine(): VintageMachine? = when (this) {
+    PlayerDeckMode.CD -> VintageMachine.CD
+    PlayerDeckMode.MINIDISC -> VintageMachine.MINIDISC
+    PlayerDeckMode.DAT -> VintageMachine.DAT
+    PlayerDeckMode.RADIO -> VintageMachine.RADIO
+    PlayerDeckMode.JUKEBOX -> VintageMachine.JUKEBOX
+    else -> null
+}
 internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
     PlayerDeckMode.entries.firstOrNull { it.name == value } ?: PlayerDeckMode.VINYL
 internal fun playerDeckAfterSwipe(
@@ -523,6 +537,18 @@ internal fun MarkPlayerScreen(
     var deckMode by remember(deckPrefs) {
         mutableStateOf(playerDeckFromPreference(deckPrefs.getString("player_deck_mode", null)))
     }
+    // The PCM meter is sampled only while a meter-equipped vintage deck is
+    // visible and the app is in the foreground; old visuals consume no PCM.
+    val visualForeground = LocalVisualActive.current.value
+    DisposableEffect(deckMode, visualForeground, playing) {
+        AudioMeterBus.enabled.set(visualForeground && playing &&
+            deckMode.vintageMachine() != null)
+        if (!playing || !visualForeground) AudioMeterBus.clear()
+        onDispose {
+            AudioMeterBus.enabled.set(false)
+            AudioMeterBus.clear()
+        }
+    }
     // -1 = swipe left, +1 = swipe right. Animations follow finger direction.
     var deckSwipeDirection by remember { mutableIntStateOf(-1) }
     fun chooseDeck(mode: PlayerDeckMode) {
@@ -635,6 +661,18 @@ internal fun MarkPlayerScreen(
                                 PlayerDeckMode.VESNA_202_1 -> VesnaCassettePlayer(
                                     playing = playing,
                                     progress = trackProgress,
+                                    trackTitle = track.title,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.CD,
+                                PlayerDeckMode.MINIDISC,
+                                PlayerDeckMode.DAT,
+                                PlayerDeckMode.RADIO,
+                                PlayerDeckMode.JUKEBOX -> VintageDeck(
+                                    machine = requireNotNull(visibleDeck.vintageMachine()),
+                                    playing = playing,
+                                    positionMs = position,
+                                    durationMs = duration,
                                     trackTitle = track.title,
                                     modifier = Modifier.fillMaxSize()
                                 )
