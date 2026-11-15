@@ -4,22 +4,22 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerDeckSwipeTest {
-    @Test fun leftSwipesAdvanceThroughThreeVisualizations() {
-        assertEquals(PlayerDeckMode.MAYAK_203,
-            playerDeckAfterSwipe(PlayerDeckMode.VINYL, -100f, 60f))
-        assertEquals(PlayerDeckMode.VESNA_202_1,
-            playerDeckAfterSwipe(PlayerDeckMode.MAYAK_203, -100f, 60f))
-        assertEquals(PlayerDeckMode.VINYL,
-            playerDeckAfterSwipe(PlayerDeckMode.VESNA_202_1, -100f, 60f))
-    }
+    @Test fun allEightDecksAreReachableInBothDirections() {
+        val modes = PlayerDeckMode.entries
+        assertEquals(8, modes.size)
+        var forward = PlayerDeckMode.VINYL
+        repeat(modes.size) { i ->
+            forward = playerDeckAfterSwipe(forward, -100f, 60f)
+            assertEquals(modes[(i + 1) % modes.size], forward)
+        }
+        assertEquals(PlayerDeckMode.VINYL, forward)
 
-    @Test fun rightSwipesMoveBackwardsThroughThreeVisualizations() {
-        assertEquals(PlayerDeckMode.VESNA_202_1,
-            playerDeckAfterSwipe(PlayerDeckMode.VINYL, 100f, 60f))
-        assertEquals(PlayerDeckMode.MAYAK_203,
-            playerDeckAfterSwipe(PlayerDeckMode.VESNA_202_1, 100f, 60f))
-        assertEquals(PlayerDeckMode.VINYL,
-            playerDeckAfterSwipe(PlayerDeckMode.MAYAK_203, 100f, 60f))
+        var backward = PlayerDeckMode.VINYL
+        repeat(modes.size) { i ->
+            backward = playerDeckAfterSwipe(backward, 100f, 60f)
+            assertEquals(modes[(modes.size - i - 1) % modes.size], backward)
+        }
+        assertEquals(PlayerDeckMode.VINYL, backward)
     }
 
     @Test fun tinyDragOrTapNeverChangesVisualization() {
@@ -30,10 +30,10 @@ class PlayerDeckSwipeTest {
         }
     }
 
-    @Test fun exactlyAtThresholdChangesVisualizationInBothDirections() {
+    @Test fun thresholdDistanceAlwaysChangesByOneMode() {
         assertEquals(PlayerDeckMode.MAYAK_203,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, -60f, 60f))
-        assertEquals(PlayerDeckMode.VESNA_202_1,
+        assertEquals(PlayerDeckMode.JUKEBOX,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, 60f, 60f))
     }
 }
