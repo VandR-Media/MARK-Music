@@ -39,6 +39,7 @@ import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
 import com.markmusic.player.visual.VinylTurntable
 import com.markmusic.player.visual.MayakReelToReel
+import com.markmusic.player.visual.VesnaCassettePlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -84,16 +85,18 @@ internal val MARK_PALETTES = listOf(
 internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull { it.key == key } ?: MARK_PALETTES.first()
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
-internal enum class PlayerDeckMode { VINYL, MAYAK_203 }
+internal enum class PlayerDeckMode { VINYL, MAYAK_203, VESNA_202_1 }
 internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
     PlayerDeckMode.entries.firstOrNull { it.name == value } ?: PlayerDeckMode.VINYL
 internal fun playerDeckAfterSwipe(
     current: PlayerDeckMode, distancePx: Float, thresholdPx: Float
 ): PlayerDeckMode {
-    if (kotlin.math.abs(distancePx) < thresholdPx) return current
-    // With exactly two pages, either direction leads to the other one.
-    return if (current == PlayerDeckMode.VINYL)
-        PlayerDeckMode.MAYAK_203 else PlayerDeckMode.VINYL
+    if (thresholdPx <= 0f || kotlin.math.abs(distancePx) < thresholdPx) return current
+    val pages = PlayerDeckMode.entries
+    val index = pages.indexOf(current)
+    // Left swipe advances, right swipe goes back; circular, like a carousel.
+    val delta = if (distancePx < 0f) 1 else -1
+    return pages[(index + delta + pages.size) % pages.size]
 }
 
 
@@ -570,7 +573,7 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // Swipe the artwork itself: left OR right cycles between the two
+            // Swipe the artwork itself: left and right cycle among three
             // visualizations. No dialog or hidden title button. Selection persists.
             Box(Modifier.size(artworkSize)
                 .pointerInput(deckMode, swipeThresholdPx) {
@@ -625,6 +628,11 @@ internal fun MarkPlayerScreen(
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             when (visibleDeck) {
                                 PlayerDeckMode.MAYAK_203 -> MayakReelToReel(
+                                    playing = playing,
+                                    progress = trackProgress,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.VESNA_202_1 -> VesnaCassettePlayer(
                                     playing = playing,
                                     progress = trackProgress,
                                     modifier = Modifier.fillMaxSize()
