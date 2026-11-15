@@ -4,16 +4,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerDeckSwipeTest {
-    @Test fun swipeLeftSwitchesBetweenPhotoMayakAndVinyl() {
+    @Test fun leftSwipesAdvanceThroughThreeVisualizations() {
         assertEquals(PlayerDeckMode.MAYAK_203,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, -100f, 60f))
-        assertEquals(PlayerDeckMode.VINYL,
+        assertEquals(PlayerDeckMode.VESNA_202_1,
             playerDeckAfterSwipe(PlayerDeckMode.MAYAK_203, -100f, 60f))
+        assertEquals(PlayerDeckMode.VINYL,
+            playerDeckAfterSwipe(PlayerDeckMode.VESNA_202_1, -100f, 60f))
     }
 
-    @Test fun swipeRightAlsoSwitchesBetweenTheTwoVisualizations() {
-        assertEquals(PlayerDeckMode.MAYAK_203,
+    @Test fun rightSwipesMoveBackwardsThroughThreeVisualizations() {
+        assertEquals(PlayerDeckMode.VESNA_202_1,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, 100f, 60f))
+        assertEquals(PlayerDeckMode.MAYAK_203,
+            playerDeckAfterSwipe(PlayerDeckMode.VESNA_202_1, 100f, 60f))
         assertEquals(PlayerDeckMode.VINYL,
             playerDeckAfterSwipe(PlayerDeckMode.MAYAK_203, 100f, 60f))
     }
@@ -26,10 +30,10 @@ class PlayerDeckSwipeTest {
         }
     }
 
-    @Test fun exactlyAtThresholdChangesVisualization() {
+    @Test fun exactlyAtThresholdChangesVisualizationInBothDirections() {
         assertEquals(PlayerDeckMode.MAYAK_203,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, -60f, 60f))
-        assertEquals(PlayerDeckMode.MAYAK_203,
+        assertEquals(PlayerDeckMode.VESNA_202_1,
             playerDeckAfterSwipe(PlayerDeckMode.VINYL, 60f, 60f))
     }
 }
