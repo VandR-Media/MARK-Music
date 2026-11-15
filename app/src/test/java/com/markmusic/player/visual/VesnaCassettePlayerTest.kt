@@ -36,12 +36,12 @@ class VesnaCassettePlayerTest {
         assertEquals("Le sens de la fête",
             cassetteStickerTitle("Le sens de la fête"))
         assertEquals("Небо и море",
-            cassetteStickerTitle("  Небо  и\\n море  "))
+            cassetteStickerTitle("  Небо  и\n море  "))
     }
 
     @Test fun emptyTrackNameGetsReadableFallback() {
         assertEquals("Без названия", cassetteStickerTitle(""))
-        assertEquals("Без названия", cassetteStickerTitle("   \\t "))
+        assertEquals("Без названия", cassetteStickerTitle("   \t "))
     }
 
     @Test fun theTapeWindsFromLeftToRight() {
