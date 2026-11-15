@@ -145,7 +145,7 @@ fun VintageDeck(
                     // metallic disc's surface/rainbow highlights rotate.
                     SpinMetalPart(
                         modifier = Modifier.align(Alignment.TopStart)
-                            .offset(side * .122f, side * .145f).size(side * .692f)
+                            .offset(side * .177f, side * .177f).size(side * .596f)
                             .graphicsLayer { rotationZ = discRotation.floatValue },
                         mode = VintageMachine.CD
                     )
@@ -186,7 +186,7 @@ fun VintageDeck(
                 }
                 VintageMachine.DAT -> {
                     for ((x, angle) in listOf(
-                        191f to discRotation, 265f to secondRotation
+                        207f to discRotation, 284f to secondRotation
                     )) {
                         SpinMetalPart(
                             modifier = Modifier.align(Alignment.TopStart)
@@ -201,8 +201,8 @@ fun VintageDeck(
                 VintageMachine.JUKEBOX -> {
                     SpinMetalPart(
                         modifier = Modifier.align(Alignment.TopStart)
-                            .offset(side * .518f, side * .286f)
-                            .size(side * .108f)
+                            .offset(side * .510f, side * .235f)
+                            .size(side * .104f)
                             .graphicsLayer { rotationZ = discRotation.floatValue },
                         mode = VintageMachine.JUKEBOX
                     )
