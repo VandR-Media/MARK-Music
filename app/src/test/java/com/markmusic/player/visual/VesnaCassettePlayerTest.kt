@@ -17,6 +17,33 @@ class VesnaCassettePlayerTest {
         }
     }
 
+    @Test fun brandedPaperStickerStaysOnTheCassetteWithoutCoveringSpindles() {
+        assertEquals(2, VESNA_LABEL_STRIPS.size)
+        assertTrue(cassetteStickerAvoidsHubWindows())
+        for (label in VESNA_LABEL_STRIPS) {
+            assertTrue(label.x >= 555f && label.x + label.width <= 875f)
+            assertTrue(label.y >= 425f && label.y + label.height <= 575f)
+        }
+        // The photo's two exposed hubs must remain uncovered while playing.
+        assertTrue(VESNA_LABEL_STRIPS[0].y + VESNA_LABEL_STRIPS[0].height <
+            VESNA_CASSETTE_HUBS[0].y - VESNA_CASSETTE_HUBS[0].radius)
+        assertTrue(VESNA_LABEL_STRIPS[1].y >
+            VESNA_CASSETTE_HUBS[0].y + VESNA_CASSETTE_HUBS[0].radius)
+    }
+
+    @Test fun stickerUsesCurrentTrackNameWithoutChangingItsSpelling() {
+        assertEquals("Remembering", cassetteStickerTitle(" Remembering "))
+        assertEquals("Le sens de la fête",
+            cassetteStickerTitle("Le sens de la fête"))
+        assertEquals("Небо и море",
+            cassetteStickerTitle("  Небо  и\n море  "))
+    }
+
+    @Test fun emptyTrackNameGetsReadableFallback() {
+        assertEquals("Без названия", cassetteStickerTitle(""))
+        assertEquals("Без названия", cassetteStickerTitle("   \t "))
+    }
+
     @Test fun theTapeWindsFromLeftToRight() {
         assertEquals(24.0, cassetteTapePackRadiusMm(0f, false), .000001)
         assertEquals(12.0, cassetteTapePackRadiusMm(0f, true), .000001)

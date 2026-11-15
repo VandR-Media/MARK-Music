@@ -635,6 +635,7 @@ internal fun MarkPlayerScreen(
                                 PlayerDeckMode.VESNA_202_1 -> VesnaCassettePlayer(
                                     playing = playing,
                                     progress = trackProgress,
+                                    trackTitle = track.title,
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 PlayerDeckMode.VINYL -> if (coverReady) {
