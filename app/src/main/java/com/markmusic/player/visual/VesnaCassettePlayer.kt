@@ -1,12 +1,18 @@
 package com.markmusic.player.visual
 
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.text.TextPaint
+import android.text.TextUtils
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -14,6 +20,9 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.imageResource
@@ -31,7 +40,7 @@ import kotlin.math.sqrt
  * Photographic Весна-202-1 cassette recorder, based on the original user photo.
  *
  * Static photo: body, metal faceplate, speaker grille, buttons, meters, cassette
- * shell, and label NEVER move. Only the two small round plastic reel hubs inside
+ * shell, and MARK AUDIO paper labels NEVER move. Only two small reel hubs inside
  * the existing cassette rotate; the rest of the photo is an immutable GPU layer.
  *
  * No spectrum/FFT, no Internet, no GMS, no extra audio processing.
@@ -40,6 +49,7 @@ import kotlin.math.sqrt
 fun VesnaCassettePlayer(
     playing: Boolean,
     progress: Float,
+    trackTitle: String,
     modifier: Modifier = Modifier
 ) {
     val photo = ImageBitmap.imageResource(R.drawable.vesna_202_photo)
@@ -135,7 +145,123 @@ fun VesnaCassettePlayer(
                     drawCircle(Color(0xFF30363B), 1.35f * unit, c)
                 }
             }
+
+            // Two matte adhesive pieces rest ON the photographed cassette.
+            // They change with the music title but remain perfectly stationary
+            // while only the two plastic spindle hubs rotate underneath.
+            Canvas(Modifier.fillMaxSize()) {
+                drawBrandedCassetteSticker(cassetteStickerTitle(trackTitle))
+            }
         }
+    }
+}
+
+/**
+ * Two die-cut matte paper parts of a physical cassette label. The space between
+ * these strips stays uncovered so the REAL transparent tape mechanism, both
+ * spinning hub apertures and the vintage cassette's depth remain visible.
+ */
+internal data class CassetteLabelStrip(
+    val x: Float, val y: Float, val width: Float, val height: Float
+)
+
+internal val VESNA_LABEL_STRIPS = listOf(
+    CassetteLabelStrip(574f, 438f, 275f, 36f), // brand, above spinning reels
+    CassetteLabelStrip(575f, 522f, 274f, 35f)  // song title, below reels
+)
+
+internal fun cassetteStickerTitle(value: String): String =
+    value.trim().replace(Regex("\\s+"), " ").ifEmpty { "Без названия" }
+
+/** Geometric guard against a repeat of the 0.7.7 rotating/cropped-photo issue. */
+internal fun cassetteStickerAvoidsHubWindows(): Boolean =
+    VESNA_LABEL_STRIPS.all { label ->
+        VESNA_CASSETTE_HUBS.all { hub ->
+            val nearestX = hub.x.coerceIn(label.x, label.x + label.width)
+            val nearestY = hub.y.coerceIn(label.y, label.y + label.height)
+            val dx = nearestX - hub.x
+            val dy = nearestY - hub.y
+            dx * dx + dy * dy > hub.radius * hub.radius
+        }
+    }
+
+/** Original retro hi-fi MARK AUDIO cassette paper; text is live track metadata. */
+private fun DrawScope.drawBrandedCassetteSticker(title: String) {
+    val unit = size.width / VESNA_IMAGE_WIDTH
+    fun p(x: Float, y: Float) = Offset(x * unit, y * unit)
+    for ((index, paper) in VESNA_LABEL_STRIPS.withIndex()) {
+        val dimensions = Size(paper.width * unit, paper.height * unit)
+        val corner = CornerRadius(unit * 2.7f)
+        drawRoundRect(
+            color = Color(0x9906090D),
+            topLeft = p(paper.x + 1.6f, paper.y + 2.6f),
+            size = dimensions,
+            cornerRadius = corner
+        )
+        drawRoundRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(Color(0xFFE9E4D8), Color(0xFFD8D2C3), Color(0xFFCAC4B7)),
+                startY = paper.y * unit,
+                endY = (paper.y + paper.height) * unit
+            ),
+            topLeft = p(paper.x, paper.y),
+            size = dimensions,
+            cornerRadius = corner
+        )
+        drawRoundRect(
+            color = Color(0xFF8F8779).copy(alpha = .46f),
+            topLeft = p(paper.x, paper.y),
+            size = dimensions,
+            cornerRadius = corner,
+            style = Stroke(width = .75f * unit)
+        )
+        drawLine(
+            color = Color.White.copy(alpha = .40f),
+            start = p(paper.x + 4f, paper.y + 2.2f),
+            end = p(paper.x + paper.width - 4f, paper.y + 2.2f),
+            strokeWidth = .7f * unit
+        )
+        // Low-contrast print fibers keep the label photographic, not neon/UI.
+        repeat(18) { n ->
+            val x = paper.x + 7f + ((n * 31 + index * 13) % 248)
+            val y = paper.y + 6f + ((n * 17) % (paper.height.toInt() - 11))
+            drawLine(
+                color = Color(0xFF6A594F).copy(alpha = .062f),
+                start = p(x, y),
+                end = p(x + 4.3f, y),
+                strokeWidth = .65f * unit
+            )
+        }
+    }
+    // Tiny burgundy brand stripe printed into the upper adhesive piece.
+    drawRoundRect(
+        color = Color(0xFF9F484E),
+        topLeft = p(580f, 443f),
+        size = Size(4.1f * unit, 25f * unit),
+        cornerRadius = CornerRadius(.5f * unit)
+    )
+    drawIntoCanvas { canvas ->
+        val ink = android.graphics.Color.rgb(36, 34, 32)
+        val brandPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = ink
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            textSize = 23f * unit
+        }
+        canvas.nativeCanvas.drawText(
+            "MARK AUDIO", 590f * unit, 464f * unit, brandPaint
+        )
+
+        val songPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = ink
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            textSize = 25.5f * unit
+        }
+        val printed = TextUtils.ellipsize(
+            title, songPaint, 251f * unit, TextUtils.TruncateAt.END
+        ).toString()
+        canvas.nativeCanvas.drawText(
+            printed, 587f * unit, 548f * unit, songPaint
+        )
     }
 }
 
