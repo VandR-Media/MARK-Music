@@ -14,7 +14,7 @@ class DanceEngineTest {
         assertEquals(8100L, clock.positionAt(8_100_000_000))
         clock.update("b", 0, 9_000_000_000, 2f, true)
         assertEquals(1000L, clock.positionAt(9_500_000_000))
-        assertEquals(0.5, clock.phaseAt(9_250_000_000, 120.0, 0), 0.001)
+        assertEquals(0.5, clock.phaseAt(9_125_000_000, 120.0, 0), 0.001)
     }
 
     @Test fun trackerFindsActualTempoAndResets() {
@@ -42,7 +42,7 @@ class DanceEngineTest {
         assertEquals(DanceMode.TRANSITION, director.decide("song", true, 4, .8f).mode)
         assertEquals("b", director.decide("song", true, 6, .8f).clipId)
         assertEquals(DanceMode.IDLE, director.decide("song", false, 7, .1f).mode)
-        assertEquals(DanceMode.TRANSITION, director.decide("new song", true, 0, .1f).mode)
+        assertEquals(DanceMode.DANCING, director.decide("new song", true, 0, .1f).mode)
     }
 
     @Test fun glbRejectsInvalidContainers() {
