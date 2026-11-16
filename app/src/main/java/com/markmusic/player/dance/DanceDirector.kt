@@ -46,7 +46,8 @@ class DanceDirector(
     /** Absolute beat index based on the externally measured song beat grid. */
     fun decide(mediaId: String, playing: Boolean, absoluteBeat: Long, energy: Float): DanceDecision {
         require(absoluteBeat >= 0)
-        if (trackId != mediaId) reset(mediaId)
+        if (trackId.isEmpty()) trackId = mediaId
+        else if (trackId != mediaId) reset(mediaId)
         if (!playing) {
             current = null
             pending = null
