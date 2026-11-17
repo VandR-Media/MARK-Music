@@ -13,7 +13,14 @@ android {
         versionCode = 31
         versionName = "0.7.13-rc1"
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    buildTypes {
+        // Side-by-side test install: never overwrite the owner's existing MARK Audio.
+        debug {
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-test"
+        }
+        release { isMinifyEnabled = false }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
