@@ -1,8 +1,6 @@
 name: MARK Stereo Preview APK (prerelease, no artifact quota)
 on:
-  push:
-    branches:
-      - feature/stereo-visual-fft-foundation
+  # Manual only: a testing APK must not silently replace a tagged release on every commit.
   workflow_dispatch:
 permissions:
   contents: write
