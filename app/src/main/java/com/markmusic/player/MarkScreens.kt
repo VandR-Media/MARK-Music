@@ -42,6 +42,7 @@ import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
 import com.markmusic.player.visual.TubeRadioDeck
 import com.markmusic.player.visual.MarkDancer3D
+import com.markmusic.player.visual.MarkStereoVisual
 import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -89,7 +90,8 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
 internal enum class PlayerDeckMode {
-    VINYL, MAYAK_203, VESNA_202_1, RADIO, MARK_3D
+    VINYL, MAYAK_203, VESNA_202_1, RADIO, MARK_3D,
+    ANALOG_STUDIO, SPECTRUM_MATRIX
 }
 
 /** Previously selected discarded visualizations migrate to the new mascot. */
@@ -539,7 +541,8 @@ internal fun MarkPlayerScreen(
     val visualForeground = LocalVisualActive.current.value
     DisposableEffect(deckMode, visualForeground, playing) {
         AudioMeterBus.enabled.set(visualForeground && playing &&
-            (deckMode == PlayerDeckMode.RADIO || deckMode == PlayerDeckMode.MARK_3D))
+            (deckMode == PlayerDeckMode.RADIO || deckMode == PlayerDeckMode.MARK_3D ||
+                deckMode == PlayerDeckMode.ANALOG_STUDIO || deckMode == PlayerDeckMode.SPECTRUM_MATRIX))
         if (!playing || !visualForeground) AudioMeterBus.clear()
         onDispose {
             AudioMeterBus.enabled.set(false)
@@ -596,7 +599,7 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // Swipe through the five available visualizations with a directional
+            // Swipe through original decks plus two working stereo meter previews with a directional
             // slide: Vinyl, Mayak, Vesna, valve radio and 3-D dancing Mark.
             Box(Modifier.size(artworkSize)
                 .pointerInput(deckMode, swipeThresholdPx) {
@@ -666,6 +669,16 @@ internal fun MarkPlayerScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 PlayerDeckMode.MARK_3D -> MarkDancer3D(
+                                    playing = playing,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.ANALOG_STUDIO -> MarkStereoVisual(
+                                    analog = true,
+                                    playing = playing,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.SPECTRUM_MATRIX -> MarkStereoVisual(
+                                    analog = false,
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
