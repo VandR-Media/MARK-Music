@@ -4,24 +4,87 @@ import androidx.media3.common.C
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Real six-band PCM analyzer, isolated from ExoPlayer's real-time callback.
- * The audio thread only copies at most one 2048-frame chunk every ~33 ms.
- * When its single worker is busy the next chunk is simply dropped: audio must
- * always have priority over graphics.
+ * Collect actual PCM frames across arbitrary ExoPlayer callbacks. A callback
+ * need not contain a complete 2048-frame FFT window.
+ *
+ * Worker thread owns this ring; no locking or FFT is performed in the audio
+ * callback. Mono is mirrored into L/R as the original decoded PCM demands.
+ */
+internal class StereoPcmWindow(private val frameCapacity: Int = 2048) {
+    init { require(frameCapacity > 0) }
+    private val ring = FloatArray(frameCapacity * 2)
+    private var next = 0
+    private var count = 0
+    private var sampleRate = 0
+
+    val full: Boolean get() = count == frameCapacity
+    fun reset() {
+        next = 0
+        count = 0
+        sampleRate = 0
+        ring.fill(0f)
+    }
+
+    fun append(pcm: FloatArray, channels: Int, rateHz: Int) {
+        require(channels in 1..2)
+        require(rateHz in 8000..192000)
+        require(pcm.size % channels == 0)
+        if (sampleRate != rateHz) reset()
+        sampleRate = rateHz
+        val frames = pcm.size / channels
+        for (i in 0 until frames) {
+            val offset = i * channels
+            val left = pcm[offset].takeIf { it.isFinite() } ?: 0f
+            val right = if (channels == 1) left
+                else (pcm[offset + 1].takeIf { it.isFinite() } ?: 0f)
+            ring[next * 2] = left
+            ring[next * 2 + 1] = right
+            next = (next + 1) % frameCapacity
+            if (count < frameCapacity) count++
+        }
+    }
+
+    fun snapshotStereo(): FloatArray {
+        require(full) { "Cannot analyze incomplete PCM window" }
+        val result = FloatArray(frameCapacity * 2)
+        for (i in 0 until frameCapacity) {
+            val source = ((next + i) % frameCapacity) * 2
+            result[i * 2] = ring[source]
+            result[i * 2 + 1] = ring[source + 1]
+        }
+        return result
+    }
+}
+
+/**
+ * Worker handles only one outstanding short PCM chunk, dropping visual updates
+ * if CPU is overloaded. No FFT, blocking wait, or disk I/O on audio callback.
  */
 internal class StereoSpectrumWorker {
     private val analyzer = StereoSpectrumAnalyzer()
+    private val window = StereoPcmWindow(2048)
     private val busy = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
+    private val generation = AtomicInteger(0)
+    private var workerGeneration = -1
+    private var lastPublishNs = 0L
     private val executor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "mark-stereo-spectrum").apply { isDaemon = true }
     }
 
+    fun reset() {
+        generation.incrementAndGet()
+        AudioMeterBus.frequencyBands.value = StereoFrequencyBands()
+    }
+
     fun submit(source: ByteBuffer, channels: Int, encoding: Int, sampleRate: Int) {
-        if (closed.get() || !AudioMeterBus.enabled.get() || !busy.compareAndSet(false, true)) return
+        if (closed.get() || !AudioMeterBus.enabled.get() ||
+            !busy.compareAndSet(false, true)) return
         val bytes = when (encoding) {
             C.ENCODING_PCM_8BIT -> 1
             C.ENCODING_PCM_16BIT -> 2
@@ -35,31 +98,50 @@ internal class StereoSpectrumWorker {
         }
         val stride = channels * bytes
         val available = source.remaining() / stride
-        // Only analyze a complete window. Never block or copy a huge buffer.
-        if (available < 2048) { busy.set(false); return }
+        if (available <= 0) { busy.set(false); return }
+        // Copy the newest portion of the PCM callback, at most 2048 frames.
+        val frames = minOf(available, 2048)
         val duplicate = source.duplicate()
-        duplicate.position(source.position() + (available - 2048) * stride)
-        val block = ByteArray(2048 * stride)
+        duplicate.position(source.position() + (available - frames) * stride)
+        val block = ByteArray(frames * stride)
         duplicate.get(block)
+        val session = generation.get()
         try {
             executor.execute {
                 try {
+                    if (closed.get() || !AudioMeterBus.enabled.get()) return@execute
+                    if (session != generation.get()) return@execute
+                    if (workerGeneration != session) {
+                        workerGeneration = session
+                        window.reset()
+                        lastPublishNs = 0L
+                    }
                     val pcm = decodePcmForSpectrum(block, channels, encoding)
-                    if (!closed.get() && AudioMeterBus.enabled.get()) {
-                        AudioMeterBus.frequencyBands.value =
-                            analyzer.analyzeInterleaved(pcm, minOf(channels, 2), sampleRate)
+                    window.append(pcm, minOf(channels, 2), sampleRate)
+                    if (!window.full) return@execute
+
+                    val nowNs = System.nanoTime()
+                    if (lastPublishNs != 0L && nowNs - lastPublishNs < 33_000_000L) return@execute
+                    lastPublishNs = nowNs
+                    val bands = analyzer.analyzeInterleaved(
+                        window.snapshotStereo(), 2, sampleRate
+                    )
+                    if (!closed.get() && AudioMeterBus.enabled.get() &&
+                        session == generation.get()) {
+                        AudioMeterBus.frequencyBands.value = bands.copy(ready = true)
                     }
                 } finally {
                     busy.set(false)
                 }
             }
-        } catch (_: java.util.concurrent.RejectedExecutionException) {
+        } catch (_: RejectedExecutionException) {
             busy.set(false)
         }
     }
 
     fun close() {
         closed.set(true)
+        generation.incrementAndGet()
         executor.shutdownNow()
         busy.set(false)
     }
