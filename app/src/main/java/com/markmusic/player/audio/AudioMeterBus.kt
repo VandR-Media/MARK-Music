@@ -30,7 +30,7 @@ data class AudioMeterFrame(
 object AudioMeterBus {
     val enabled = AtomicBoolean(false)
     val levels = MutableStateFlow(AudioMeterFrame())
-    val frequencyBands = MutableStateFlow(StereoFrequencyBands())
+    internal val frequencyBands = MutableStateFlow(StereoFrequencyBands())
 
     fun clear() {
         levels.value = AudioMeterFrame()
