@@ -124,6 +124,48 @@ private class MeterPainter(private val c: AndroidCanvas) {
             }
         }
     }
+
+    /**
+     * Multi-stop brushed-anodized aluminum without bitmap assets/CDN.
+     * Unlike plain rounded rectangles, light changes across the surface.
+     */
+    private fun metal(x:Float,y:Float,w:Float,h:Float,r:Float) {
+        clear()
+        p.shader = LinearGradient(
+            x,y,x+w,y+h,
+            intArrayOf(
+                0xFFB7CAD9.toInt(),0xFF31445E.toInt(),
+                0xFF0B1423.toInt(),0xFF73849A.toInt(),
+                0xFF121E30.toInt(),0xFF070E19.toInt()
+            ),
+            floatArrayOf(0f,.12f,.33f,.54f,.78f,1f),
+            Shader.TileMode.CLAMP
+        )
+        c.drawRoundRect(x,y,x+w,y+h,r,r,p)
+        p.shader=null
+        c.save()
+        c.clipRect(x+5f,y+5f,x+w-5f,y+h-5f)
+        for(i in 1..80){
+            val yy=y+4f+i*(h-8f)/80f
+            val alpha=if(i%5==0)0x2AFFFFFF else 0x12000000
+            line(x+8f,yy,x+w-8f,yy,alpha.toInt(),.65f)
+        }
+        c.restore()
+    }
+    /** Glass highlights remain subtle; labels are rendered above the glass. */
+    private fun glass(x:Float,y:Float,w:Float,h:Float,r:Float) {
+        clear()
+        p.shader=LinearGradient(
+            x,y,x+w,y+h,
+            intArrayOf(0x35FFFFFF,0x05FFFFFF,0x00000000,0x13000000),
+            floatArrayOf(0f,.22f,.47f,1f),
+            Shader.TileMode.CLAMP
+        )
+        c.drawRoundRect(x,y,x+w,y+h,r,r,p)
+        p.shader=null
+        line(x+18f,y+12f,x+w-20f,y+12f,0x65FFFFFF,2f)
+    }
+
     private fun bolt(x:Float,y:Float) {
         dot(x,y,12f,0xFF020711.toInt())
         dot(x,y,8f,0xFF9DB8C9.toInt())
@@ -132,11 +174,16 @@ private class MeterPainter(private val c: AndroidCanvas) {
     }
     fun frame(analog:Boolean,playing:Boolean,frequencyReady:Boolean) {
         gradient(0f,0f,900f,900f,0f,0xFF020513.toInt(),0xFF0B1230.toInt())
-        // Three offset beveled metal edges create physical case depth.
-        gradient(18f,24f,864f,852f,58f,0xFF65758C.toInt(),0xFF0B101E.toInt())
-        gradient(28f,34f,844f,830f,51f,0xFF17263A.toInt(),0xFF02030C.toInt())
-        box(34f,40f,832f,816f,47f,0xFF080E1C.toInt(),3f,0xFF243B56.toInt())
-        gradient(48f,54f,804f,788f,40f,0xFF17273A.toInt(),0xFF030711.toInt())
+        // Distinct machined-metal bevel, dark recessed instrument face,
+        // thin anisotropic brushing and different rim lighting at each edge.
+        box(14f,19f,872f,866f,61f,0xFF01030A.toInt())
+        metal(21f,27f,858f,843f,56f)
+        box(30f,36f,840f,824f,50f,0xFF030913.toInt(),3f,0xFF50677F.toInt())
+        gradient(42f,48f,816f,800f,40f,0xFF1B293D.toInt(),0xFF040813.toInt())
+        line(62f,49f,815f,49f,0xFF899AB8.toInt(),2f)
+        line(59f,842f,821f,842f,0xFF070A15.toInt(),4f)
+        line(43f,57f,43f,806f,0xFF4E7892.toInt(),2f)
+        line(857f,58f,857f,811f,0xFF502359.toInt(),2f)
         line(78f,111f,823f,111f,0xFF344F6A.toInt(),2f)
         line(73f,786f,826f,786f,0xFF293A56.toInt(),2f)
         for(x in listOf(64f,838f))for(y in listOf(76f,824f))bolt(x,y)
@@ -173,12 +220,11 @@ private class MeterPainter(private val c: AndroidCanvas) {
         x:Float,y:Float,w:Float,h:Float,name:String,accent:Int,
         rms:Float,peak:Float
     ) {
-        // Outer cast aluminium, warm illuminated needle chamber.
-        gradient(x-3f,y-2f,w+6f,h+8f,27f,0xFF95A8BD.toInt(),0xFF252A38.toInt())
-        gradient(x+7f,y+9f,w-14f,h-14f,22f,0xFF121826.toInt(),0xFF020307.toInt())
-        gradient(x+20f,y+26f,w-40f,h-77f,12f,0xFFF9D8A2.toInt(),0xFF5E3823.toInt())
-        // Analog glass and deep shadow rim.
-        box(x+17f,y+22f,w-34f,h-71f,15f,0x15000000,3f,0xFF1C1C24.toInt())
+        // Physically layered machined VU instrument with warm amber light.
+        metal(x-3f,y-2f,w+6f,h+8f,27f)
+        box(x+7f,y+9f,w-14f,h-14f,22f,0xFF060A13.toInt(),3f,0xFF374258.toInt())
+        gradient(x+20f,y+26f,w-40f,h-77f,12f,0xFFFFE6B7.toInt(),0xFF66412A.toInt())
+        box(x+17f,y+22f,w-34f,h-71f,15f,0x14000000,3f,0xFF1C1C24.toInt())
         val pivotX=x+w/2f
         val pivotY=y+330f
         val centerAngle=0f
@@ -199,8 +245,9 @@ private class MeterPainter(private val c: AndroidCanvas) {
             text(label,pivotX+sin(a)*133f,pivotY-cos(a)*133f+8f,
                 20f,0xFF3E231B.toInt(),true,true)
         }
-        text("MARK",pivotX,y+208f,34f,0xFF6F4634.toInt(),true,true,2f)
-        text("VU",pivotX,y+252f,22f,0xFF68432D.toInt(),true,true,2f)
+        // Identity lettering belongs above the needle sweep, not across it.
+        text("MARK",pivotX,y+73f,30f,0xFF50301F.toInt(),true,true,2f)
+        text("VU",pivotX,y+101f,18f,0xFF68432D.toInt(),true,true,2f)
         // mechanical pointer with light highlights and red tip
         val swing=-1.05f+2.10f*rms.coerceIn(0f,1f)
         val nx=pivotX+sin(swing)*236f
@@ -210,8 +257,9 @@ private class MeterPainter(private val c: AndroidCanvas) {
         dot(pivotX,pivotY,19f,0xFF30303D.toInt())
         dot(pivotX,pivotY,10f,0xFFB6B6B8.toInt())
         dot(pivotX-3f,pivotY-3f,3f,white)
-        // reflected glass specular stripe
-        line(x+33f,y+51f,x+w-33f,y+47f,0x46FFFFFF,3f)
+        // Front glass has edge lighting, specular curvature and real frame depth.
+        glass(x+22f,y+25f,w-44f,h-80f,11f)
+        line(x+33f,y+49f,x+w-33f,y+45f,0x55FFFFFF,3f)
         text(name,pivotX,y+h-21f,23f,accent,true,true,3f)
         dot(x+w-41f,y+h-31f,5f,if(peak>.91f)0xFFFF4545.toInt()
             else 0xFF39445D.toInt(),if(peak>.91f)9f else 0f)
@@ -237,9 +285,9 @@ private class MeterPainter(private val c: AndroidCanvas) {
             val x=(if(idx<3)124f else 496f)+(idx%3)*110f
             val v=bandDisplay(nums[idx])
             bigLadder(x,260f,75f,379f,v,if(idx<3)cyan else pink)
-            text(labels[idx%3],x+38f,672f,24f,
+            text(labels[idx%3],x+38f,672f,20f,
                 if(idx<3)0xFF9FF6FF.toInt() else 0xFFFFA6E6.toInt(),
-                true,true,2f)
+                true,true)
             text("%02d".format((v*99).toInt()),x+38f,718f,27f,
                 white,true,true)
         }
@@ -275,7 +323,8 @@ private class MeterPainter(private val c: AndroidCanvas) {
                 line(x+8f,yy+2f,x+w-8f,yy+2f,0xFF30404A.toInt(),1f)
             }
         }
-        line(x-7f,y+h-(value*h),x+w+7f,y+h-(value*h),accent,2f,3f)
+        if(value>.016f)
+            line(x-7f,y+h-(value*h),x+w+7f,y+h-(value*h),accent,2f,3f)
     }
     private fun tinyLadder(
         x:Float,y:Float,w:Float,h:Float,color:Int,value:Float,segments:Int
