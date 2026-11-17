@@ -34,6 +34,7 @@ jobs:
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | head -6
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "com.markmusic.player.preview"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
           sha256sum "$APK"
       - name: Publish verified APK to a PRIVATE GitHub prerelease (not Actions artifacts)
@@ -49,7 +50,7 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --target "$GITHUB_SHA" --prerelease \
               --title "MARK Audio 0.7.13 RC1 — stereo visual preview" \
-              --notes "TEST BUILD ONLY. Contains two working PCM-driven 2D meter previews: Analog Studio and Spectrum Matrix; real per-channel 20-200Hz, 200-2000Hz, 2-16kHz FFT. Full six hybrid 2D/3D modes are NOT ready. App remains offline. Debug signing, not production signing. Not yet tested on a real Huawei."
+              --notes "TEST BUILD ONLY. Contains two working PCM-driven 2D meter previews: Analog Studio and Spectrum Matrix; real per-channel 20-200Hz, 200-2000Hz, 2-16kHz FFT. Full six hybrid 2D/3D modes are NOT ready. App remains offline. Debug signing, not production signing. Installs SIDE-BY-SIDE as com.markmusic.player.preview, not over the installed main player. Not yet tested on a real Huawei."
           fi
           gh release upload "$TAG" "$NAME" --clobber
           gh release view "$TAG" --json url,assets --jq '.url, (.assets[] | .name)'
