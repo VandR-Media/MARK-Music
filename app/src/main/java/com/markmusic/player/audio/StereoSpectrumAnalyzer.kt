@@ -22,7 +22,9 @@ internal data class FrequencyBandLevels(
 
 internal data class StereoFrequencyBands(
     val left: FrequencyBandLevels = FrequencyBandLevels(),
-    val right: FrequencyBandLevels = FrequencyBandLevels()
+    val right: FrequencyBandLevels = FrequencyBandLevels(),
+    /** True after a full real PCM FFT window has been analyzed, including silence. */
+    val ready: Boolean = false
 )
 
 /**
