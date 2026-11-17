@@ -30,8 +30,12 @@ data class AudioMeterFrame(
 object AudioMeterBus {
     val enabled = AtomicBoolean(false)
     val levels = MutableStateFlow(AudioMeterFrame())
+    val frequencyBands = MutableStateFlow(StereoFrequencyBands())
 
-    fun clear() { levels.value = AudioMeterFrame() }
+    fun clear() {
+        levels.value = AudioMeterFrame()
+        frequencyBands.value = StereoFrequencyBands()
+    }
 }
 
 /** Convert a normalized PCM RMS to a 0..1 level on a -48..0 dB scale. */
@@ -198,6 +202,7 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
     private var encoding = C.ENCODING_PCM_16BIT
     private var sampleRate = 44100
     private val beats = PcmBeatDetector()
+    private val spectrum = StereoSpectrumWorker()
     private var lastNs = 0L
 
     override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
@@ -208,6 +213,8 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
         lastNs = 0L
         AudioMeterBus.clear()
     }
+
+    fun close() { spectrum.close() }
 
     override fun handleBuffer(buffer: ByteBuffer) {
         if (!AudioMeterBus.enabled.get()) return
@@ -226,5 +233,7 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
             beatStrength = onset.strength,
             bassLevel = normalizeMeterRms(bass)
         )
+        // FFT is scheduled on a separate bounded worker; never run it here.
+        spectrum.submit(buffer, channels, encoding, sampleRate)
     }
 }
