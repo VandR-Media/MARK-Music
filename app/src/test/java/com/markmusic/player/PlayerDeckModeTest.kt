@@ -9,7 +9,7 @@ class PlayerDeckModeTest {
         assertEquals(PlayerDeckMode.VINYL,playerDeckFromPreference("OTHER"))
     }
 
-    @Test fun savesAndRestoresAllSevenModes() {
+    @Test fun savesAndRestoresAllEightModes() {
         for (mode in PlayerDeckMode.entries)
             assertEquals(mode,playerDeckFromPreference(mode.name))
     }
