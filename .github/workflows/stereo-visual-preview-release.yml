@@ -1,0 +1,55 @@
+name: MARK Stereo Preview APK (prerelease, no artifact quota)
+on:
+  push:
+    branches:
+      - feature/stereo-visual-fft-foundation
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-preview-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Install Android 36 SDK
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Test FFT, decks and build installable debug APK
+        run: |
+          set -euo pipefail
+          gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify APK package and signature
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | head -6
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          sha256sum "$APK"
+      - name: Publish verified APK to a PRIVATE GitHub prerelease (not Actions artifacts)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="mark-stereo-visual-v0.7.13-rc1"
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          NAME=MARK-Audio-Stereo-Visual-v0.7.13-rc1-debug.apk
+          cp "$APK" "$NAME"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --prerelease \
+              --title "MARK Audio 0.7.13 RC1 — stereo visual preview" \
+              --notes "TEST BUILD ONLY. Contains two working PCM-driven 2D meter previews: Analog Studio and Spectrum Matrix; real per-channel 20-200Hz, 200-2000Hz, 2-16kHz FFT. Full six hybrid 2D/3D modes are NOT ready. App remains offline. Debug signing, not production signing. Not yet tested on a real Huawei."
+          fi
+          gh release upload "$TAG" "$NAME" --clobber
+          gh release view "$TAG" --json url,assets --jq '.url, (.assets[] | .name)'
