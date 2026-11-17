@@ -17,6 +17,7 @@ import com.markmusic.player.audio.AudioMeterBus
 import com.markmusic.player.audio.AudioMeterFrame
 import com.markmusic.player.audio.FrequencyBandLevels
 import com.markmusic.player.audio.StereoFrequencyBands
+import com.markmusic.player.audio.normalizeMeterRms
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -42,7 +43,7 @@ fun MarkStereoVisual(
         native.save()
         native.scale(size.width / 900f, size.height / 900f)
         val painter = MeterPainter(native)
-        painter.frame(analog, playing)
+        painter.frame(analog, playing, bands.ready)
         if (analog) painter.analog(levels, bands)
         else painter.matrix(levels, bands)
         native.restore()
@@ -129,7 +130,7 @@ private class MeterPainter(private val c: AndroidCanvas) {
         dot(x-1.5f,y-1.5f,5.5f,0xFF39465C.toInt())
         line(x-5f,y+3f,x+5f,y-3f,0xFF0D1423.toInt(),2f)
     }
-    fun frame(analog:Boolean,playing:Boolean) {
+    fun frame(analog:Boolean,playing:Boolean,frequencyReady:Boolean) {
         gradient(0f,0f,900f,900f,0f,0xFF020513.toInt(),0xFF0B1230.toInt())
         // Three offset beveled metal edges create physical case depth.
         gradient(18f,24f,864f,852f,58f,0xFF65758C.toInt(),0xFF0B101E.toInt())
@@ -142,9 +143,10 @@ private class MeterPainter(private val c: AndroidCanvas) {
         text("MARK",92f,101f,41f,white,true,letterSpacing=4f)
         text("STEREO  •  "+(if(analog)"ANALOG STUDIO" else "SPECTRUM MATRIX"),
             280f,95f,20f,0xFFADC6D8.toInt(),true,letterSpacing=2.3f)
-        dot(760f,91f,5f,if(playing)0xFF39FCB3.toInt()else 0xFF64758B.toInt(),if(playing)7f else 0f)
-        text(if(playing)"PCM LIVE" else "PAUSED",776f,97f,16f,
-            if(playing)0xFF96FFE1.toInt() else 0xFF7B89A3.toInt(),true)
+        val live = playing && frequencyReady
+        dot(755f,91f,5f,if(live)0xFF39FCB3.toInt() else if(playing)0xFFFFBF63.toInt() else 0xFF64758B.toInt(),if(live)7f else 0f)
+        text(if(live)"FFT LIVE" else if(playing)"FFT INIT" else "PAUSED",770f,97f,16f,
+            if(live)0xFF96FFE1.toInt() else if(playing)0xFFFFD397.toInt() else 0xFF7B89A3.toInt(),true)
         text("MARK AUDIO  /  PRECISION STEREO METERS",450f,829f,17f,
             0xFF7595B1.toInt(),true,true,1.4f)
     }
@@ -156,8 +158,8 @@ private class MeterPainter(private val c: AndroidCanvas) {
         box(87f,575f,726f,183f,20f,0xFF060D1A.toInt(),2f,0xFF546279.toInt())
         text("FREQUENCY BANDS  /  L",112f,604f,19f,cyan,true,letterSpacing=1f)
         text("FREQUENCY BANDS  /  R",487f,604f,19f,pink,true,letterSpacing=1f)
-        val left=listOf(bands.left.low,bands.left.mid,bands.left.high)
-        val right=listOf(bands.right.low,bands.right.mid,bands.right.high)
+        val left=listOf(bands.left.low,bands.left.mid,bands.left.high).map(::bandDisplay)
+        val right=listOf(bands.right.low,bands.right.mid,bands.right.high).map(::bandDisplay)
         val labels=listOf("LOW","MID","HIGH")
         for(ch in 0..1) for(b in 0..2) {
             val x=103f+ch*374f+b*111f
@@ -233,7 +235,7 @@ private class MeterPainter(private val c: AndroidCanvas) {
         val labels=listOf("LOW","MID","HIGH")
         for(idx in 0..5) {
             val x=(if(idx<3)124f else 496f)+(idx%3)*110f
-            val v=nums[idx].coerceIn(0f,1f)
+            val v=bandDisplay(nums[idx])
             bigLadder(x,260f,75f,379f,v,if(idx<3)cyan else pink)
             text(labels[idx%3],x+38f,672f,24f,
                 if(idx<3)0xFF9FF6FF.toInt() else 0xFFFFA6E6.toInt(),
@@ -246,6 +248,9 @@ private class MeterPainter(private val c: AndroidCanvas) {
         text("R  %02d".format((level.right.coerceIn(0f,1f)*99).toInt()),
             520f,239f,18f,0xFF986F92.toInt(),true)
     }
+    /** FFT linear amplitude is too small for direct LED segments; use honest dB-like scale. */
+    private fun bandDisplay(raw:Float):Float = normalizeMeterRms(raw.toDouble())
+
     private fun bigLadder(x:Float,y:Float,w:Float,h:Float,value:Float,accent:Int) {
         val segments=20
         val gap=7f
