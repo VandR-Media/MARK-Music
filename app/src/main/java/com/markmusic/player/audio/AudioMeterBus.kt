@@ -211,6 +211,7 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
         sampleRate = sampleRateHz
         beats.reset()
         lastNs = 0L
+        spectrum.reset()
         AudioMeterBus.clear()
     }
 
@@ -218,6 +219,9 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
 
     override fun handleBuffer(buffer: ByteBuffer) {
         if (!AudioMeterBus.enabled.get()) return
+        // Feed every short callback to the rolling FFT window; meter/VU may be throttled.
+        // Earlier code skipped buffers shorter than 2048 frames, leaving six bars at 00.
+        spectrum.submit(buffer, channels, encoding, sampleRate)
         val now = SystemClock.elapsedRealtimeNanos()
         if (now - lastNs < 33_000_000L) return // <= 30 meter updates/s
         lastNs = now
@@ -233,7 +237,6 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
             beatStrength = onset.strength,
             bassLevel = normalizeMeterRms(bass)
         )
-        // FFT is scheduled on a separate bounded worker; never run it here.
-        spectrum.submit(buffer, channels, encoding, sampleRate)
+        // Spectrum has already been queued above, even for short audio callbacks.
     }
 }
