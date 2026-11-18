@@ -39,7 +39,7 @@ class PlayerDeckSwipeTest {
     @Test fun swipesReachAnalogStudioBothWays() {
         assertEquals(PlayerDeckMode.ANALOG_STUDIO,
             playerDeckAfterSwipe(PlayerDeckMode.RADIO, -60f, 60f))
-        assertEquals(PlayerDeckMode.MARK_3D,
+        assertEquals(PlayerDeckMode.ANALOG_STUDIO,
             playerDeckAfterSwipe(PlayerDeckMode.SPECTRUM_MATRIX, 100f, 60f))
     }
 }
