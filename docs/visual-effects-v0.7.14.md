@@ -10,9 +10,9 @@ This inventory describes the implementation added to MARK Audio, **not** an art-
 | MAYAK_203 | `MayakReelToReel.kt` | Public-domain straight-on equipment photograph with precisely masked rotating reel hubs and tape-pack changes |
 | VESNA_202_1 | `VesnaCassettePlayer.kt` | Photo-aligned rotating cassette hubs and stationary frame/paper labels |
 | RADIO | `TubeRadioDeck.kt` | Tube-radio image with warm valve-lamp glow reacting to real playback PCM |
-| ANALOG_STUDIO | `MarkVisualV2WebView.kt` | True multi-mesh Three.js/WebGL2 3D VU with two animated mechanical needles and six L/R LOW/MID/HIGH LED tracks |
-| SPECTRUM_MATRIX | `MarkVisualV2WebView.kt` | True Three.js/WebGL2 3D frame, glass, six separate frequency LED columns, gain/peak effects |
-| MARK_STEREO_COLLECTION | `MarkStereoCollection.kt` | Six hybrid CSS/2D image-based preview modes (listed below), driven by real ExoPlayer levels; not six fully editable WebGL3D meshes |
+| ANALOG_STUDIO | `MarkNativeStereoInstrument.kt` | Native Android Canvas VU needles and six independently driven PCM/FFT LEDs; temporary Huawei-compatible replacement for WebGL 3D |
+| SPECTRUM_MATRIX | `MarkNativeStereoInstrument.kt` | Native six-column FFT LED matrix; no WebView dependency |
+| MARK_STEREO_COLLECTION | `MarkNativeStereoInstrument.kt` | Six native depth-styled Canvas modes, switched by tapping the instrument. Oscilloscope is explicitly a stereo level indicator until raw samples are available |
 
 All seven can be selected using horizontal swipes or dedicated previous/next buttons (necessary when a WebView consumes touches). The selected deck is saved. Retired MARK_3D preferences migrate to VINYL.
 
@@ -25,7 +25,7 @@ All seven can be selected using horizontal swipes or dedicated previous/next but
 5. Pulse Rings — ring visualization.
 6. Oscilloscope — wave/scope style.
 
-**Important:** the separate ANALOG_STUDIO and SPECTRUM_MATRIX deck entries above use true WebGL2 3D geometry; the six-mode collection is a hybrid prototype and must not be called six complete real-time 3D instruments. Rendering accuracy and Huawei performance require on-device testing.
+**Important:** the original WebGL2 source is retained but is not currently used by the Huawei player because all three WebView instrument screens appeared black on real hardware; the six-mode collection is a hybrid prototype and must not be called six complete real-time 3D instruments. Native Canvas visibility, audio reaction, and Huawei performance still require another on-device test.
 
 ## Visual styling beyond the decks
 
@@ -45,3 +45,7 @@ Source must be real decoded PCM, not a microphone, synthetic DEMO, a second play
 - Gradle `:app:testDebugUnitTest`, `:app:assembleDebug`, `:app:assembleRelease`; signed production APK created by existing `signed-release.yml` only after merge into `main`.
 - Inspect built APK: embedded `mark_visual_engine_v2.html`, `mark_stereo_visual_collection.html`, correct package and signing certificate, no INTERNET/RECORD_AUDIO added.
 - **Huawei Pura 80 Ultra / EMUI 15 remains an external hardware test:** playback, actual left/right signals, pause/seek and background, GPU/memory and thermal behavior; leave quality gates open until measured.
+
+## 2026-11-18 Huawei hotfix
+
+User-provided screenshots confirmed black WebView panes at positions 5–7. Replaced their UI with native Compose Canvas rendering while preserving the original offline WebGL/HTML files for future GPU diagnostics. Native drawings are depth-styled 2D, not genuine editable WebGL 3D. The six-mode collection cycles by tapping its face; the waveform mode uses real stereo level lines rather than a fabricated PCM waveform. No new permissions, separate player, microphone or network access.
