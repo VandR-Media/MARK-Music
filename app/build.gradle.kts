@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 32
-        versionName = "0.7.13-rc2"
+        versionCode = 33
+        versionName = "0.7.14"
     }
     buildTypes {
         // Side-by-side test install: never overwrite the owner's existing MARK Audio.
