@@ -78,14 +78,21 @@ fun MarkStereoCollection(
     // its own short interpolation/release frame for smooth 60fps animation.
     LaunchedEffect(webView, loaded, levels, bands, playing) {
         if (!loaded) return@LaunchedEffect
-        val six = listOf(
+        // Never reuse old LED levels when transport pauses or FFT is unavailable.
+        val six = if (playing && bands.ready) listOf(
             bands.left.low, bands.left.mid, bands.left.high,
             bands.right.low, bands.right.mid, bands.right.high
         ).joinToString(",") { normalizeMeterRms(it.toDouble()).toString() }
+        else "0,0,0,0,0,0"
+        // Real per-sample oscilloscope data is not yet exported by the native FFT bus.
+        // Explicit zero waveform prevents the embedded collection from faking a sine
+        // wave while claiming to display actual ExoPlayer PCM.
+        val silentWave = List(128) { "0" }.joinToString(",")
         val left = if (playing) levels.left.coerceIn(0f, 1f) else 0f
         val right = if (playing) levels.right.coerceIn(0f, 1f) else 0f
         webView.evaluateJavascript(
-            "window.markVisualFrame&&window.markVisualFrame({bands:[$six],left:$left,right:$right});",
+            "window.markVisualFrame&&window.markVisualFrame({bands:[$six],left:$left,right:$right," +
+                "waveformLeft:[$silentWave],waveformRight:[$silentWave]});",
             null
         )
     }
