@@ -42,8 +42,7 @@ import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
 import com.markmusic.player.visual.TubeRadioDeck
 import com.markmusic.player.visual.MarkStereoVisual
-import com.markmusic.player.visual.MarkVisualV2WebView
-import com.markmusic.player.visual.MarkStereoCollection
+import com.markmusic.player.visual.MarkNativeStereoInstrument
 import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -670,19 +669,14 @@ internal fun MarkPlayerScreen(
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.ANALOG_STUDIO -> MarkVisualV2WebView(
-                                    analog = true,
-                                    playing = playing,
-                                    modifier = Modifier.fillMaxSize()
+                                PlayerDeckMode.ANALOG_STUDIO -> MarkNativeStereoInstrument(
+                                    variant = 0, playing = playing, modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.SPECTRUM_MATRIX -> MarkVisualV2WebView(
-                                    analog = false,
-                                    playing = playing,
-                                    modifier = Modifier.fillMaxSize()
+                                PlayerDeckMode.SPECTRUM_MATRIX -> MarkNativeStereoInstrument(
+                                    variant = 1, playing = playing, modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.MARK_STEREO_COLLECTION -> MarkStereoCollection(
-                                    playing = playing,
-                                    modifier = Modifier.fillMaxSize()
+                                PlayerDeckMode.MARK_STEREO_COLLECTION -> MarkNativeStereoInstrument(
+                                    variant = 2, playing = playing, modifier = Modifier.fillMaxSize()
                                 )
                                 PlayerDeckMode.VINYL -> if (coverReady) {
                                     VinylTurntable(
