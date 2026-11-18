@@ -50,7 +50,12 @@ fun MarkStereoCollection(
             overScrollMode = View.OVER_SCROLL_NEVER
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.allowFileAccess = true
+            settings.allowFileAccess = true // bundled offline html only
+            settings.allowFileAccessFromFileURLs = false
+            settings.allowUniversalAccessFromFileURLs = false
+            settings.allowContentAccess = false
+            settings.blockNetworkLoads = true
+            settings.javaScriptCanOpenWindowsAutomatically = false
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     loaded = true
