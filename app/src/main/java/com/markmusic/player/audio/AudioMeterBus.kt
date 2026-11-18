@@ -30,8 +30,12 @@ data class AudioMeterFrame(
 object AudioMeterBus {
     val enabled = AtomicBoolean(false)
     val levels = MutableStateFlow(AudioMeterFrame())
+    internal val frequencyBands = MutableStateFlow(StereoFrequencyBands())
 
-    fun clear() { levels.value = AudioMeterFrame() }
+    fun clear() {
+        levels.value = AudioMeterFrame()
+        frequencyBands.value = StereoFrequencyBands()
+    }
 }
 
 /** Convert a normalized PCM RMS to a 0..1 level on a -48..0 dB scale. */
@@ -198,6 +202,7 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
     private var encoding = C.ENCODING_PCM_16BIT
     private var sampleRate = 44100
     private val beats = PcmBeatDetector()
+    private val spectrum = StereoSpectrumWorker()
     private var lastNs = 0L
 
     override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
@@ -206,11 +211,17 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
         sampleRate = sampleRateHz
         beats.reset()
         lastNs = 0L
+        spectrum.reset()
         AudioMeterBus.clear()
     }
 
+    fun close() { spectrum.close() }
+
     override fun handleBuffer(buffer: ByteBuffer) {
         if (!AudioMeterBus.enabled.get()) return
+        // Feed every short callback to the rolling FFT window; meter/VU may be throttled.
+        // Earlier code skipped buffers shorter than 2048 frames, leaving six bars at 00.
+        spectrum.submit(buffer, channels, encoding, sampleRate)
         val now = SystemClock.elapsedRealtimeNanos()
         if (now - lastNs < 33_000_000L) return // <= 30 meter updates/s
         lastNs = now
@@ -226,5 +237,6 @@ class MeterAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
             beatStrength = onset.strength,
             bassLevel = normalizeMeterRms(bass)
         )
+        // Spectrum has already been queued above, even for short audio callbacks.
     }
 }

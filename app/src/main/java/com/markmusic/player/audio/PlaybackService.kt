@@ -34,6 +34,7 @@ class PlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
     private val eqScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val eqEngine = MarkEqualizerEngine()
+    private var meterSink: MeterAudioBufferSink? = null
     override fun onCreate() {
         super.onCreate()
         MarkEqualizer.load(this)
@@ -44,6 +45,8 @@ class PlaybackService : MediaSessionService() {
                 eqEngine.update(sessionId, preset, active)
             }
         }
+        val capturedMeterSink = MeterAudioBufferSink()
+        meterSink = capturedMeterSink
         // A pass-through tee reads PCM for authentic studio VU/LED meters.
         // No RECORD_AUDIO permission and no file/network access are involved.
         val rendererFactory = object : DefaultRenderersFactory(this) {
@@ -55,7 +58,7 @@ class PlaybackService : MediaSessionService() {
                 .setEnableFloatOutput(false)
                 .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                 .setAudioProcessors(arrayOf<AudioProcessor>(
-                    TeeAudioProcessor(MeterAudioBufferSink())
+                    TeeAudioProcessor(capturedMeterSink)
                 ))
                 .build()
         }
@@ -111,6 +114,8 @@ class PlaybackService : MediaSessionService() {
         eqScope.cancel()
         eqEngine.release()
         AudioMeterBus.enabled.set(false)
+        meterSink?.close()
+        meterSink = null
         AudioMeterBus.clear()
         AudioSessionBus.sessionId.value = 0
         session?.release()
