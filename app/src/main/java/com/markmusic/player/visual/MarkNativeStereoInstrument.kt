@@ -75,7 +75,7 @@ internal fun MarkNativeStereoInstrument(
                                 val y = 458f + (sin(angle) * 112).toFloat()
                                 g.circle(x, y, 2f, C.rgb(72, 49, 32))
                             }
-                            val angle = Math.PI * (1.18 + .64 * rms[ch])
+                            val angle = Math.PI * (1.18 + .64 * rms[ch].toDouble())
                             g.line(cx, 466f, cx + (cos(angle) * 113).toFloat(),
                                 466f + (sin(angle) * 113).toFloat(), C.rgb(120, 32, 34), 6f)
                             g.circle(cx, 466f, 13f, C.rgb(45, 52, 65))
