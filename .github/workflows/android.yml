@@ -59,6 +59,15 @@ jobs:
               width, height = dimensions(raw)
               assert width >= 1024 and height >= 1024, (name, width, height)
           PY
+      - name: Verify MARK Cosmic character asset validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q scripts/character
+          python3 -m unittest discover -s scripts/tests -p 'test_character_validator.py' -v
+          if test -f app/src/main/assets/MarkCosmic.glb; then
+            python3 scripts/character/validate_character.py app/src/main/assets/MarkCosmic.glb
+          fi
       - name: Clean build, tests and lint
         shell: bash
         run: |
