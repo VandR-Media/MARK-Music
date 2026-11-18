@@ -49,7 +49,9 @@ internal fun MarkVisualV2WebView(
             overScrollMode = View.OVER_SCROLL_NEVER
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = false
-            settings.allowFileAccess = true
+            settings.allowFileAccess = true // only bundled file:///android_asset/
+            settings.allowFileAccessFromFileURLs = false
+            settings.allowUniversalAccessFromFileURLs = false
             settings.allowContentAccess = false
             settings.blockNetworkLoads = true
             settings.javaScriptCanOpenWindowsAutomatically = false
@@ -62,7 +64,16 @@ internal fun MarkVisualV2WebView(
                         """
                         (function(){
                           var style=document.createElement('style');
-                          style.textContent='.music-bar,.audio-panel,.demo-switch{display:none!important;}';
+                          // Inside the Kotlin player this is a full-bleed instrument, NOT
+                          // the Studio editor with offscreen controls and a 350px canvas.
+                          style.textContent=[
+                            'html,body{width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#02040c!important;}',
+                            'body .studio{width:100%!important;height:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;}',
+                            'body .studio > :not(.canvas-frame){display:none!important;}',
+                            'body .canvas-frame{display:block!important;position:relative!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;}',
+                            'body #visualCanvas{display:block!important;width:100%!important;height:100%!important;touch-action:none!important;}',
+                            '.music-bar,.audio-panel,.demo-switch{display:none!important;}'
+                          ].join('');
                           document.head.appendChild(style);
                           document.querySelectorAll('#audioFile,#openMusic,#musicToggle,#demo')
                             .forEach(function(e){e.disabled=true;e.remove();});
@@ -77,6 +88,15 @@ internal fun MarkVisualV2WebView(
                                 mode.value='$target';
                                 mode.dispatchEvent(new Event('change',{bubbles:true}));
                               }
+                              // Re-measure camera bounds after full-bleed CSS/layout.
+                              // Otherwise the scene keeps the standalone Studio aspect ratio.
+                              window.dispatchEvent(new Event('resize'));
+                              setTimeout(function(){
+                                if(window.MARK_VISUAL_API){
+                                  window.dispatchEvent(new Event('resize'));
+                                  window.MARK_VISUAL_API.view('front');
+                                }
+                              },200);
                               // apply the latest actual ExoPlayer meter frame
                               // once renderer and mode exist (late WebView startup)
                               var pending=window.__MARK_NATIVE_PENDING__;
