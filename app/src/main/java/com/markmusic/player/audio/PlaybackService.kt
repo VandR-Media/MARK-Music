@@ -1,5 +1,7 @@
 package com.markmusic.player.audio
 
+import com.markmusic.player.dance.DancePlaybackClock
+import com.markmusic.player.dance.Media3ClockBridge
 import android.content.Intent
 import android.app.PendingIntent
 import com.markmusic.player.MainActivity
@@ -24,6 +26,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
+object DanceClockBus {
+    val clock = DancePlaybackClock()
+}
+
 object AudioSessionBus {
     val sessionId = MutableStateFlow(0)
 }
@@ -32,6 +38,7 @@ object AudioSessionBus {
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private var player: ExoPlayer? = null
+    private var danceBridge: Media3ClockBridge? = null
     private val eqScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val eqEngine = MarkEqualizerEngine()
     override fun onCreate() {
@@ -69,6 +76,10 @@ class PlaybackService : MediaSessionService() {
                 AudioSessionBus.sessionId.value = audioSessionId
             }
         })
+        val bridge = Media3ClockBridge(p, DanceClockBus.clock)
+        p.addListener(bridge)
+        danceBridge = bridge
+        bridge.refresh()
         player = p
         val openPlayerIntent = Intent(this, MainActivity::class.java).apply {
             action = MainActivity.ACTION_OPEN_PLAYER
@@ -114,6 +125,8 @@ class PlaybackService : MediaSessionService() {
         AudioMeterBus.clear()
         AudioSessionBus.sessionId.value = 0
         session?.release()
+        danceBridge?.let { bridge -> player?.removeListener(bridge) }
+        danceBridge = null
         player?.release()
         session = null
         player = null

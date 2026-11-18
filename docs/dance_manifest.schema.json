@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MARK Dance Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "model", "rig", "clips"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "model": { "type": "string", "const": "mark_cosmic.glb" },
+    "rig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "restPose", "upAxis", "forwardAxis", "metersPerUnit", "bones"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "restPose": { "enum": ["T", "A"] },
+        "upAxis": { "const": "+Y" },
+        "forwardAxis": { "const": "+Z" },
+        "metersPerUnit": { "type": "number", "exclusiveMinimum": 0 },
+        "bones": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "clips": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "animation", "style", "beats", "durationMs", "startPose", "endPose", "supportFoot", "footContacts", "energy", "minBpm", "maxBpm", "transitionsTo"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "animation": { "type": "string", "minLength": 1 },
+          "style": { "type": "string", "minLength": 1 },
+          "beats": { "type": "integer", "minimum": 1 },
+          "durationMs": { "type": "integer", "minimum": 1 },
+          "startPose": { "type": "string", "minLength": 1 },
+          "endPose": { "type": "string", "minLength": 1 },
+          "supportFoot": { "enum": ["left", "right", "both", "none"] },
+          "footContacts": { "type": "array", "items": { "type": "object", "required": ["beat", "foot"], "properties": { "beat": { "type": "number", "minimum": 0 }, "foot": { "enum": ["left", "right"] } } } },
+          "energy": { "type": "number", "minimum": 0, "maximum": 1 },
+          "minBpm": { "type": "number", "exclusiveMinimum": 0 },
+          "maxBpm": { "type": "number", "exclusiveMinimum": 0 },
+          "transitionsTo": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+        }
+      }
+    }
+  }
+}
