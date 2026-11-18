@@ -43,6 +43,7 @@ import com.markmusic.player.visual.VesnaCassettePlayer
 import com.markmusic.player.visual.TubeRadioDeck
 import com.markmusic.player.visual.MarkDancer3D
 import com.markmusic.player.visual.MarkStereoVisual
+import com.markmusic.player.visual.MarkVisualV2WebView
 import com.markmusic.player.visual.MarkStereoCollection
 import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
@@ -674,12 +675,12 @@ internal fun MarkPlayerScreen(
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.ANALOG_STUDIO -> MarkStereoVisual(
+                                PlayerDeckMode.ANALOG_STUDIO -> MarkVisualV2WebView(
                                     analog = true,
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.SPECTRUM_MATRIX -> MarkStereoVisual(
+                                PlayerDeckMode.SPECTRUM_MATRIX -> MarkVisualV2WebView(
                                     analog = false,
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
