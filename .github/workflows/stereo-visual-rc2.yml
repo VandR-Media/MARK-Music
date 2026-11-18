@@ -1,0 +1,54 @@
+name: MARK Stereo Visual RC2 — installable debug APK
+on:
+  push:
+    branches: [feature/stereo-visual-fft-foundation]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Install supported Android SDK
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Run all JVM regression tests and build signed debug APK
+        run: |
+          set -euo pipefail
+          gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify test APK package, signature and checksum
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | tee apk-info.txt
+          grep -F "package: name='com.markmusic.player.preview2'" apk-info.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          sha256sum "$APK"
+      - name: Publish new private TEST prerelease, never overwrite RC1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="mark-stereo-visual-v0.7.13-rc2"
+          NAME="MARK-Audio-Stereo-Visual-v0.7.13-rc2-TEST.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$NAME"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --prerelease \
+              --title "MARK Stereo Visual RC2 — PCM FFT fixes (test build)" \
+              --notes "PREVIEW ONLY; 2 meter modes, not the approved six-mode final hybrid. Fixes short PCM callback accumulation and LED dB scaling. Side-by-side app ID com.markmusic.player.preview2; separate from RC1 and stable MARK Audio. Android debug signing. No physical Huawei verification for RC2."
+          fi
+          gh release upload "$TAG" "$NAME" --clobber
+          gh release view "$TAG" --json url,assets --jq '.url, (.assets[] | .name)'
