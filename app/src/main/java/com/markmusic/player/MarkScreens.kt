@@ -41,7 +41,6 @@ import com.markmusic.player.visual.VinylTurntable
 import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
 import com.markmusic.player.visual.TubeRadioDeck
-import com.markmusic.player.visual.MarkDancer3D
 import com.markmusic.player.visual.MarkStereoVisual
 import com.markmusic.player.visual.MarkVisualV2WebView
 import com.markmusic.player.visual.MarkStereoCollection
@@ -92,14 +91,14 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
 internal enum class PlayerDeckMode {
-    VINYL, MAYAK_203, VESNA_202_1, RADIO, MARK_3D,
+    VINYL, MAYAK_203, VESNA_202_1, RADIO,
     ANALOG_STUDIO, SPECTRUM_MATRIX, MARK_STEREO_COLLECTION
 }
 
-/** Previously selected discarded visualizations migrate to the new mascot. */
+/** Retired modes migrate to Vinyl so old preferences never strand the player. */
 internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
     when (value) {
-        "CD", "MINIDISC", "DAT", "JUKEBOX" -> PlayerDeckMode.MARK_3D
+        "CD", "MINIDISC", "DAT", "JUKEBOX", "MARK_3D" -> PlayerDeckMode.VINYL
         else -> PlayerDeckMode.entries.firstOrNull { it.name == value }
             ?: PlayerDeckMode.VINYL
     }
@@ -543,7 +542,7 @@ internal fun MarkPlayerScreen(
     val visualForeground = LocalVisualActive.current.value
     DisposableEffect(deckMode, visualForeground, playing) {
         AudioMeterBus.enabled.set(visualForeground && playing &&
-            (deckMode == PlayerDeckMode.RADIO || deckMode == PlayerDeckMode.MARK_3D ||
+            (deckMode == PlayerDeckMode.RADIO ||
                 deckMode == PlayerDeckMode.ANALOG_STUDIO || deckMode == PlayerDeckMode.SPECTRUM_MATRIX ||
                 deckMode == PlayerDeckMode.MARK_STEREO_COLLECTION))
         if (!playing || !visualForeground) AudioMeterBus.clear()
@@ -602,8 +601,8 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // Swipe through original decks plus two stereo meters and approved six-mode Studio visual collection with a directional
-            // slide: Vinyl, Mayak, Vesna, valve radio and 3-D dancing Mark.
+            // All seven decks are reachable by gestures and dedicated navigation buttons.
+            // Native WebViews can consume touch events, so button navigation is essential.
             Box(Modifier.size(artworkSize)
                 .pointerInput(deckMode, swipeThresholdPx) {
                     var horizontalDrag = 0f
@@ -671,10 +670,6 @@ internal fun MarkPlayerScreen(
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.MARK_3D -> MarkDancer3D(
-                                    playing = playing,
-                                    modifier = Modifier.fillMaxSize()
-                                )
                                 PlayerDeckMode.ANALOG_STUDIO -> MarkVisualV2WebView(
                                     analog = true,
                                     playing = playing,
@@ -700,6 +695,37 @@ internal fun MarkPlayerScreen(
                                     CircularProgressIndicator(color = palette.accent)
                                 }
                             }
+                        }
+                    }
+                    // Buttons remain clickable even when an embedded WebView consumes swipes.
+                    // They also make the next visualizations accessible to screen readers.
+                    Row(
+                        Modifier.fillMaxWidth().align(Alignment.Center)
+                            .padding(horizontal = 5.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(36.dp).clip(CircleShape)
+                                .background(Color.Black.copy(alpha = .65f))
+                                .clickable {
+                                    deckSwipeDirection = 1
+                                    chooseDeck(playerDeckAfterSwipe(deckMode, 100f, 1f))
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("‹", color = Color.White, fontSize = 31.sp)
+                        }
+                        Box(
+                            Modifier.size(36.dp).clip(CircleShape)
+                                .background(Color.Black.copy(alpha = .65f))
+                                .clickable {
+                                    deckSwipeDirection = -1
+                                    chooseDeck(playerDeckAfterSwipe(deckMode, -100f, 1f))
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("›", color = Color.White, fontSize = 31.sp)
                         }
                     }
                     Row(
