@@ -66,6 +66,7 @@ internal fun MarkVisualV2WebView(
                           document.head.appendChild(style);
                           document.querySelectorAll('#audioFile,#openMusic,#musicToggle,#demo')
                             .forEach(function(e){e.disabled=true;e.remove();});
+                          window.__MARK_NATIVE_PENDING__=window.__MARK_NATIVE_PENDING__||null;
                           var attempts=0;
                           var interval=setInterval(function(){
                             attempts++;
@@ -75,6 +76,12 @@ internal fun MarkVisualV2WebView(
                               if(mode && mode.value!=='$target'){
                                 mode.value='$target';
                                 mode.dispatchEvent(new Event('change',{bubbles:true}));
+                              }
+                              // apply the latest actual ExoPlayer meter frame
+                              // once renderer and mode exist (late WebView startup)
+                              var pending=window.__MARK_NATIVE_PENDING__;
+                              if(pending){
+                                window.MARK_VISUAL_API.renderFrame(pending);
                               }
                             }else if(attempts>=200){clearInterval(interval);}
                           },75);
@@ -108,7 +115,9 @@ internal fun MarkVisualV2WebView(
         // This is a model-data call, not playback. It cannot open a track,
         // access the microphone or create any WebAudio source.
         webView.evaluateJavascript(
-            "window.MARK_VISUAL_API && window.MARK_VISUAL_API.renderFrame($frame);",
+            "(function(){var frame=$frame;window.__MARK_NATIVE_PENDING__=frame;" +
+                "if(window.__MARK_VISUAL_READY__ && window.MARK_VISUAL_API){" +
+                "window.MARK_VISUAL_API.renderFrame(frame);}})();",
             null
         )
     }
