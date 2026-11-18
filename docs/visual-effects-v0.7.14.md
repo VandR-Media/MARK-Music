@@ -2,7 +2,7 @@
 
 This inventory describes the implementation added to MARK Audio, **not** an art-approval claim. All 3D app assets are bundled offline; the existing Media3 ExoPlayer remains the only playback engine.
 
-## Selectable player decks (swipe through 8 positions)
+## Selectable player decks (7 positions; swipe or navigation buttons)
 
 | Deck | Implementation | Animation / actual signal |
 |---|---|---|
@@ -10,12 +10,11 @@ This inventory describes the implementation added to MARK Audio, **not** an art-
 | MAYAK_203 | `MayakReelToReel.kt` | Public-domain straight-on equipment photograph with precisely masked rotating reel hubs and tape-pack changes |
 | VESNA_202_1 | `VesnaCassettePlayer.kt` | Photo-aligned rotating cassette hubs and stationary frame/paper labels |
 | RADIO | `TubeRadioDeck.kt` | Tube-radio image with warm valve-lamp glow reacting to real playback PCM |
-| MARK_3D | `MarkDancer3D.kt` | True native OpenGL ES 2.0 3D character, joint movement/lighting reacting to measured beat and stereo energy |
 | ANALOG_STUDIO | `MarkVisualV2WebView.kt` | True multi-mesh Three.js/WebGL2 3D VU with two animated mechanical needles and six L/R LOW/MID/HIGH LED tracks |
 | SPECTRUM_MATRIX | `MarkVisualV2WebView.kt` | True Three.js/WebGL2 3D frame, glass, six separate frequency LED columns, gain/peak effects |
 | MARK_STEREO_COLLECTION | `MarkStereoCollection.kt` | Six hybrid CSS/2D image-based preview modes (listed below), driven by real ExoPlayer levels; not six fully editable WebGL3D meshes |
 
-All eight are selected by horizontal swipes. The selected deck is saved.
+All seven can be selected using horizontal swipes or dedicated previous/next buttons (necessary when a WebView consumes touches). The selected deck is saved. Retired MARK_3D preferences migrate to VINYL.
 
 ## Six hybrid visual styles within MARK Stereo Collection
 
@@ -33,7 +32,7 @@ All eight are selected by horizontal swipes. The selected deck is saved.
 - `CosmicVoyageBackground.kt` — 3-layer slowly moving starfield/dust parallax and thematic gradients.
 - `FloatingGlassMotion.kt` — device-sensor-based moving/tilting glass surfaces with configurable depth and sensitivity.
 - `NeonDesign.kt` — glassmorphism, specular gradients, neon glow, highlights, animated pill/buttons, touch feedback.
-- `MarkScreens.kt` — 25 palette/theme choices, animated directional deck swipes, overlay indicators and responsive controls.
+- `MarkScreens.kt` — 25 palette/theme choices, animated directional deck swipes, WebView-safe previous/next buttons, overlay indicators and responsive controls.
 
 ## Live PCM architecture
 
