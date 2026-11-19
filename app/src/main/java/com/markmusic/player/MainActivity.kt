@@ -57,6 +57,8 @@ import com.markmusic.player.audio.MarkEqualizer
 import com.markmusic.player.library.LibraryGrouping
 import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
+import com.markmusic.player.library.MusicSource
+import com.markmusic.player.library.SunoImportedLibrary
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -104,6 +106,48 @@ private fun MarkApp(openPlayerRequests: Int) {
     LaunchedEffect(Unit) { delay(2600); showWelcome = false }
 
     var songs by remember { mutableStateOf(emptyList<Track>()) }
+    var musicSource by remember {
+        mutableStateOf(MusicSource.fromStored(prefs.getString("music_source", null)))
+    }
+    var sunoUris by remember { mutableStateOf(SunoImportedLibrary.saved(ctx)) }
+    var sunoTracks by remember { mutableStateOf(emptyList<Track>()) }
+    var sunoLoaded by remember { mutableStateOf(false) }
+    val sunoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { selected ->
+        val updated = sunoUris.toMutableSet()
+        var failed = 0
+        selected.forEach { uri ->
+            val retained = runCatching {
+                ctx.contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }.isSuccess
+            if (retained) updated.add(uri.toString()) else failed++
+        }
+        if (updated != sunoUris) {
+            sunoUris = updated.toSet()
+            SunoImportedLibrary.save(ctx, sunoUris)
+        }
+        if (failed > 0) {
+            Toast.makeText(ctx, "Не удалось сохранить доступ к $failed файлам",
+                Toast.LENGTH_LONG).show()
+        }
+    }
+    LaunchedEffect(sunoUris) {
+        sunoLoaded = false
+        sunoTracks = SunoImportedLibrary.scan(ctx, sunoUris)
+        sunoLoaded = true
+    }
+    val allSongs = remember(songs, sunoTracks) { songs + sunoTracks }
+    fun openOfficialMusicService(url: String) {
+        runCatching {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+        }.onFailure {
+            Toast.makeText(ctx, "Не найден браузер для открытия сервиса",
+                Toast.LENGTH_LONG).show()
+        }
+    }
     var loading by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     var libraryError by remember { mutableStateOf<String?>(null) }
@@ -249,16 +293,16 @@ private fun MarkApp(openPlayerRequests: Int) {
     }
     // Restore the last queue and position once the device library and Media3
     // are ready. Never replace an already playing background media session.
-    LaunchedEffect(controller, songs) {
+    LaunchedEffect(controller, allSongs, sunoLoaded) {
         val p = controller
-        if (!restoredOnce && p != null && songs.isNotEmpty()) {
+        if (!restoredOnce && p != null && allSongs.isNotEmpty() && sunoLoaded) {
             restoredOnce = true
             if (p.mediaItemCount == 0) {
                 val ids = runCatching { JSONArray(prefs.getString("last_queue", "[]")) }
                     .getOrNull()
                 val queue = if (ids == null) emptyList() else (0 until ids.length())
                     .mapNotNull { i -> ids.optString(i).toLongOrNull() }
-                    .mapNotNull { id -> songs.firstOrNull { it.id == id } }
+                    .mapNotNull { id -> allSongs.firstOrNull { it.id == id } }
                 if (queue.isNotEmpty()) {
                     val index = prefs.getInt("last_index", 0).coerceIn(0, queue.lastIndex)
                     val positionMs = prefs.getLong("last_position", 0L).coerceAtLeast(0L)
@@ -289,7 +333,7 @@ private fun MarkApp(openPlayerRequests: Int) {
     }
     val musicSongs = remember(songs) { songs.filter { it.isMusic } }
     val otherAudio = remember(songs) { songs.filterNot { it.isMusic } }
-    val current = songs.firstOrNull { it.id.toString() == mediaId }
+    val current = allSongs.firstOrNull { it.id.toString() == mediaId }
     val filtered = remember(musicSongs, query) {
         musicSongs.filter { "${it.title} ${it.artist} ${it.album} ${it.folder}".contains(query, ignoreCase = true) }
     }
@@ -334,19 +378,61 @@ private fun MarkApp(openPlayerRequests: Int) {
                         current = current, playing = playing, palette = palette,
                         onSearch = { navigate(1) },
                         onOpenThemes = { showThemes = true },
-                        onOpenLibrary = { category -> tab = category; query = ""; navigate(1) },
+                        onOpenLibrary = { category ->
+                             tab = category; query = ""
+                             musicSource = MusicSource.DEVICE
+                             prefs.edit().putString("music_source", musicSource.name).apply()
+                             navigate(1)
+                         },
                         onOpenPlaylists = { navigate(3) },
                         onPlay = { queue, selected -> playQueue(queue, selected) }
                     )
                 }
-                1 -> Box(Modifier.weight(1f)) {
-                    MarkLibraryScreen(
-                        songs = filtered, query = query, onQueryChange = { query = it },
-                        onLongPress = { pendingDelete = it },
-                        category = tab, onCategoryChange = { tab = it },
-                        loading = loading, error = libraryError, palette = palette,
-                        onPlay = { queue, selected -> playQueue(queue, selected) }
-                    )
+                1 -> Column(Modifier.weight(1f)) {
+                    MarkMusicSourceTabs(musicSource, palette) { selected ->
+                        musicSource = selected
+                        prefs.edit().putString("music_source", selected.name).apply()
+                    }
+                    Box(Modifier.weight(1f)) {
+                        when (musicSource) {
+                            MusicSource.DEVICE -> MarkLibraryScreen(
+                                songs = filtered, query = query, onQueryChange = { query = it },
+                                onLongPress = { pendingDelete = it },
+                                category = tab, onCategoryChange = { tab = it },
+                                loading = loading, error = libraryError, palette = palette,
+                                onPlay = { queue, selected -> playQueue(queue, selected) }
+                            )
+                            MusicSource.YANDEX_MUSIC -> MarkYandexMusicScreen(
+                                palette = palette,
+                                onOpenOfficialService = {
+                                    openOfficialMusicService("https://music.yandex.ru/")
+                                }
+                            )
+                            MusicSource.SUNO -> MarkSunoListeningScreen(
+                                tracks = sunoTracks,
+                                palette = palette,
+                                onPickAudio = { sunoPicker.launch(arrayOf("audio/*")) },
+                                onOpenSuno = {
+                                    openOfficialMusicService("https://suno.com/")
+                                },
+                                onPlay = { queue, selected -> playQueue(queue, selected) },
+                                onForget = { imported ->
+                                    if (queueIds.contains(imported.id)) {
+                                        controller?.stop()
+                                        controller?.clearMediaItems()
+                                    }
+                                    val updated = sunoUris - imported.uri.toString()
+                                    sunoUris = updated
+                                    SunoImportedLibrary.save(ctx, updated)
+                                    runCatching {
+                                        ctx.contentResolver.releasePersistableUriPermission(
+                                            imported.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
                 2 -> Box(Modifier.weight(1f)) {
                     if (current != null) {
@@ -399,11 +485,11 @@ private fun MarkApp(openPlayerRequests: Int) {
                 }
                 else -> Box(Modifier.weight(1f)) {
                     MarkPlaylistScreen(
-                        favorites = musicSongs.filter { favoriteIds.contains(it.id) },
+                        favorites = allSongs.filter { it.isMusic && favoriteIds.contains(it.id) },
                         recent = musicSongs.sortedByDescending { it.dateAddedSeconds }.take(12),
                         otherAudio = otherAudio,
                         userPlaylists = userPlaylists,
-                        allSongs = songs,
+                        allSongs = allSongs,
                         palette = palette,
                         onCreate = { name ->
                             val created = PlaylistStore.create(ctx, name)
@@ -419,7 +505,11 @@ private fun MarkApp(openPlayerRequests: Int) {
                             userPlaylists = PlaylistStore.read(ctx)
                         },
                         onPlay = { queue, selected -> playQueue(queue, selected) },
-                        onLongPress = { pendingDelete = it }
+                        onLongPress = { track ->
+                            if (track.id > 0L) pendingDelete = track
+                            else Toast.makeText(ctx, "Убери импорт во вкладке Suno",
+                                Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
             }
@@ -481,11 +571,11 @@ private fun MarkApp(openPlayerRequests: Int) {
                 }
             },
             text = {
-                val queue = queueIds.mapNotNull { id -> songs.firstOrNull { it.id == id } }
+                val queue = queueIds.mapNotNull { id -> allSongs.firstOrNull { it.id == id } }
                 LazyColumn(modifier = Modifier.heightIn(max = 440.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     items(queueIds.size) { index ->
-                        val song = songs.firstOrNull { it.id == queueIds[index] }
+                        val song = allSongs.firstOrNull { it.id == queueIds[index] }
                         if (song != null) {
                             NeonGlass(palette, Modifier.fillMaxWidth(), radius = 15.dp,
                                 onClick = {
@@ -538,9 +628,9 @@ private fun MarkApp(openPlayerRequests: Int) {
                                         "Текущий трек" -> p.repeatMode = Player.REPEAT_MODE_ONE
                                         else -> if (track != null) {
                                             val group = if (choice == "Альбом") {
-                                                songs.filter { it.albumId == track.albumId && it.isMusic }
+                                                allSongs.filter { it.albumId == track.albumId && it.isMusic }
                                             } else {
-                                                songs.filter { it.folder == track.folder }
+                                                allSongs.filter { it.folder == track.folder }
                                             }
                                             if (group.isNotEmpty()) {
                                                 val wasPlaying = p.playWhenReady
