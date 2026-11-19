@@ -44,12 +44,13 @@ internal fun MarkStereoVuMeter(playing: Boolean, modifier: Modifier = Modifier) 
     Canvas(modifier.fillMaxSize()) {
         drawIntoCanvas { layer ->
             val c = layer.nativeCanvas
-            val widthScale = size.width / 1000f
-            val heightScale = size.height / 700f
+            // Preserve the mechanical instrument's proportions on all screens.
+            // A stereo deck is wider than the square artwork slot by design.
+            val scale = minOf(size.width / 1000f, size.height / 700f)
             c.save()
-            // The glass player viewport is almost square; a moderate vertical
-            // stretch fills it without the huge empty top/bottom black bands.
-            c.scale(widthScale, heightScale)
+            c.translate((size.width - 1000f * scale) / 2f,
+                (size.height - 700f * scale) / 2f)
+            c.scale(scale, scale)
             StereoVuArtwork(c).draw(left, right)
             c.restore()
         }
