@@ -688,8 +688,8 @@ internal fun MarkPlayerScreen(
                             .align(if (deckMode == PlayerDeckMode.STEREO_VU)
                                 Alignment.BottomCenter else Alignment.Center)
                             // Do not hide the stereo VU scale and its moving needles.
-                            .padding(horizontal = 5.dp,
-                                bottom = if (deckMode == PlayerDeckMode.STEREO_VU) 38.dp else 0.dp),
+                            .padding(horizontal = 5.dp)
+                            .padding(bottom = if (deckMode == PlayerDeckMode.STEREO_VU) 38.dp else 0.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
