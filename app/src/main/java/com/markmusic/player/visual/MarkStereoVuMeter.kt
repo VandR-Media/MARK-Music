@@ -1,14 +1,10 @@
 package com.markmusic.player.visual
 
-import android.graphics.Canvas as AndroidCanvas
-import android.graphics.Color as AColor
-import android.graphics.LinearGradient
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RadialGradient
 import android.graphics.RectF
-import android.graphics.Shader
-import android.graphics.Typeface
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -16,194 +12,102 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.platform.LocalContext
+import com.markmusic.player.R
 import com.markmusic.player.audio.AudioMeterBus
-import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.PI
 
-/** Animated genuine stereo PCM VU instrument; no second player, WebView, microphone or DEMO. */
+/**
+ * Real MARK Audio branded photographic VU with two separate mechanical needles.
+ *
+ * The complete approved vintage instrument artwork is stored offline as a WebP
+ * Android drawable. It is never reconstructed by vector primitives. Only the
+ * two removed pointers are animated, independently, using ExoPlayer PCM levels.
+ */
 internal fun vuNeedleAngle(level: Float): Float =
-    -145f + (if (level.isFinite()) level.coerceIn(0f, 1f) else 0f) * 110f
+    -132f + (if (level.isFinite()) level.coerceIn(0f, 1f) else 0f) * 90f
 
 @Composable
-internal fun MarkStereoVuMeter(playing: Boolean, modifier: Modifier = Modifier) {
-    val levels by AudioMeterBus.levels.collectAsState()
+internal fun MarkStereoVuMeter(
+    playing: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val artwork = remember(context) {
+        BitmapFactory.decodeResource(context.resources, R.drawable.mark_stereo_vu_photo)
+    }
+    val meter by AudioMeterBus.levels.collectAsState()
     val left by animateFloatAsState(
-        targetValue = if (playing) levels.left else 0f,
+        targetValue = if (playing) meter.left else 0f,
         animationSpec = tween(durationMillis = 170),
-        label = "left-vu"
+        label = "stereo-vu-left"
     )
     val right by animateFloatAsState(
-        targetValue = if (playing) levels.right else 0f,
+        targetValue = if (playing) meter.right else 0f,
         animationSpec = tween(durationMillis = 170),
-        label = "right-vu"
+        label = "stereo-vu-right"
     )
+
     Canvas(modifier.fillMaxSize()) {
-        drawIntoCanvas { layer ->
-            val c = layer.nativeCanvas
-            // Preserve the mechanical instrument's proportions on all screens.
-            // A stereo deck is wider than the square artwork slot by design.
-            val scale = minOf(size.width / 1000f, size.height / 700f)
-            c.save()
-            c.translate((size.width - 1000f * scale) / 2f,
-                (size.height - 700f * scale) / 2f)
-            c.scale(scale, scale)
-            StereoVuArtwork(c).draw(left, right)
-            c.restore()
+        drawIntoCanvas { target ->
+            val canvas = target.nativeCanvas
+            val scale = minOf(size.width / 1774f, size.height / 887f)
+            if (scale <= 0f) return@drawIntoCanvas
+            canvas.save()
+            canvas.translate((size.width - 1774f * scale) / 2f,
+                (size.height - 887f * scale) / 2f)
+            canvas.scale(scale, scale)
+            val photoPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+            canvas.drawBitmap(artwork, null, RectF(0f, 0f, 1774f, 887f), photoPaint)
+            drawNeedle(canvas, 446f, 555f, vuNeedleAngle(left))
+            drawNeedle(canvas, 1282f, 555f, vuNeedleAngle(right))
+            canvas.restore()
         }
     }
 }
 
-/**
- * All markings and needles are vector painted, independently of image resolution.
- * Cabinet / amber scales are inspired by the reference VU photograph approved by user.
- * Moving pointers are drawn last, never baked into a stationary bitmap.
- */
-private class StereoVuArtwork(private val c: AndroidCanvas) {
-    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ivory = AColor.rgb(255, 238, 204)
-    private val dark = AColor.rgb(8, 11, 15)
-    private val gold = AColor.rgb(218, 151, 57)
+private fun drawNeedle(
+    canvas: android.graphics.Canvas,
+    cx: Float, cy: Float, degrees: Float
+) {
+    val angle = degrees * (PI / 180.0)
+    val ux = cos(angle).toFloat()
+    val uy = sin(angle).toFloat()
+    val nx = -uy
+    val ny = ux
+    val length = 348f
+    val tipX = cx + ux * length
+    val tipY = cy + uy * length
 
-    private fun rounded(x: Float,y:Float,w:Float,h:Float,r:Float,color:Int,
-        stroke:Float=0f,gradient:IntArray?=null) {
-        p.reset()
-        p.isAntiAlias=true
-        p.color=color
-        p.style=if(stroke>0f) Paint.Style.STROKE else Paint.Style.FILL
-        p.strokeWidth=stroke
-        p.shader=if(gradient!=null) LinearGradient(x,y,x,y+h,gradient,null,Shader.TileMode.CLAMP) else null
-        c.drawRoundRect(RectF(x,y,x+w,y+h),r,r,p)
-        p.shader=null
-        p.style=Paint.Style.FILL
+    fun shape(offsetX: Float, offsetY: Float, base: Float): Path = Path().apply {
+        moveTo(cx + nx * base + offsetX, cy + ny * base + offsetY)
+        lineTo(tipX + offsetX, tipY + offsetY)
+        lineTo(cx - nx * base + offsetX, cy - ny * base + offsetY)
+        close()
     }
-    private fun text(t:String,x:Float,y:Float,size:Float,color:Int,
-        bold:Boolean=false,script:Boolean=false) {
-        p.reset(); p.isAntiAlias=true;p.color=color;p.textSize=size
-        p.textAlign=Paint.Align.CENTER
-        p.typeface=if(script) Typeface.create("serif",Typeface.BOLD_ITALIC)
-            else Typeface.create("sans-serif",if(bold) Typeface.BOLD else Typeface.NORMAL)
-        c.drawText(t,x,y,p)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.argb(110, 19, 12, 8)
     }
-    private fun line(x:Float,y:Float,x2:Float,y2:Float,color:Int,width:Float) {
-        p.reset();p.isAntiAlias=true;p.color=color;p.strokeWidth=width
-        p.strokeCap=Paint.Cap.ROUND
-        c.drawLine(x,y,x2,y2,p)
+    canvas.drawPath(shape(3f, 4f, 6f), paint)
+    paint.color = Color.rgb(13, 15, 17)
+    canvas.drawPath(shape(0f, 0f, 5f), paint)
+    val gleam = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(95, 195, 186, 169)
+        strokeWidth = 1.4f
+        strokeCap = Paint.Cap.ROUND
     }
-    private fun circle(x:Float,y:Float,r:Float,color:Int) {
-        p.reset();p.isAntiAlias=true;p.color=color
-        c.drawCircle(x,y,r,p)
-    }
-    private fun polar(cx:Float,cy:Float,r:Float,angle:Float):Pair<Float,Float>{
-        val radians=angle*PI/180.0
-        return Pair(cx+(cos(radians)*r).toFloat(),cy+(sin(radians)*r).toFloat())
-    }
-    private fun screw(x:Float,y:Float) {
-        circle(x+1f,y+2f,13f,AColor.BLACK)
-        p.reset();p.isAntiAlias=true
-        p.shader=RadialGradient(x-4f,y-5f,18f,intArrayOf(
-            AColor.rgb(255,229,155),AColor.rgb(140,99,44),AColor.rgb(23,23,25)),
-            null,Shader.TileMode.CLAMP)
-        c.drawCircle(x,y,11f,p);p.shader=null
-        line(x-5f,y-5f,x+5f,y+5f,dark,2.8f)
-        line(x-5f,y+5f,x+5f,y-5f,dark,2.8f)
-    }
-    private fun dial(cx:Float,level:Float,channel:String) {
-        val x=cx-231f
-        rounded(x-7f,65f,476f,469f,39f,AColor.BLACK)
-        rounded(x,70f,462f,453f,34f,dark,gradient=intArrayOf(
-            AColor.rgb(119,85,42),AColor.rgb(31,26,22),AColor.rgb(12,13,16)))
-        rounded(x+7f,78f,448f,438f,32f,gold,stroke=3f)
-        rounded(x+12f,84f,438f,424f,28f,ivory,gradient=intArrayOf(
-            AColor.rgb(255,255,246),AColor.rgb(255,244,219),AColor.rgb(239,195,125)))
-        // Soft fixed inner-glass highlight, independent of audio signal.
-        rounded(x+17f,88f,427f,43f,19f,AColor.argb(38,255,255,255),
-            gradient=intArrayOf(AColor.argb(85,255,255,255),AColor.TRANSPARENT))
-
-        val py=451f
-        val ticks=listOf("-20","-10","-7","-5","-3","-2","-1","0","+1","+2","+3")
-        for(i in ticks.indices) {
-            val angle=-145f+i*11f
-            val large=i==0||i==1||i==4||i==7||i==10
-            val red=i>=8
-            val a=polar(cx,py,230f,angle)
-            val b=polar(cx,py,230f+(if(large)17f else 9f),angle)
-            line(a.first,a.second,b.first,b.second,
-                if(red) AColor.rgb(195,36,28) else AColor.rgb(43,39,35),
-                if(large) 3f else 2f)
-            val label=polar(cx,py,258f,angle)
-            text(ticks[i],label.first,label.second+7f,
-                if(large) 19f else 16f,
-                if(red) AColor.rgb(190,27,24) else AColor.rgb(32,33,32),true)
-        }
-        // True analogue red overload zone.
-        val arc=RectF(cx-230f,py-230f,cx+230f,py+230f)
-        p.reset();p.isAntiAlias=true;p.style=Paint.Style.STROKE;p.strokeWidth=8f
-        p.color=AColor.rgb(217,30,25)
-        c.drawArc(arc,-68f,33f,false,p);p.style=Paint.Style.FILL
-
-        text("VU",cx-145f,165f,22f,AColor.rgb(48,42,34),true)
-        text("VU",cx+145f,165f,22f,AColor.rgb(48,42,34),true)
-        text("Mark Audio",cx,339f,35f,AColor.rgb(58,42,29),script=true)
-        line(cx-90f,347f,cx+90f,347f,AColor.argb(100,70,52,29),1.4f)
-        text(channel,cx,376f,16f,AColor.rgb(72,55,43),true)
-        text("MODEL",cx-150f,455f,13f,AColor.rgb(68,54,40))
-        text("MA-702",cx-150f,471f,13f,AColor.rgb(68,54,40))
-        text("SER. No",cx+150f,455f,13f,AColor.rgb(68,54,40))
-        text("2806739",cx+150f,471f,12f,AColor.rgb(68,54,40))
-
-        // Cutout shows the mechanical bearing, dark recess and brass hub.
-        p.reset();p.isAntiAlias=true;p.color=AColor.rgb(28,26,24)
-        c.drawOval(RectF(cx-94f,420f,cx+94f,541f),p)
-        rounded(cx-90f,446f,180f,75f,8f,AColor.rgb(18,22,25),
-            gradient=intArrayOf(AColor.rgb(23,25,29),AColor.rgb(77,68,51),
-                AColor.rgb(16,17,20)))
-        line(cx-85f,489f,cx+85f,489f,AColor.rgb(124,105,75),2f)
-        for (i in -2..2) {
-            val xx=cx+i*24f
-            line(xx,455f,xx,509f,AColor.argb(95,158,139,100),1.3f)
-        }
-        circle(cx,470f,30f,AColor.rgb(33,34,35))
-        circle(cx,470f,24f,AColor.rgb(190,135,55))
-        circle(cx,470f,17f,AColor.rgb(66,60,45))
-        screw(cx-113f,497f);screw(cx+113f,497f)
-
-        // Two separate true PCM pointers: black slender needles with inertia.
-        val theta=vuNeedleAngle(level)
-        val tip=polar(cx,py,211f,theta)
-        line(cx+2f,py+4f,tip.first+2f,tip.second+4f,
-            AColor.argb(70,36,29,24),7f)
-        line(cx,py,tip.first,tip.second,AColor.rgb(13,15,17),4.3f)
-        circle(cx,py,11f,AColor.rgb(26,30,33))
-        circle(cx-2f,py-3f,4f,AColor.rgb(212,165,85))
-    }
-    fun draw(left:Float,right:Float){
-        rounded(0f,0f,1000f,700f,39f,AColor.BLACK,
-            gradient=intArrayOf(AColor.rgb(53,57,61),AColor.rgb(6,9,12),AColor.rgb(36,39,40)))
-        rounded(7f,8f,986f,684f,33f,AColor.rgb(87,94,96),stroke=3f)
-        // Cabinet grain / brushed-metal texture.
-        for(i in 1..90) {
-            val y=i*7.7f
-            line(16f,y,984f,y,
-                if(i%3==0) AColor.argb(25,209,212,214) else AColor.argb(18,0,0,0),1f)
-        }
-        dial(260f,left,"LEFT")
-        dial(740f,right,"RIGHT")
-
-        rounded(325f,548f,350f,107f,21f,AColor.rgb(10,8,7))
-        rounded(333f,554f,334f,95f,18f,gold,stroke=3f)
-        rounded(341f,561f,318f,81f,13f,AColor.rgb(36,29,22),
-            gradient=intArrayOf(AColor.rgb(87,62,35),AColor.rgb(20,18,17)))
-        text("Mark Audio",500f,617f,46f,AColor.rgb(242,188,95),script=true)
-        for(i in 0..3) {
-            rounded(95f,568f+i*21f,205f,5f,3f,AColor.rgb(3,5,6))
-            rounded(700f,568f+i*21f,205f,5f,3f,AColor.rgb(3,5,6))
-        }
-        for(pt in listOf(Pair(30f,34f),Pair(970f,34f),Pair(30f,665f),Pair(970f,665f))) {
-            screw(pt.first,pt.second)
-        }
-    }
+    canvas.drawLine(cx + nx * 2f, cy + ny * 2f,
+        cx + ux * (length - 35f) + nx * 0.6f,
+        cy + uy * (length - 35f) + ny * 0.6f, gleam)
+    paint.color = Color.rgb(49, 41, 30)
+    canvas.drawCircle(cx, cy, 10f, paint)
+    paint.color = Color.rgb(205, 155, 72)
+    canvas.drawCircle(cx - 1.5f, cy - 2f, 4.4f, paint)
 }
