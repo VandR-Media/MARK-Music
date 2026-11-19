@@ -31,7 +31,7 @@ import kotlin.math.PI
  * two removed pointers are animated, independently, using ExoPlayer PCM levels.
  */
 internal fun vuNeedleAngle(level: Float): Float =
-    -132f + (if (level.isFinite()) level.coerceIn(0f, 1f) else 0f) * 90f
+    -145f + (if (level.isFinite()) level.coerceIn(0f, 1f) else 0f) * 107f
 
 @Composable
 internal fun MarkStereoVuMeter(
