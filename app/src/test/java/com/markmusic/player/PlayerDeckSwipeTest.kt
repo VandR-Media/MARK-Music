@@ -4,13 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerDeckSwipeTest {
-    @Test fun allSevenDecksAreReachableInBothDirections() {
+    @Test fun allFourDecksAreReachableInBothDirections() {
         val modes = listOf(
             PlayerDeckMode.VINYL, PlayerDeckMode.MAYAK_203,
-            PlayerDeckMode.VESNA_202_1, PlayerDeckMode.RADIO,
-            PlayerDeckMode.ANALOG_STUDIO,
-            PlayerDeckMode.SPECTRUM_MATRIX,
-            PlayerDeckMode.MARK_STEREO_COLLECTION
+            PlayerDeckMode.VESNA_202_1, PlayerDeckMode.RADIO
         )
         assertEquals(modes, PlayerDeckMode.entries)
         var forward = PlayerDeckMode.VINYL
@@ -36,10 +33,10 @@ class PlayerDeckSwipeTest {
         }
     }
 
-    @Test fun swipesReachAnalogStudioBothWays() {
-        assertEquals(PlayerDeckMode.ANALOG_STUDIO,
+    @Test fun carouselWrapsFromRadioToVinyl() {
+        assertEquals(PlayerDeckMode.VINYL,
             playerDeckAfterSwipe(PlayerDeckMode.RADIO, -60f, 60f))
-        assertEquals(PlayerDeckMode.ANALOG_STUDIO,
-            playerDeckAfterSwipe(PlayerDeckMode.SPECTRUM_MATRIX, 100f, 60f))
+        assertEquals(PlayerDeckMode.RADIO,
+            playerDeckAfterSwipe(PlayerDeckMode.VINYL, 100f, 60f))
     }
 }
