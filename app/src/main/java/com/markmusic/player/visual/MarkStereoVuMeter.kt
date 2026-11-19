@@ -128,18 +128,18 @@ private class StereoVuArtwork(private val c: AndroidCanvas) {
             val angle=-145f+i*11f
             val large=i==0||i==1||i==4||i==7||i==10
             val red=i>=8
-            val a=polar(cx,py,319f,angle)
-            val b=polar(cx,py,319f+(if(large)22f else 13f),angle)
+            val a=polar(cx,py,255f,angle)
+            val b=polar(cx,py,255f+(if(large)21f else 12f),angle)
             line(a.first,a.second,b.first,b.second,
                 if(red) AColor.rgb(195,36,28) else AColor.rgb(43,39,35),
                 if(large) 3f else 2f)
-            val label=polar(cx,py,362f,angle)
+            val label=polar(cx,py,290f,angle)
             text(ticks[i],label.first,label.second+7f,
                 if(large) 19f else 16f,
                 if(red) AColor.rgb(190,27,24) else AColor.rgb(32,33,32),true)
         }
         // True analogue red overload zone.
-        val arc=RectF(cx-319f,py-319f,cx+319f,py+319f)
+        val arc=RectF(cx-255f,py-255f,cx+255f,py+255f)
         p.reset();p.isAntiAlias=true;p.style=Paint.Style.STROKE;p.strokeWidth=8f
         p.color=AColor.rgb(217,30,25)
         c.drawArc(arc,-57f,22f,false,p);p.style=Paint.Style.FILL
@@ -165,7 +165,7 @@ private class StereoVuArtwork(private val c: AndroidCanvas) {
 
         // Mechanical pointer: actual instantaneous level after Compose smoothing.
         val theta=vuNeedleAngle(level)
-        val tip=polar(cx,py,284f,theta)
+        val tip=polar(cx,py,240f,theta)
         line(cx+3f,py+4f,tip.first+3f,tip.second+4f,
             AColor.argb(95,46,32,21),8f)
         line(cx,py,tip.first,tip.second,AColor.rgb(18,19,18),5f)
