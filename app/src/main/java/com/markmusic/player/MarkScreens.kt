@@ -684,8 +684,12 @@ internal fun MarkPlayerScreen(
                     }
                     // Provide reliable touch navigation in addition to swipe gestures.
                     Row(
-                        Modifier.fillMaxWidth().align(Alignment.Center)
-                            .padding(horizontal = 5.dp),
+                        Modifier.fillMaxWidth()
+                            .align(if (deckMode == PlayerDeckMode.STEREO_VU)
+                                Alignment.BottomCenter else Alignment.Center)
+                            // Do not hide the stereo VU scale and its moving needles.
+                            .padding(horizontal = 5.dp)
+                            .padding(bottom = if (deckMode == PlayerDeckMode.STEREO_VU) 38.dp else 0.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
