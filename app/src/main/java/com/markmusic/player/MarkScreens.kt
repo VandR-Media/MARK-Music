@@ -41,7 +41,7 @@ import com.markmusic.player.visual.VinylTurntable
 import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
 import com.markmusic.player.visual.TubeRadioDeck
-import com.markmusic.player.visual.MarkStereoVisual
+import com.markmusic.player.visual.MarkStereoVuMeter
 import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -89,7 +89,7 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
 internal enum class PlayerDeckMode {
-    VINYL, MAYAK_203, VESNA_202_1, RADIO
+    VINYL, MAYAK_203, VESNA_202_1, RADIO, STEREO_VU
 }
 
 /** Retired modes migrate to Vinyl so old preferences never strand the player. */
@@ -540,7 +540,7 @@ internal fun MarkPlayerScreen(
     val visualForeground = LocalVisualActive.current.value
     DisposableEffect(deckMode, visualForeground, playing) {
         AudioMeterBus.enabled.set(visualForeground && playing &&
-            deckMode == PlayerDeckMode.RADIO)
+            (deckMode == PlayerDeckMode.RADIO || deckMode == PlayerDeckMode.STEREO_VU))
         if (!playing || !visualForeground) AudioMeterBus.clear()
         onDispose {
             AudioMeterBus.enabled.set(false)
@@ -597,7 +597,7 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // Four original decks are reachable by gestures or navigation buttons.
+            // Four original decks plus the real-PCM branded stereo VU are reachable by swipes or arrows.
             Box(Modifier.size(artworkSize)
                 .pointerInput(deckMode, swipeThresholdPx) {
                     var horizontalDrag = 0f
@@ -662,6 +662,10 @@ internal fun MarkPlayerScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 PlayerDeckMode.RADIO -> TubeRadioDeck(
+                                    playing = playing,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                PlayerDeckMode.STEREO_VU -> MarkStereoVuMeter(
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
