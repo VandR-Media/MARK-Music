@@ -381,7 +381,7 @@ private fun MarkApp(openPlayerRequests: Int) {
                         onOpenLibrary = { category ->
                              tab = category; query = ""
                              musicSource = MusicSource.DEVICE
-                             prefs.edit().putString("music_source", musicSource.name).apply()
+                             prefs.edit().putString("music_source", MusicSource.DEVICE.name).apply()
                              navigate(1)
                          },
                         onOpenPlaylists = { navigate(3) },
@@ -424,6 +424,15 @@ private fun MarkApp(openPlayerRequests: Int) {
                                     val updated = sunoUris - imported.uri.toString()
                                     sunoUris = updated
                                     SunoImportedLibrary.save(ctx, updated)
+                                    if (favoriteIds.contains(imported.id)) {
+                                        favoriteIds = favoriteIds - imported.id
+                                        prefs.edit().putStringSet("favorites",
+                                            favoriteIds.map { it.toString() }.toSet()).apply()
+                                    }
+                                    for (name in userPlaylists.keys) {
+                                        PlaylistStore.remove(ctx, name, imported.id)
+                                    }
+                                    userPlaylists = PlaylistStore.read(ctx)
                                     runCatching {
                                         ctx.contentResolver.releasePersistableUriPermission(
                                             imported.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -459,7 +468,16 @@ private fun MarkApp(openPlayerRequests: Int) {
                             },
                             onRepeat = { showRepeatOptions = true },
                             onAddToPlaylist = { showAddToPlaylist = true },
-                            onDelete = { pendingDelete = current },
+                            onDelete = {
+                                 if (current.id > 0L) pendingDelete = current
+                                 else {
+                                     musicSource = MusicSource.SUNO
+                                     prefs.edit().putString("music_source", MusicSource.SUNO.name).apply()
+                                     Toast.makeText(ctx, "Убери импорт во вкладке Suno",
+                                         Toast.LENGTH_SHORT).show()
+                                     navigate(1)
+                                 }
+                             },
                             queueLabel = queueScope,
                             onOpenQueue = { showQueue = true }
                         )
