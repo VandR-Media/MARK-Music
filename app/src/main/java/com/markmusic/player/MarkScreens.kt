@@ -42,7 +42,6 @@ import com.markmusic.player.visual.MayakReelToReel
 import com.markmusic.player.visual.VesnaCassettePlayer
 import com.markmusic.player.visual.TubeRadioDeck
 import com.markmusic.player.visual.MarkStereoVisual
-import com.markmusic.player.visual.MarkNativeStereoInstrument
 import com.markmusic.player.audio.AudioMeterBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -90,14 +89,14 @@ internal fun markPalette(key: String): MarkPalette = MARK_PALETTES.firstOrNull {
 
 /** Stable names allow the visual selection to survive app restarts and upgrades. */
 internal enum class PlayerDeckMode {
-    VINYL, MAYAK_203, VESNA_202_1, RADIO,
-    ANALOG_STUDIO, SPECTRUM_MATRIX, MARK_STEREO_COLLECTION
+    VINYL, MAYAK_203, VESNA_202_1, RADIO
 }
 
 /** Retired modes migrate to Vinyl so old preferences never strand the player. */
 internal fun playerDeckFromPreference(value: String?): PlayerDeckMode =
     when (value) {
-        "CD", "MINIDISC", "DAT", "JUKEBOX", "MARK_3D" -> PlayerDeckMode.VINYL
+        "CD", "MINIDISC", "DAT", "JUKEBOX", "MARK_3D",
+        "ANALOG_STUDIO", "SPECTRUM_MATRIX", "MARK_STEREO_COLLECTION" -> PlayerDeckMode.VINYL
         else -> PlayerDeckMode.entries.firstOrNull { it.name == value }
             ?: PlayerDeckMode.VINYL
     }
@@ -541,9 +540,7 @@ internal fun MarkPlayerScreen(
     val visualForeground = LocalVisualActive.current.value
     DisposableEffect(deckMode, visualForeground, playing) {
         AudioMeterBus.enabled.set(visualForeground && playing &&
-            (deckMode == PlayerDeckMode.RADIO ||
-                deckMode == PlayerDeckMode.ANALOG_STUDIO || deckMode == PlayerDeckMode.SPECTRUM_MATRIX ||
-                deckMode == PlayerDeckMode.MARK_STEREO_COLLECTION))
+            deckMode == PlayerDeckMode.RADIO)
         if (!playing || !visualForeground) AudioMeterBus.clear()
         onDispose {
             AudioMeterBus.enabled.set(false)
@@ -600,8 +597,7 @@ internal fun MarkPlayerScreen(
                 NeonRoundButton("playlist", palette.accent, onOpenQueue, 40.dp)
             }
 
-            // All seven decks are reachable by gestures and dedicated navigation buttons.
-            // Native WebViews can consume touch events, so button navigation is essential.
+            // Four original decks are reachable by gestures or navigation buttons.
             Box(Modifier.size(artworkSize)
                 .pointerInput(deckMode, swipeThresholdPx) {
                     var horizontalDrag = 0f
@@ -669,15 +665,6 @@ internal fun MarkPlayerScreen(
                                     playing = playing,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                PlayerDeckMode.ANALOG_STUDIO -> MarkNativeStereoInstrument(
-                                    variant = 0, playing = playing, modifier = Modifier.fillMaxSize()
-                                )
-                                PlayerDeckMode.SPECTRUM_MATRIX -> MarkNativeStereoInstrument(
-                                    variant = 1, playing = playing, modifier = Modifier.fillMaxSize()
-                                )
-                                PlayerDeckMode.MARK_STEREO_COLLECTION -> MarkNativeStereoInstrument(
-                                    variant = 2, playing = playing, modifier = Modifier.fillMaxSize()
-                                )
                                 PlayerDeckMode.VINYL -> if (coverReady) {
                                     VinylTurntable(
                                         artwork = artwork ?: fallbackLogo,
@@ -691,8 +678,7 @@ internal fun MarkPlayerScreen(
                             }
                         }
                     }
-                    // Buttons remain clickable even when an embedded WebView consumes swipes.
-                    // They also make the next visualizations accessible to screen readers.
+                    // Provide reliable touch navigation in addition to swipe gestures.
                     Row(
                         Modifier.fillMaxWidth().align(Alignment.Center)
                             .padding(horizontal = 5.dp),

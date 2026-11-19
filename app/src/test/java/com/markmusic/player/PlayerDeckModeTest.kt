@@ -9,13 +9,14 @@ class PlayerDeckModeTest {
         assertEquals(PlayerDeckMode.VINYL,playerDeckFromPreference("OTHER"))
     }
 
-    @Test fun savesAndRestoresAllSevenModes() {
+    @Test fun savesAndRestoresAllFourModes() {
         for (mode in PlayerDeckMode.entries)
             assertEquals(mode,playerDeckFromPreference(mode.name))
     }
 
     @Test fun retiredModesMigrateSafelyToVinyl() {
-        for (discarded in listOf("CD","MINIDISC","DAT","JUKEBOX","MARK_3D"))
+        for (discarded in listOf("CD","MINIDISC","DAT","JUKEBOX","MARK_3D",
+            "ANALOG_STUDIO", "SPECTRUM_MATRIX", "MARK_STEREO_COLLECTION"))
             assertEquals(PlayerDeckMode.VINYL,
                 playerDeckFromPreference(discarded))
     }
