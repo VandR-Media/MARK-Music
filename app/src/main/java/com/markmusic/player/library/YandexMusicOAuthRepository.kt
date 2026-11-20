@@ -25,7 +25,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
     private val vault = YandexMusicVault(context.applicationContext)
 
     fun isConnected(): Boolean = runCatching {
-        val raw = vault.read("token") ?: return false
+        val raw = vault.read("token") ?: return@runCatching false
         val stored = JSONObject(raw)
         val valid = stored.optString("client_id") == YandexMusicOAuthRules.CLIENT_ID &&
             stored.optString("access_token").isNotBlank() &&
@@ -37,7 +37,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
     fun isPending(): Boolean = pending() != null
 
     private fun pending(): JSONObject? = runCatching {
-        val raw = vault.read("pending") ?: return null
+        val raw = vault.read("pending") ?: return@runCatching null
         val data = JSONObject(raw)
         val expiresAt = data.optLong("expires_at")
         val valid = YandexMusicOAuthRules.pendingNotExpired(
@@ -46,7 +46,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
             data.optString("code_verifier").isNotBlank()
         if (!valid) {
             vault.remove("pending")
-            return null
+            return@runCatching null
         }
         data
     }.getOrNull()
