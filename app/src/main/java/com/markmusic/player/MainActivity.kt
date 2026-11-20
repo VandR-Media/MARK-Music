@@ -59,7 +59,6 @@ import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
 import com.markmusic.player.library.MusicSource
 import com.markmusic.player.library.SunoImportedLibrary
-import com.markmusic.player.library.YandexAccount
 import com.markmusic.player.library.YandexIdAccountRepository
 import kotlinx.coroutines.delay
 import kotlin.math.max
@@ -172,6 +171,14 @@ private fun MarkApp(openPlayerRequests: Int, yandexIdUpdates: Int) {
     val navTab = navigation.current
     fun navigate(destination: Int) { navigation = navigation.open(destination) }
     fun navigateBack() { navigation = navigation.back() }
+    LaunchedEffect(yandexIdUpdates) {
+        if (yandexIdUpdates > 0) {
+            musicSource = MusicSource.YANDEX_MUSIC
+            prefs.edit().putString("music_source", MusicSource.YANDEX_MUSIC.name).apply()
+            showWelcome = false
+            navigate(1)
+        }
+    }
     LaunchedEffect(openPlayerRequests) {
         if (openPlayerRequests > 0) {
             showWelcome = false
