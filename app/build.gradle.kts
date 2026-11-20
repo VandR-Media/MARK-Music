@@ -15,7 +15,7 @@ android {
         // Public OAuth app ID registered for signed MARK Audio com.markmusic.player.
         manifestPlaceholders["YANDEX_CLIENT_ID"] = "cfaacee8ff6d4941a5966d00c53a61de"
         manifestPlaceholders["YANDEX_OAUTH_HOST"] = "oauth.yandex.ru"
-        manifestPlaceholders["ACTION_YA_SDK_LOGIN"] = "com.markmusic.player.YANDEX_SDK_LOGIN"
+        manifestPlaceholders["ACTION_YA_SDK_LOGIN"] = "com.yandex.auth.action.YA_SDK_LOGIN"
     }
     buildTypes {
         // Side-by-side test install: never overwrite the owner's existing MARK Audio.
