@@ -11,6 +11,14 @@ import android.provider.MediaStore
 import android.widget.Toast
 import org.json.JSONArray
 import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.ActivityResultLauncher
+import androidx.lifecycle.lifecycleScope
+import com.yandex.authsdk.YandexAuthSdk
+import com.yandex.authsdk.YandexAuthOptions
+import com.yandex.authsdk.YandexAuthLoginOptions
+import com.yandex.authsdk.YandexAuthResult
+import com.markmusic.player.library.YandexLoginResult
+import kotlinx.coroutines.launch
 import com.markmusic.player.library.PlaylistStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -72,29 +80,66 @@ private val SUBTLE = Color(0xFFD2DCF5)
 class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_PLAYER = "com.markmusic.player.OPEN_PLAYER"
-        const val ACTION_YANDEX_ID_RESULT = "com.markmusic.player.YANDEX_ID_RESULT"
     }
     private val openPlayerRequests = mutableIntStateOf(0)
     private val yandexIdUpdates = mutableIntStateOf(0)
+    private lateinit var yandexLoginLauncher: ActivityResultLauncher<YandexAuthLoginOptions>
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
-        if (intent.action == ACTION_YANDEX_ID_RESULT) yandexIdUpdates.intValue++
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val sdk = YandexAuthSdk.create(YandexAuthOptions(this, loggingEnabled = false))
+        yandexLoginLauncher = registerForActivityResult(sdk.contract) { result ->
+            when (result) {
+                is YandexAuthResult.Success -> lifecycleScope.launch {
+                    val outcome = YandexIdAccountRepository(applicationContext)
+                        .completeSdkToken(result.token.value, result.token.expiresIn)
+                    when (outcome) {
+                        is YandexLoginResult.Connected -> {
+                            yandexIdUpdates.intValue++
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Яндекс ID подключён. Музыкальный каталог пока недоступен.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        is YandexLoginResult.Unavailable -> Toast.makeText(
+                            this@MainActivity, outcome.reason, Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+                is YandexAuthResult.Failure -> Toast.makeText(
+                    this, "Не удалось войти через Яндекс ID. Проверь настройки приложения.",
+                    Toast.LENGTH_LONG
+                ).show()
+                YandexAuthResult.Cancelled -> Unit
+            }
+        }
         window.statusBarColor = android.graphics.Color.rgb(11, 23, 48)
         window.navigationBarColor = android.graphics.Color.rgb(11, 23, 48)
         if (intent?.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
-        if (intent?.action == ACTION_YANDEX_ID_RESULT) yandexIdUpdates.intValue++
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = CYAN, secondary = VIOLET,
                 background = BG, surface = PANEL, onSurface = Color.White
             )) {
                 GlassMotionHost {
-                    MarkApp(openPlayerRequests.intValue, yandexIdUpdates.intValue)
+                    MarkApp(
+                        openPlayerRequests.intValue, yandexIdUpdates.intValue,
+                        onYandexSignIn = {
+                            runCatching { yandexLoginLauncher.launch(YandexAuthLoginOptions()) }
+                                .onFailure {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Не удалось запустить Яндекс LoginSDK",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                        }
+                    )
                 }
             }
         }
@@ -102,7 +147,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun MarkApp(openPlayerRequests: Int, yandexIdUpdates: Int) {
+private fun MarkApp(
+    openPlayerRequests: Int,
+    yandexIdUpdates: Int,
+    onYandexSignIn: () -> Unit
+) {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("mark_music", Context.MODE_PRIVATE) }
     val yandexRepo = remember { YandexIdAccountRepository(ctx) }
@@ -427,24 +476,10 @@ private fun MarkApp(openPlayerRequests: Int, yandexIdUpdates: Int) {
                             MusicSource.YANDEX_MUSIC -> MarkYandexMusicScreen(
                                 palette = palette,
                                 account = yandexAccount,
-                                savedClientId = yandexRepo.rememberedClientId(),
-                                onBeginSignIn = { clientId ->
-                                    runCatching {
-                                        val url = yandexRepo.begin(clientId)
-                                        ctx.startActivity(Intent(
-                                            Intent.ACTION_VIEW, android.net.Uri.parse(url)
-                                        ))
-                                    }.onFailure {
-                                        Toast.makeText(ctx, "Не удалось открыть вход Яндекс ID",
-                                            Toast.LENGTH_LONG).show()
-                                    }
-                                },
+                                onBeginSignIn = onYandexSignIn,
                                 onDisconnect = {
                                     yandexRepo.disconnect()
                                     yandexAccount = null
-                                },
-                                onOpenRegistration = {
-                                    openOfficialMusicService("https://oauth.yandex.ru/")
                                 },
                                 onOpenOfficialService = {
                                     openOfficialMusicService("https://music.yandex.ru/")

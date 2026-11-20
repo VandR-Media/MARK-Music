@@ -19,147 +19,83 @@ internal sealed interface YandexLoginResult {
 }
 
 /**
- * Yandex ID account connection, not a Yandex Music stream integration.
- * Network requests are sent only to the official HTTPS OAuth and ID hosts.
- * No credentials are logged, sent through URL parameters, or exported.
+ * Official Yandex Android LoginSDK delivers the OAuth token.
+ * MARK Audio only verifies the login:info profile and encrypts token locally.
+ * This does NOT enable Yandex Music catalog or licensed playback.
  */
 internal class YandexIdAccountRepository(context: Context) {
-    private val ctx = context.applicationContext
-    private val vault = YandexIdVault(ctx)
-    private val publicPrefs = ctx.getSharedPreferences("mark_yandex_id_config", Context.MODE_PRIVATE)
-
-    fun begin(clientId: String): String {
-        require(YandexIdTokenProtocol.clientIdIsValid(clientId.trim())) {
-            "Неверный идентификатор OAuth-приложения"
-        }
-        val id = clientId.trim()
-        val request = YandexIdPkce.prepare(
-            clientId = id,
-            redirectUri = YandexIdTokenProtocol.APP_REDIRECT,
-            scopes = listOf(YandexIdTokenProtocol.ACCOUNT_SCOPE)
-        )
-        val serialized = JSONObject()
-            .put("client_id", request.clientId)
-            .put("redirect_uri", request.redirectUri)
-            .put("state", request.state)
-            .put("verifier", request.codeVerifier)
-            .put("challenge", request.codeChallenge)
-            .put("created", request.createdAtMillis)
-            .toString()
-        vault.save("pending", serialized)
-        publicPrefs.edit().putString("client_id", id).apply()
-        return request.authorizationUrl()
-    }
-
-    fun rememberedClientId(): String = publicPrefs.getString("client_id", "").orEmpty()
+    private val vault = YandexIdVault(context.applicationContext)
 
     fun current(): YandexAccount? = runCatching {
         val json = JSONObject(vault.read("account") ?: return null)
-        val validUntil = json.optLong("valid_until")
-        if (System.currentTimeMillis() >= validUntil) {
+        val expiry = json.optLong("valid_until")
+        if (System.currentTimeMillis() >= expiry) {
             vault.remove("account")
             return null
         }
         YandexAccount(
             login = json.getString("login"),
             userId = json.getString("user_id"),
-            validUntilMillis = validUntil
+            validUntilMillis = expiry
         )
     }.getOrNull()
 
     fun disconnect() {
-        vault.remove("pending")
+        vault.remove("pending") // Discard abandoned legacy browser flow.
         vault.remove("account")
     }
 
-    suspend fun completeRedirect(uri: String): YandexLoginResult = withContext(Dispatchers.IO) {
-        val request = try {
-            val pending = vault.read("pending")
-                ?: return@withContext YandexLoginResult.Unavailable(
-                    "Запрос входа не найден. Начни авторизацию заново."
-                )
-            val json = JSONObject(pending)
-            YandexIdPkce.Request(
-                clientId = json.getString("client_id"),
-                redirectUri = json.getString("redirect_uri"),
-                scopes = listOf(YandexIdTokenProtocol.ACCOUNT_SCOPE),
-                state = json.getString("state"),
-                codeVerifier = json.getString("verifier"),
-                codeChallenge = json.getString("challenge"),
-                createdAtMillis = json.getLong("created")
-            )
-        } catch (_: Exception) {
-            return@withContext YandexLoginResult.Unavailable("Повреждено состояние авторизации.")
-        } finally {
-            // One-time state: reject replay and duplicated callbacks.
-            vault.remove("pending")
-        }
-
-        val result = request.validateRedirect(uri, System.currentTimeMillis())
-        if (result !is YandexIdPkce.CallbackResult.Code) {
+    suspend fun completeSdkToken(
+        oauthToken: String,
+        expiresInSeconds: Long
+    ): YandexLoginResult = withContext(Dispatchers.IO) {
+        if (oauthToken.isBlank() || expiresInSeconds <= 0L) {
             return@withContext YandexLoginResult.Unavailable(
-                "Ответ Яндекс ID отклонён. Попробуй войти снова."
+                "Яндекс ID не выдал действующий токен."
             )
         }
 
         try {
-            val body = YandexIdTokenProtocol.exchangeBody(request, result.value)
             val response = fetch(
-                url = YandexIdTokenProtocol.TOKEN_ENDPOINT, method = "POST",
-                formBody = body
+                url = "https://login.yandex.ru/info?format=json",
+                method = "GET",
+                oauthToken = oauthToken
             )
             if (response.first != 200) {
                 return@withContext YandexLoginResult.Unavailable(
-                    "Яндекс ID отказал в выдаче токена. Проверь Client ID и настройки доступа."
+                    "Яндекс ID не подтвердил профиль. Повтори вход."
                 )
             }
-            val tokenData = JSONObject(response.second)
-            val accessToken = tokenData.getString("access_token")
-            require(accessToken.isNotBlank())
-            val seconds = tokenData.optLong("expires_in", 3600)
-                .coerceIn(1L, 315_360_000L)
-            // Use OAuth header rather than unsafe token-in-URL.
-            val info = fetch(
-                url = YandexIdTokenProtocol.USERINFO_ENDPOINT,
-                method = "GET",
-                oauthToken = accessToken
-            )
-            if (info.first != 200) {
-                return@withContext YandexLoginResult.Unavailable(
-                    "Токен получен, но профиль Яндекс ID не подтвердился."
-                )
-            }
-            val profile = JSONObject(info.second)
+            val profile = JSONObject(response.second)
+            val sdkClientId = "cfaacee8ff6d4941a5966d00c53a61de"
             val returnedClient = profile.optString("client_id")
-            if (returnedClient.isNotBlank() && returnedClient != request.clientId) {
-                return@withContext YandexLoginResult.Unavailable(
-                    "Яндекс ID вернул данные другого OAuth-клиента."
-                )
-            }
             val login = profile.optString("login")
             val userId = profile.optString("id")
-            if (login.isBlank() || userId.isBlank()) {
+            if (!YandexSdkAuthRules.isTrustedProfile(
+                    login, userId, returnedClient, sdkClientId
+                )) {
                 return@withContext YandexLoginResult.Unavailable(
-                    "Яндекс ID не подтвердил личность пользователя."
+                    "Не удалось подтвердить профиль этого OAuth-приложения."
                 )
             }
-            val account = YandexAccount(
-                login = login,
-                userId = userId,
-                validUntilMillis = System.currentTimeMillis() +
-                    seconds.coerceAtMost((Long.MAX_VALUE - System.currentTimeMillis()) / 1000L) * 1000L
+            val validUntil = YandexSdkAuthRules.expiryTimeMillis(
+                System.currentTimeMillis(), expiresInSeconds
+            ) ?: return@withContext YandexLoginResult.Unavailable(
+                "Яндекс ID вернул недействительный срок токена."
             )
-            // Encrypt tokens; never expose token through Composables or app logs.
+            val account = YandexAccount(login, userId, validUntil)
+            // Do not put OAuth tokens into intents, state bundles or UI strings.
             vault.save("account", JSONObject()
-                .put("access_token", accessToken)
+                .put("access_token", oauthToken)
                 .put("login", account.login)
                 .put("user_id", account.userId)
                 .put("valid_until", account.validUntilMillis)
                 .toString())
+            vault.remove("pending")
             YandexLoginResult.Connected(account)
         } catch (_: Exception) {
             YandexLoginResult.Unavailable(
-                "Не удалось завершить вход. Проверь интернет и настройки OAuth."
+                "Ошибка проверки аккаунта. Проверь интернет и повтори вход."
             )
         }
     }
