@@ -17,6 +17,7 @@ class MarkMusicApiV1Test {
         assertFalse(device.supports(MusicFeature.REMOTE_STREAM))
         assertFalse(yandex.supports(MusicFeature.PERSONAL_CATALOG))
         assertFalse(yandex.supports(MusicFeature.REMOTE_STREAM))
+        assertTrue(yandex.supports(MusicFeature.AUTHORIZATION))
         assertTrue(suno.supports(MusicFeature.IMPORTED_AUDIO))
         assertFalse(suno.supports(MusicFeature.REMOTE_STREAM))
         assertTrue(yandex.blockedReason?.isNotBlank() == true)
