@@ -77,28 +77,35 @@ internal fun MarkYandexMusicScreen(
     palette: MarkPalette,
     onOpenOfficialService: () -> Unit
 ) {
+    var showDetails by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(top = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(top = 12.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        Text("Яндекс Музыка", color = Color.White, fontSize = 25.sp,
+        Text("Яндекс Музыка", color = Color.White, fontSize = 23.sp,
             fontWeight = FontWeight.ExtraBold)
         NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("Подключение каталога", color = Color.White,
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                Text("Не подключено", color = palette.accent,
                     fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(
-                    "Для прослушивания каталога внутри MARK Audio требуется разрешённый доступ " +
-                        "к аудиопотокам Яндекс Музыки. Обычная подписка и вход через Яндекс ID " +
-                        "сами по себе не предоставляют такого API.",
-                    color = NeonSubtle, fontSize = 14.sp, lineHeight = 21.sp
-                )
-                Text("Сейчас аккаунт не подключён. Эта вкладка не запускает скрытых запросов " +
-                    "и не собирает токены.", color = palette.accent,
-                    fontSize = 12.sp, lineHeight = 18.sp)
+                Text("Подписка активна в сервисе Яндекса, но для воспроизведения в MARK Audio " +
+                    "нужен разрешённый доступ к каталогу и потокам.",
+                    color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
                 NeonPill("Открыть Яндекс Музыку", palette,
                     onClick = onOpenOfficialService, icon = "music")
+                androidx.compose.material3.TextButton(onClick = { showDetails = !showDetails }) {
+                    Text(if (showDetails) "Скрыть подробности" else "Почему нет входа?",
+                        color = palette.accent, fontSize = 13.sp)
+                }
+                if (showDetails) {
+                    Text("Яндекс ID поддерживает OAuth с PKCE. Но разрешение на вход " +
+                        "не равно разрешению получать музыкальные потоки. " +
+                        "Пока этот доступ не согласован, MARK Audio не запрашивает токены.",
+                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
+                }
             }
         }
     }
@@ -120,15 +127,16 @@ internal fun MarkSunoListeningScreen(
             fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp, bottom = 10.dp))
         NeonGlass(palette, Modifier.fillMaxWidth(), radius = 22.dp) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Добавь экспортированные MP3/WAV из Suno — " +
-                    "MARK Audio проиграет их через свой плеер со всеми визуализациями.",
+                Text("Импортируй экспортированные MP3/WAV из Suno. " +
+                    "Они играют в MARK Audio со всеми визуализациями.",
                     color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
-                NeonPill("Выбрать аудиофайлы Suno", palette, onClick = onPickAudio, icon = "music")
-                Text("Это импорт файлов, а не синхронизация Suno-аккаунта. " +
-                    "Сервис пока не предоставил нам подтверждённый API для медиатеки.",
+                NeonPill("Добавить аудиофайлы", palette,
+                    onClick = onPickAudio, icon = "music")
+                Text("Это локальные файлы, не синхронизация аккаунта.",
                     color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp)
-                NeonPill("Открыть официальный Suno", palette,
-                    onClick = onOpenSuno, icon = "library")
+                androidx.compose.material3.TextButton(onClick = onOpenSuno) {
+                    Text("Открыть Suno", color = palette.accent, fontSize = 13.sp)
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
