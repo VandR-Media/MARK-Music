@@ -18,6 +18,13 @@ internal enum class MusicSource(val displayName: String) {
     YANDEX_MUSIC("Яндекс Музыка"),
     SUNO("Suno");
 
+    /** Two short lines instead of scrolling the entire source selector. */
+    val compactLabel: String get() = when (this) {
+        DEVICE -> "На\nустройстве"
+        YANDEX_MUSIC -> "Яндекс\nМузыка"
+        SUNO -> "Suno"
+    }
+
     companion object {
         fun fromStored(value: String?): MusicSource =
             entries.firstOrNull { it.name == value } ?: DEVICE
