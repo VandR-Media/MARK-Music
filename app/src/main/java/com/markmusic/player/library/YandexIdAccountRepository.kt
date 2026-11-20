@@ -69,21 +69,21 @@ internal class YandexIdAccountRepository(context: Context) {
             val profile = JSONObject(response.second)
             val sdkClientId = "cfaacee8ff6d4941a5966d00c53a61de"
             val returnedClient = profile.optString("client_id")
-            if (returnedClient.isNotBlank() && returnedClient != sdkClientId) {
-                return@withContext YandexLoginResult.Unavailable(
-                    "Профиль относится к другому OAuth-приложению."
-                )
-            }
             val login = profile.optString("login")
             val userId = profile.optString("id")
-            if (login.isBlank() || userId.isBlank()) {
+            if (!YandexSdkAuthRules.isTrustedProfile(
+                    login, userId, returnedClient, sdkClientId
+                )) {
                 return@withContext YandexLoginResult.Unavailable(
-                    "Не удалось проверить данные аккаунта Яндекс ID."
+                    "Не удалось подтвердить профиль этого OAuth-приложения."
                 )
             }
-            val now = System.currentTimeMillis()
-            val lifetimeSeconds = expiresInSeconds.coerceIn(1L, 365L * 24 * 60 * 60)
-            val account = YandexAccount(login, userId, now + lifetimeSeconds * 1000L)
+            val validUntil = YandexSdkAuthRules.expiryTimeMillis(
+                System.currentTimeMillis(), expiresInSeconds
+            ) ?: return@withContext YandexLoginResult.Unavailable(
+                "Яндекс ID вернул недействительный срок токена."
+            )
+            val account = YandexAccount(login, userId, validUntil)
             // Do not put OAuth tokens into intents, state bundles or UI strings.
             vault.save("account", JSONObject()
                 .put("access_token", oauthToken)
