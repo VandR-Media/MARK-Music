@@ -10,8 +10,12 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 37
-        versionName = "0.7.18"
+        versionCode = 38
+        versionName = "0.7.19"
+        // Public OAuth app ID registered for signed MARK Audio com.markmusic.player.
+        manifestPlaceholders["YANDEX_CLIENT_ID"] = "cfaacee8ff6d4941a5966d00c53a61de"
+        manifestPlaceholders["YANDEX_OAUTH_HOST"] = "oauth.yandex.ru"
+        manifestPlaceholders["ACTION_YA_SDK_LOGIN"] = "com.markmusic.player.YANDEX_SDK_LOGIN"
     }
     buildTypes {
         // Side-by-side test install: never overwrite the owner's existing MARK Audio.
@@ -45,6 +49,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.16.0")
+    implementation("com.yandex.android:authsdk:3.3.0")
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-session:$media3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
