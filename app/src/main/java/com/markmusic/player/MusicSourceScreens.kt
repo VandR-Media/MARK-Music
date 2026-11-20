@@ -79,24 +79,14 @@ internal fun MarkMusicSourceTabs(
 internal fun MarkYandexMusicScreen(
     palette: MarkPalette,
     account: com.markmusic.player.library.YandexAccount?,
-    savedClientId: String,
-    onBeginSignIn: (String) -> Unit,
+    onBeginSignIn: () -> Unit,
     onDisconnect: () -> Unit,
-    onOpenRegistration: () -> Unit,
     onOpenOfficialService: () -> Unit
 ) {
     val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
     var showDetails by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(false)
     }
-    var showClientDialog by androidx.compose.runtime.remember {
-        androidx.compose.runtime.mutableStateOf(false)
-    }
-    var clientId by androidx.compose.runtime.remember(savedClientId) {
-        androidx.compose.runtime.mutableStateOf(savedClientId)
-    }
-    val context = androidx.compose.ui.platform.LocalContext.current
-
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(top = 12.dp, bottom = 16.dp),
@@ -110,23 +100,26 @@ internal fun MarkYandexMusicScreen(
                     Text("Яндекс ID: " + account.login, color = palette.accent,
                         fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
-                        "Вход в профиль подтверждён. Музыкальный каталог и аудиопотоки " +
-                            "пока недоступны MARK Audio: для них требуется отдельный доступ.",
+                        "Аккаунт подтверждён через официальный LoginSDK. " +
+                            "Для музыки внутри MARK Audio пока требуется отдельный доступ " +
+                            "к каталогу и аудиопотокам.",
                         color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
                     )
                     androidx.compose.material3.TextButton(onClick = onDisconnect) {
                         Text("Отключить Яндекс ID", color = palette.accent)
                     }
                 } else {
-                    Text("Музыкальный каталог не подключён", color = palette.accent,
-                        fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text("Яндекс ID не подключён", color = palette.accent,
+                        fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
-                        "Можно войти в свой Яндекс ID через браузер. Это проверит " +
-                            "аккаунт, но само по себе ещё не откроет потоковую музыку.",
+                        "Авторизация через официальный Android LoginSDK Яндекса. " +
+                            "Пароль вводится только в интерфейсе Яндекса, не в MARK Audio.",
                         color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
                     )
-                    NeonPill("Настроить вход Яндекс ID", palette,
-                        onClick = { showClientDialog = true }, icon = "music")
+                    NeonPill(
+                        "Войти с Яндекс ID", palette,
+                        onClick = onBeginSignIn, icon = "music"
+                    )
                 }
                 NeonPill("Открыть Яндекс Музыку", palette,
                     onClick = onOpenOfficialService, icon = "music")
@@ -135,84 +128,15 @@ internal fun MarkYandexMusicScreen(
                         color = palette.accent, fontSize = 13.sp)
                 }
                 if (showDetails) {
-                    Text(access.blockedReason.orEmpty() + ". Вход выполняется только " +
-                        "через официальный Яндекс OAuth с PKCE, без передачи пароля MARK Audio.",
-                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
+                    Text(
+                        access.blockedReason.orEmpty() +
+                            ". Успешный вход с Яндекс ID не означает наличия " +
+                            "разрешённого потока для ExoPlayer.",
+                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
+                    )
                 }
             }
         }
-    }
-
-    if (showClientDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showClientDialog = false },
-            title = { Text("Яндекс ID", color = Color.White) },
-            text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "Используй Client ID приложения типа «Для авторизации пользователей». " +
-                            "У приложения типа «Для доступа к API» адрес возврата фиксирован.",
-                        color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
-                    )
-                    androidx.compose.material3.OutlinedTextField(
-                        value = clientId,
-                        onValueChange = { clientId = it.trim().take(128) },
-                        label = { Text("Client ID") },
-                        maxLines = 1,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Text("Callback URL / Redirect URI:", color = NeonSubtle,
-                        fontSize = 11.sp)
-                    Text(
-                        com.markmusic.player.library.YandexIdTokenProtocol.APP_REDIRECT,
-                        color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold
-                    )
-                    androidx.compose.material3.TextButton(onClick = {
-                        val clipboard = context.getSystemService(
-                            android.content.Context.CLIPBOARD_SERVICE
-                        ) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
-                            "MARK Audio Redirect URI",
-                            com.markmusic.player.library.YandexIdTokenProtocol.APP_REDIRECT
-                        ))
-                        android.widget.Toast.makeText(
-                            context, "Redirect URI скопирован", android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
-                        Text("Копировать Callback URL", color = palette.accent)
-                    }
-                    Text(
-                        "Ошибка 400 redirect_uri означает, что Callback URL для этого " +
-                            "Client ID не совпадает с адресом выше. Сначала исправь " +
-                            "настройки приложения в Яндекс OAuth.",
-                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp
-                    )
-                    androidx.compose.material3.TextButton(onClick = onOpenRegistration) {
-                        Text("Открыть настройки Яндекс OAuth", color = palette.accent)
-                    }
-                    Text("Право: login:info. Вход не открывает аудиокаталог.",
-                        color = NeonSubtle, fontSize = 11.sp)
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    enabled = com.markmusic.player.library.YandexIdTokenProtocol
-                        .clientIdIsValid(clientId),
-                    onClick = {
-                        showClientDialog = false
-                        onBeginSignIn(clientId)
-                    }
-                ) { Text("Войти") }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showClientDialog = false }) {
-                    Text("Отмена")
-                }
-            }
-        )
     }
 }
 
