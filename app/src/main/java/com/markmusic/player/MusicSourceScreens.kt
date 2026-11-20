@@ -95,6 +95,7 @@ internal fun MarkYandexMusicScreen(
     var clientId by androidx.compose.runtime.remember(savedClientId) {
         androidx.compose.runtime.mutableStateOf(savedClientId)
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -147,10 +148,13 @@ internal fun MarkYandexMusicScreen(
             onDismissRequest = { showClientDialog = false },
             title = { Text("Яндекс ID", color = Color.White) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
-                        "Нужен Client ID именно нашего приложения, зарегистрированного " +
-                            "в Яндекс OAuth. Не вводи пароль или токен.",
+                        "Используй Client ID приложения типа «Для авторизации пользователей». " +
+                            "У приложения типа «Для доступа к API» адрес возврата фиксирован.",
                         color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
                     )
                     androidx.compose.material3.OutlinedTextField(
@@ -160,13 +164,36 @@ internal fun MarkYandexMusicScreen(
                         maxLines = 1,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Text("Redirect URI для регистрации: " +
+                    Text("Callback URL / Redirect URI:", color = NeonSubtle,
+                        fontSize = 11.sp)
+                    Text(
                         com.markmusic.player.library.YandexIdTokenProtocol.APP_REDIRECT,
-                        color = NeonSubtle, fontSize = 11.sp, lineHeight = 16.sp)
-                    androidx.compose.material3.TextButton(onClick = onOpenRegistration) {
-                        Text("Создать OAuth-приложение в Яндексе", color = palette.accent)
+                        color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                    )
+                    androidx.compose.material3.TextButton(onClick = {
+                        val clipboard = context.getSystemService(
+                            android.content.Context.CLIPBOARD_SERVICE
+                        ) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
+                            "MARK Audio Redirect URI",
+                            com.markmusic.player.library.YandexIdTokenProtocol.APP_REDIRECT
+                        ))
+                        android.widget.Toast.makeText(
+                            context, "Redirect URI скопирован", android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }) {
+                        Text("Копировать Callback URL", color = palette.accent)
                     }
-                    Text("Запрашивается только право login:info. Это не доступ к музыке.",
+                    Text(
+                        "Ошибка 400 redirect_uri означает, что Callback URL для этого " +
+                            "Client ID не совпадает с адресом выше. Сначала исправь " +
+                            "настройки приложения в Яндекс OAuth.",
+                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp
+                    )
+                    androidx.compose.material3.TextButton(onClick = onOpenRegistration) {
+                        Text("Открыть настройки Яндекс OAuth", color = palette.accent)
+                    }
+                    Text("Право: login:info. Вход не открывает аудиокаталог.",
                         color = NeonSubtle, fontSize = 11.sp)
                 }
             },
