@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,10 +37,11 @@ internal fun MarkMusicSourceTabs(
     palette: MarkPalette,
     onSelect: (MusicSource) -> Unit
 ) {
+    // Huawei Pura 80 Ultra: 1276 physical pixels != 1276 dp.
+    // Three equally weighted targets must remain visible after density/font scaling.
     Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-            .padding(top = 8.dp, bottom = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         MusicSource.entries.forEach { source ->
@@ -49,10 +49,18 @@ internal fun MarkMusicSourceTabs(
                 selected = selected == source,
                 onClick = { onSelect(source) },
                 label = {
-                    Text(source.displayName, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                        maxLines = 1)
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(
+                            source.compactLabel,
+                            fontSize = 13.sp,
+                            lineHeight = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            maxLines = 2
+                        )
+                    }
                 },
-                modifier = Modifier.height(46.dp),
+                modifier = Modifier.weight(1f).height(60.dp),
                 colors = FilterChipDefaults.filterChipColors(
                     containerColor = Color(0xAA172846),
                     labelColor = Color.White,
