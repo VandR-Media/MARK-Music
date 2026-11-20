@@ -59,11 +59,13 @@ internal object YandexIdPkce {
             ) {
                 return CallbackResult.Rejected(CallbackError.WRONG_REDIRECT)
             }
-            val fields = callback.rawQuery?.split("&")?.mapNotNull { part ->
-                val pos = part.indexOf('=')
-                if (pos < 0) null else decode(part.substring(0, pos)) to
-                    decode(part.substring(pos + 1))
-            }?.groupBy({ it.first }, { it.second }) ?: emptyMap()
+            val fields = runCatching {
+                callback.rawQuery?.split("&")?.mapNotNull { part ->
+                    val pos = part.indexOf('=')
+                    if (pos < 0) null else decode(part.substring(0, pos)) to
+                        decode(part.substring(pos + 1))
+                }?.groupBy({ it.first }, { it.second }) ?: emptyMap()
+            }.getOrNull() ?: return CallbackResult.Rejected(CallbackError.BAD_RESPONSE)
 
             // Duplicate OAuth parameters are ambiguous and must be rejected.
             if (fields.any { (key, values) ->
