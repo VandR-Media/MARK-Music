@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.markmusic.player.library.MusicSource
+import com.markmusic.player.library.MarkMusicApiV1
 import com.markmusic.player.library.Track
 
 /**
@@ -77,6 +78,7 @@ internal fun MarkYandexMusicScreen(
     palette: MarkPalette,
     onOpenOfficialService: () -> Unit
 ) {
+    val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
     var showDetails by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(false)
     }
@@ -101,10 +103,12 @@ internal fun MarkYandexMusicScreen(
                         color = palette.accent, fontSize = 13.sp)
                 }
                 if (showDetails) {
-                    Text("Яндекс ID поддерживает OAuth с PKCE. Но разрешение на вход " +
-                        "не равно разрешению получать музыкальные потоки. " +
-                        "Пока этот доступ не согласован, MARK Audio не запрашивает токены.",
-                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
+                    Text(
+                        access.blockedReason.orEmpty() +
+                            ". Яндекс ID поддерживает OAuth с PKCE, но вход не даёт " +
+                            "доступа к музыкальным потокам. Сейчас токены не запрашиваются.",
+                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
+                    )
                 }
             }
         }
@@ -120,6 +124,7 @@ internal fun MarkSunoListeningScreen(
     onPlay: (List<Track>, Track) -> Unit,
     onForget: (Track) -> Unit
 ) {
+    val access = MarkMusicApiV1.capabilities(MusicSource.SUNO)
     Column(Modifier.fillMaxSize().padding(top = 14.dp)) {
         Text("Suno · прослушивание", color = Color.White,
             fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
@@ -132,7 +137,8 @@ internal fun MarkSunoListeningScreen(
                     color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
                 NeonPill("Добавить аудиофайлы", palette,
                     onClick = onPickAudio, icon = "music")
-                Text("Это локальные файлы, не синхронизация аккаунта.",
+                Text("Это локальные файлы, не синхронизация аккаунта. " +
+                    access.blockedReason.orEmpty() + ".",
                     color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp)
                 androidx.compose.material3.TextButton(onClick = onOpenSuno) {
                     Text("Открыть Suno", color = palette.accent, fontSize = 13.sp)
