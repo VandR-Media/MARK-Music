@@ -50,11 +50,24 @@ class YandexMusicOAuthRulesTest {
         assertTrue(body.contains("code_verifier=" + verifier))
         assertFalse(body.contains("client_secret"))
         assertFalse(body.contains("refresh_token"))
+
+        // Synthetic test code: do not record any real user-supplied OAuth code.
+        val mixedCode = "aB3cD5eF7gH9jK2m"
+        assertEquals(16, mixedCode.length)
+        val mixedBody = YandexMusicOAuthRules.tokenRequestBody(mixedCode, verifier)
+        assertTrue(mixedBody.contains("code=" + mixedCode))
+        assertTrue(mixedBody.contains("code_verifier=" + verifier))
     }
 
     @Test fun rejectsInvalidCodesReducedScopesAndExpiredPendingSessions() {
         assertTrue(YandexMusicOAuthRules.validCode("0123456"))
-        for (input in listOf("123456", "12345678", "abcdefg", "12 4567", "")) {
+        assertTrue(YandexMusicOAuthRules.validCode("aB3cD5eF7gH9jK2m"))
+        assertTrue(YandexMusicOAuthRules.validCode("1234567890123456"))
+        // Case must be preserved, including mixed and upper-case characters.
+        for (input in listOf(
+            "123456", "12345678", "abcdefg", "12 4567", "", "abcdefghijklmno",
+            "abcdefghijklmnopq", "abcd-1234-efgh-56", "привет1234567890", "abCd\nD5eF7gH9jK2m"
+        )) {
             assertFalse(YandexMusicOAuthRules.validCode(input))
         }
         assertTrue(YandexMusicOAuthRules.acceptsReturnedScope(null))
