@@ -16,6 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -81,11 +85,24 @@ internal fun MarkYandexMusicScreen(
     account: com.markmusic.player.library.YandexAccount?,
     onBeginSignIn: () -> Unit,
     onDisconnect: () -> Unit,
-    onOpenOfficialService: () -> Unit
+    onOpenOfficialService: () -> Unit,
+    musicApiConnected: Boolean,
+    musicApiPending: Boolean,
+    musicApiBusy: Boolean,
+    musicApiError: String?,
+    onBeginMusicApi: () -> Unit,
+    onCompleteMusicCode: (String) -> Unit,
+    onDisconnectMusicApi: () -> Unit
 ) {
     val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
     var showDetails by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(false)
+    }
+    var confirmationCode by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf("")
+    }
+    androidx.compose.runtime.LaunchedEffect(musicApiConnected) {
+        if (musicApiConnected) confirmationCode = ""
     }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -135,6 +152,71 @@ internal fun MarkYandexMusicScreen(
                         color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
                     )
                 }
+            }
+        }
+        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                Text(
+                    "Доступ к API Яндекс Музыки",
+                    color = palette.accent, fontWeight = FontWeight.Bold, fontSize = 17.sp
+                )
+                if (musicApiConnected) {
+                    Text(
+                        "Отдельный OAuth-токен Яндекс Музыки получен. " +
+                            "Каталог и воспроизведение ещё требуют проверки доступного API.",
+                        color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                    androidx.compose.material3.TextButton(onClick = onDisconnectMusicApi) {
+                        Text("Отключить Music API", color = palette.accent)
+                    }
+                } else {
+                    Text(
+                        "Разрешение music:api-public. Получи код на официальном сайте Яндекса " +
+                            "и введи его здесь. Яндекс ID остаётся подключённым отдельно.",
+                        color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                    NeonPill(
+                        if (musicApiPending) "Получить новый код" else "Получить код Яндекс Музыки",
+                        palette,
+                        onClick = { if (!musicApiBusy) onBeginMusicApi() },
+                        icon = "music"
+                    )
+                    if (musicApiPending) {
+                        Text(
+                            "Код действует 10 минут. Вернись в MARK Audio, не отправляя " +
+                                "его в переписку или кому-либо ещё.",
+                            color = NeonSubtle, fontSize = 12.sp, lineHeight = 17.sp
+                        )
+                        OutlinedTextField(
+                            value = confirmationCode,
+                            onValueChange = { value ->
+                                confirmationCode = value.filter { it in '0'..'9' }.take(7)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Семизначный код из Яндекса") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        Button(
+                            onClick = { onCompleteMusicCode(confirmationCode) },
+                            enabled = !musicApiBusy && confirmationCode.length == 7,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (musicApiBusy) "Проверка…" else "Подключить Music API")
+                        }
+                    }
+                }
+                if (musicApiError != null) {
+                    Text(
+                        musicApiError, color = Color(0xFFFFADB6),
+                        fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+                Text(
+                    "Официальный OAuth не требует Client secret. Токен сохраняется " +
+                        "зашифрованным на устройстве и не передаётся в интерфейс.",
+                    color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
+                )
             }
         }
     }

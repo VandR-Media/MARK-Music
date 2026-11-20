@@ -78,8 +78,8 @@ internal object MarkMusicApiV1 {
         )
         MusicSource.YANDEX_MUSIC -> MusicServiceCapabilities(
             source,
-            available = emptySet(),
-            blockedReason = "Не предоставлен разрешённый API каталога и потоков Яндекс Музыки"
+            available = setOf(MusicFeature.AUTHORIZATION),
+            blockedReason = "OAuth music:api-public доступен; методы каталога и потоков пока не подтверждены"
         )
     }
 

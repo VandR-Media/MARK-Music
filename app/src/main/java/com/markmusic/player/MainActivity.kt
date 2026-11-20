@@ -68,6 +68,8 @@ import com.markmusic.player.library.Track
 import com.markmusic.player.library.MusicSource
 import com.markmusic.player.library.SunoImportedLibrary
 import com.markmusic.player.library.YandexIdAccountRepository
+import com.markmusic.player.library.YandexMusicOAuthRepository
+import com.markmusic.player.library.YandexMusicOauthResult
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -159,6 +161,13 @@ private fun MarkApp(
     LaunchedEffect(yandexIdUpdates) {
         yandexAccount = yandexRepo.current()
     }
+    // Distinct, owner-registered Music API client: not the Yandex ID LoginSDK token.
+    val musicApiRepo = remember { YandexMusicOAuthRepository(ctx) }
+    var musicApiConnected by remember { mutableStateOf(musicApiRepo.isConnected()) }
+    var musicApiPending by remember { mutableStateOf(musicApiRepo.isPending()) }
+    var musicApiBusy by remember { mutableStateOf(false) }
+    var musicApiError by remember { mutableStateOf<String?>(null) }
+    val musicApiScope = rememberCoroutineScope()
     val permission = remember {
         if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
         else Manifest.permission.READ_EXTERNAL_STORAGE
@@ -483,6 +492,53 @@ private fun MarkApp(
                                 },
                                 onOpenOfficialService = {
                                     openOfficialMusicService("https://music.yandex.ru/")
+                                },
+                                musicApiConnected = musicApiConnected,
+                                musicApiPending = musicApiPending,
+                                musicApiBusy = musicApiBusy,
+                                musicApiError = musicApiError,
+                                onBeginMusicApi = {
+                                    runCatching {
+                                        val url = musicApiRepo.beginAuthorization()
+                                        musicApiPending = true
+                                        musicApiError = null
+                                        openOfficialMusicService(url)
+                                    }.onFailure {
+                                        musicApiError = "Не удалось начать авторизацию Music API."
+                                    }
+                                },
+                                onCompleteMusicCode = { code ->
+                                    if (!musicApiBusy) {
+                                        musicApiBusy = true
+                                        musicApiError = null
+                                        musicApiScope.launch {
+                                            try {
+                                                when (val result = musicApiRepo.exchangeCode(code)) {
+                                                    is YandexMusicOauthResult.Connected -> {
+                                                        musicApiConnected = true
+                                                        musicApiPending = false
+                                                        Toast.makeText(
+                                                            ctx, "Music API подключён. " +
+                                                                "Воспроизведение пока не поддерживается.",
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+                                                    }
+                                                    is YandexMusicOauthResult.Failure -> {
+                                                        musicApiError = result.message
+                                                        musicApiPending = musicApiRepo.isPending()
+                                                    }
+                                                }
+                                            } finally {
+                                                musicApiBusy = false
+                                            }
+                                        }
+                                    }
+                                },
+                                onDisconnectMusicApi = {
+                                    musicApiRepo.disconnect()
+                                    musicApiConnected = false
+                                    musicApiPending = false
+                                    musicApiError = null
                                 }
                             )
                             MusicSource.SUNO -> MarkSunoListeningScreen(

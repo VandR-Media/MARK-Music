@@ -60,3 +60,15 @@
 **Проверки:** unit-тесты возможностей и PKCE, Android CI/lint, затем подписанный релиз из main. Системное масштабирование текста и фоновые сценарии требуется проверить на физическом Huawei.
 
 **Далее:** зарегистрировать свой Yandex OAuth client_id, согласовать redirect_uri и разрешённые Music scopes / партнёрский доступ; только затем подключать сетевую авторизацию и каталог. Аналогично выяснить партнёрские возможности Suno, не добавляя генерацию музыки.
+
+## Итерация 3 — MARK Audio 0.7.20, второй OAuth Music API (21.11.2026)
+
+Проверка владельца: на скриншоте кабинета OAuth второго приложения видно «Использование API Яндекс Музыки» с scope **music:api-public**, Client ID **b050d96e5d604629810dac08d122c698** (публичный). Он независим от клиента LoginSDK **cfaacee8ff6d4941a5966d00c53a61de** / scope login:info. Скриншоты личного кабинета, логин и секреты не переносим в публичную историю.
+
+Реализован официальный сценарий **для OAuth-приложений «Для доступа к API»**: https://oauth.yandex.ru/authorize с фиксированным redirect_uri=https://oauth.yandex.ru/verification_code, response_type=code, scope=music:api-public, PKCE S256, генератор SecureRandom, семизначный код в интерфейсе MARK Audio и локальный HTTPS обмен POST https://oauth.yandex.ru/token. Client secret не нужен. Верификатор и токен зашифрованы отдельным ключом Android Keystore (AES-GCM). Время жизни проверяется, scope валидируется, произвольные ошибки сервера и токены не выводятся. Сброс не нарушает LoginSDK.
+
+Этот этап **не доказывает работу API музыкального каталога**. Он не вызывает api.music.yandex.net или закрытые streaming endpoints. MarkMusicApiV1 оставляет PERSONAL_CATALOG и REMOTE_STREAM недоступными, а ошибки API_NOT_GRANTED явными. Следующий этап — проверить условия и поддерживаемый интерфейс медиатеки/потоков с Яндексом; не считать наличие scope документированным контрактом доступа к музыке.
+
+Проверка: unit-тесты PKCE/URL/формы, Gradle CI и signed release только после успешного CI. Отдельно протестировать на Huawei Pura 80 Ultra: получение кода, переход браузер → приложение, успешный и ошибочный обмен, перезапуск, локальное отключение, фоновый Media3 и отсутствие регрессий в Яндекс ID.
+
+Источники OAuth: https://yandex.ru/dev/id/doc/ru/register-api ; https://yandex.ru/dev/id/doc/ru/codes/screen-code .
