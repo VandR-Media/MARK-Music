@@ -24,17 +24,17 @@ grep -Fq "$expected" <<< "$badging" || {
   echo "ERROR: Wrong application ID or version in packaged APK (expected $expected)" >&2
   exit 1
 }
-for required in READ_MEDIA_AUDIO FOREGROUND_SERVICE FOREGROUND_SERVICE_MEDIA_PLAYBACK; do
+for required in READ_MEDIA_AUDIO FOREGROUND_SERVICE FOREGROUND_SERVICE_MEDIA_PLAYBACK INTERNET; do
   grep -Fq "name='android.permission.$required'" <<< "$permissions" || {
     echo "ERROR: Missing expected audio playback permission: $required" >&2
     exit 1
   }
 done
-for forbidden in INTERNET RECORD_AUDIO CAMERA READ_CONTACTS READ_SMS SEND_SMS READ_CALL_LOG ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION QUERY_ALL_PACKAGES REQUEST_INSTALL_PACKAGES SYSTEM_ALERT_WINDOW BIND_ACCESSIBILITY_SERVICE MANAGE_EXTERNAL_STORAGE; do
+for forbidden in RECORD_AUDIO CAMERA READ_CONTACTS READ_SMS SEND_SMS READ_CALL_LOG ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION QUERY_ALL_PACKAGES REQUEST_INSTALL_PACKAGES SYSTEM_ALERT_WINDOW BIND_ACCESSIBILITY_SERVICE MANAGE_EXTERNAL_STORAGE; do
   if grep -Fq "name='android.permission.$forbidden'" <<< "$permissions"; then
     echo "ERROR: Unexpected sensitive permission in final APK: $forbidden" >&2
     exit 1
   fi
 done
-echo "Packaged manifest policy verified: local music playback only."
+echo "Packaged manifest policy verified: local playback and official Yandex ID HTTPS authentication only."
 printf '%s\n' "$permissions"

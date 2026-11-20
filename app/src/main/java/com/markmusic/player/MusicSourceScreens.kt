@@ -78,12 +78,24 @@ internal fun MarkMusicSourceTabs(
 @Composable
 internal fun MarkYandexMusicScreen(
     palette: MarkPalette,
+    account: com.markmusic.player.library.YandexAccount?,
+    savedClientId: String,
+    onBeginSignIn: (String) -> Unit,
+    onDisconnect: () -> Unit,
+    onOpenRegistration: () -> Unit,
     onOpenOfficialService: () -> Unit
 ) {
     val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
     var showDetails by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(false)
     }
+    var showClientDialog by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    var clientId by androidx.compose.runtime.remember(savedClientId) {
+        androidx.compose.runtime.mutableStateOf(savedClientId)
+    }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(top = 12.dp, bottom = 16.dp),
@@ -93,27 +105,87 @@ internal fun MarkYandexMusicScreen(
             fontWeight = FontWeight.ExtraBold)
         NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                Text("Не подключено", color = palette.accent,
-                    fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("Подписка активна в сервисе Яндекса, но для воспроизведения в MARK Audio " +
-                    "нужен разрешённый доступ к каталогу и потокам.",
-                    color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                if (account != null) {
+                    Text("Яндекс ID: " + account.login, color = palette.accent,
+                        fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        "Вход в профиль подтверждён. Музыкальный каталог и аудиопотоки " +
+                            "пока недоступны MARK Audio: для них требуется отдельный доступ.",
+                        color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                    androidx.compose.material3.TextButton(onClick = onDisconnect) {
+                        Text("Отключить Яндекс ID", color = palette.accent)
+                    }
+                } else {
+                    Text("Музыкальный каталог не подключён", color = palette.accent,
+                        fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text(
+                        "Можно войти в свой Яндекс ID через браузер. Это проверит " +
+                            "аккаунт, но само по себе ещё не откроет потоковую музыку.",
+                        color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                    NeonPill("Настроить вход Яндекс ID", palette,
+                        onClick = { showClientDialog = true }, icon = "music")
+                }
                 NeonPill("Открыть Яндекс Музыку", palette,
                     onClick = onOpenOfficialService, icon = "music")
                 androidx.compose.material3.TextButton(onClick = { showDetails = !showDetails }) {
-                    Text(if (showDetails) "Скрыть подробности" else "Почему нет входа?",
+                    Text(if (showDetails) "Скрыть пояснение" else "О доступе к каталогу",
                         color = palette.accent, fontSize = 13.sp)
                 }
                 if (showDetails) {
-                    Text(
-                        access.blockedReason.orEmpty() +
-                            ". Яндекс ID поддерживает OAuth с PKCE, но вход не даёт " +
-                            "доступа к музыкальным потокам. Сейчас токены не запрашиваются.",
-                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
-                    )
+                    Text(access.blockedReason.orEmpty() + ". Вход выполняется только " +
+                        "через официальный Яндекс OAuth с PKCE, без передачи пароля MARK Audio.",
+                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
                 }
             }
         }
+    }
+
+    if (showClientDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showClientDialog = false },
+            title = { Text("Яндекс ID", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Нужен Client ID именно нашего приложения, зарегистрированного " +
+                            "в Яндекс OAuth. Не вводи пароль или токен.",
+                        color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = clientId,
+                        onValueChange = { clientId = it.trim().take(128) },
+                        label = { Text("Client ID") },
+                        maxLines = 1,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("Redirect URI для регистрации: " +
+                        com.markmusic.player.library.YandexIdTokenProtocol.APP_REDIRECT,
+                        color = NeonSubtle, fontSize = 11.sp, lineHeight = 16.sp)
+                    androidx.compose.material3.TextButton(onClick = onOpenRegistration) {
+                        Text("Создать OAuth-приложение в Яндексе", color = palette.accent)
+                    }
+                    Text("Запрашивается только право login:info. Это не доступ к музыке.",
+                        color = NeonSubtle, fontSize = 11.sp)
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = com.markmusic.player.library.YandexIdTokenProtocol
+                        .clientIdIsValid(clientId),
+                    onClick = {
+                        showClientDialog = false
+                        onBeginSignIn(clientId)
+                    }
+                ) { Text("Войти") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showClientDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 
