@@ -444,7 +444,7 @@ private fun MarkApp(openPlayerRequests: Int, yandexIdUpdates: Int) {
                                     yandexAccount = null
                                 },
                                 onOpenRegistration = {
-                                    openOfficialMusicService("https://oauth.yandex.ru/client/new/id/")
+                                    openOfficialMusicService("https://oauth.yandex.ru/")
                                 },
                                 onOpenOfficialService = {
                                     openOfficialMusicService("https://music.yandex.ru/")
