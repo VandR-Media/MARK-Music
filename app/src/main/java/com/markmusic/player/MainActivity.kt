@@ -59,6 +59,8 @@ import com.markmusic.player.library.MusicLibrary
 import com.markmusic.player.library.Track
 import com.markmusic.player.library.MusicSource
 import com.markmusic.player.library.SunoImportedLibrary
+import com.markmusic.player.library.YandexAccount
+import com.markmusic.player.library.YandexIdAccountRepository
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -71,31 +73,44 @@ private val SUBTLE = Color(0xFFD2DCF5)
 class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_PLAYER = "com.markmusic.player.OPEN_PLAYER"
+        const val ACTION_YANDEX_ID_RESULT = "com.markmusic.player.YANDEX_ID_RESULT"
     }
     private val openPlayerRequests = mutableIntStateOf(0)
+    private val yandexIdUpdates = mutableIntStateOf(0)
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
+        if (intent.action == ACTION_YANDEX_ID_RESULT) yandexIdUpdates.intValue++
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(11, 23, 48)
         window.navigationBarColor = android.graphics.Color.rgb(11, 23, 48)
         if (intent?.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
+        if (intent?.action == ACTION_YANDEX_ID_RESULT) yandexIdUpdates.intValue++
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = CYAN, secondary = VIOLET,
                 background = BG, surface = PANEL, onSurface = Color.White
-            )) { GlassMotionHost { MarkApp(openPlayerRequests.intValue) } }
+            )) {
+                GlassMotionHost {
+                    MarkApp(openPlayerRequests.intValue, yandexIdUpdates.intValue)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun MarkApp(openPlayerRequests: Int) {
+private fun MarkApp(openPlayerRequests: Int, yandexIdUpdates: Int) {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("mark_music", Context.MODE_PRIVATE) }
+    val yandexRepo = remember { YandexIdAccountRepository(ctx) }
+    var yandexAccount by remember { mutableStateOf(yandexRepo.current()) }
+    LaunchedEffect(yandexIdUpdates) {
+        yandexAccount = yandexRepo.current()
+    }
     val permission = remember {
         if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
         else Manifest.permission.READ_EXTERNAL_STORAGE
@@ -404,6 +419,26 @@ private fun MarkApp(openPlayerRequests: Int) {
                             )
                             MusicSource.YANDEX_MUSIC -> MarkYandexMusicScreen(
                                 palette = palette,
+                                account = yandexAccount,
+                                savedClientId = yandexRepo.rememberedClientId(),
+                                onBeginSignIn = { clientId ->
+                                    runCatching {
+                                        val url = yandexRepo.begin(clientId)
+                                        ctx.startActivity(Intent(
+                                            Intent.ACTION_VIEW, android.net.Uri.parse(url)
+                                        ))
+                                    }.onFailure {
+                                        Toast.makeText(ctx, "Не удалось открыть вход Яндекс ID",
+                                            Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                onDisconnect = {
+                                    yandexRepo.disconnect()
+                                    yandexAccount = null
+                                },
+                                onOpenRegistration = {
+                                    openOfficialMusicService("https://oauth.yandex.ru/client/new/id/")
+                                },
                                 onOpenOfficialService = {
                                     openOfficialMusicService("https://music.yandex.ru/")
                                 }
