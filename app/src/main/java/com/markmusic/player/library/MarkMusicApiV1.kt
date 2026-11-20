@@ -88,7 +88,7 @@ internal object MarkMusicApiV1 {
         if (source == MusicSource.DEVICE) null else UnconfiguredGateway(source)
 
     private class UnconfiguredGateway(override val source: MusicSource) : RemoteMusicGateway {
-        override val capabilities: MusicServiceCapabilities = capabilities(source)
+        override val capabilities: MusicServiceCapabilities = MarkMusicApiV1.capabilities(source)
 
         override suspend fun loadPersonalLibrary(): MusicApiResult<List<RemoteMusicItem>> =
             MusicApiResult.Unavailable(MusicApiError.API_NOT_GRANTED)
