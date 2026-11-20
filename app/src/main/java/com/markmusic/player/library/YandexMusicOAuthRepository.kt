@@ -65,7 +65,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
     }
 
     /**
-     * User types the seven-digit code INSIDE MARK Audio.
+     * User types the Yandex-provided code INSIDE MARK Audio (seven digits or 16 ASCII letters/digits).
      * Never transfer codes, access tokens or secrets through messages or logs.
      */
     suspend fun exchangeCode(verificationCode: String): YandexMusicOauthResult =
@@ -73,7 +73,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
             val code = verificationCode.trim()
             if (!YandexMusicOAuthRules.validCode(code)) {
                 return@withContext YandexMusicOauthResult.Failure(
-                    "Введите семизначный код подтверждения с сайта Яндекса."
+                    "Введите код с сайта Яндекса: 16 латинских букв/цифр или 7 цифр."
                 )
             }
             val pending = pending() ?: return@withContext YandexMusicOauthResult.Failure(
@@ -111,7 +111,10 @@ internal class YandexMusicOAuthRepository(context: Context) {
                         JSONObject(response).optString("error")
                     }.getOrDefault("")
                     return@withContext YandexMusicOauthResult.Failure(when (errorCode) {
-                        "invalid_grant", "bad_verification_code" ->
+                        "bad_verification_code" ->
+                            "Яндекс отклонил формат кода (bad_verification_code). " +
+                                "Схема проверки на сервере может отличаться; получите новый код."
+                        "invalid_grant" ->
                             "Неверный или просроченный код. Проверьте его или запросите новый."
                         "invalid_scope" ->
                             "Яндекс отклонил разрешение music:api-public. Проверьте настройки OAuth."
