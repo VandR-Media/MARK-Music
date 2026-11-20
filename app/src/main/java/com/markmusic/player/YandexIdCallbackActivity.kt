@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import com.markmusic.player.library.YandexIdAccountRepository
-import com.markmusic.player.library.YandexLoginResult
 import kotlinx.coroutines.launch
 
 /**
@@ -21,17 +20,11 @@ class YandexIdCallbackActivity : ComponentActivity() {
             return
         }
         lifecycleScope.launch {
-            val outcome = YandexIdAccountRepository(applicationContext)
+            YandexIdAccountRepository(applicationContext)
                 .completeRedirect(callbackUrl)
-            val resultText = when (outcome) {
-                is YandexLoginResult.Connected ->
-                    "Яндекс ID подключён. Для музыки ещё требуется доступ к каталогу."
-                is YandexLoginResult.Unavailable -> outcome.reason
-            }
             startActivity(Intent(this@YandexIdCallbackActivity, MainActivity::class.java).apply {
                 action = MainActivity.ACTION_YANDEX_ID_RESULT
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(MainActivity.EXTRA_YANDEX_ID_MESSAGE, resultText)
             })
             finish()
         }
