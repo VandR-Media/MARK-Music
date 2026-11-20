@@ -40,8 +40,9 @@ internal object YandexMusicOAuthRules {
 
     /**
      * 0.7.20 Huawei device report: Yandex displayed a 16-character alphanumeric
-     * authorization code. Official Yandex docs still mention 7 digits for
-     * another/older verification-code format. Both are accepted locally;
+     * authorization code. Yandex's official OAuth glossary explicitly specifies a 16-character
+     * code; an error-code table elsewhere still mentions seven digits.
+     * Both are accepted locally;
      * the OAuth server remains authoritative when exchanging the code.
      * Never normalize case or include these values in logs.
      */
