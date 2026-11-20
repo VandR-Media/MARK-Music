@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 39
-        versionName = "0.7.20"
+        versionCode = 40
+        versionName = "0.7.21"
         // Public OAuth app ID registered for signed MARK Audio com.markmusic.player.
         manifestPlaceholders["YANDEX_CLIENT_ID"] = "cfaacee8ff6d4941a5966d00c53a61de"
         manifestPlaceholders["YANDEX_OAUTH_HOST"] = "oauth.yandex.ru"

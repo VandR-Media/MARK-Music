@@ -20,6 +20,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import com.markmusic.player.library.YandexMusicOAuthRules
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -101,8 +104,15 @@ internal fun MarkYandexMusicScreen(
     var confirmationCode by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf("")
     }
+    // Codes are ephemeral: never use rememberSaveable or persist them to preferences.
+    var showConfirmationCode by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
     androidx.compose.runtime.LaunchedEffect(musicApiConnected) {
-        if (musicApiConnected) confirmationCode = ""
+        if (musicApiConnected) {
+            confirmationCode = ""
+            showConfirmationCode = false
+        }
     }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -190,16 +200,32 @@ internal fun MarkYandexMusicScreen(
                         OutlinedTextField(
                             value = confirmationCode,
                             onValueChange = { value ->
-                                confirmationCode = value.filter { it in '0'..'9' }.take(7)
+                                // Preserve exact case; silently discard pasted separators.
+                                confirmationCode = value.filter { symbol ->
+                                    symbol in '0'..'9' || symbol in 'a'..'z' ||
+                                        symbol in 'A'..'Z'
+                                }.take(16)
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Семизначный код из Яндекса") },
+                            label = { Text("Код с сайта Яндекса") },
+                            supportingText = {
+                                Text("16 латинских букв и цифр (или 7 цифр). Регистр важен.")
+                            },
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                            visualTransformation = if (showConfirmationCode)
+                                VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { showConfirmationCode = !showConfirmationCode }
+                                ) {
+                                    Text(if (showConfirmationCode) "Скрыть" else "Показать")
+                                }
+                            }
                         )
                         Button(
                             onClick = { onCompleteMusicCode(confirmationCode) },
-                            enabled = !musicApiBusy && confirmationCode.length == 7,
+                            enabled = !musicApiBusy && YandexMusicOAuthRules.validCode(confirmationCode),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(if (musicApiBusy) "Проверка…" else "Подключить Music API")

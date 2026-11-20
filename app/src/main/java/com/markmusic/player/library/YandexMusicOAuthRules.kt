@@ -38,7 +38,16 @@ internal object YandexMusicOAuthRules {
             "&code_challenge=" + encode(challenge(codeVerifier)) +
             "&code_challenge_method=S256"
 
-    fun validCode(code: String): Boolean = code.matches(Regex("[0-9]{7}"))
+    /**
+     * 0.7.20 Huawei device report: Yandex displayed a 16-character alphanumeric
+     * authorization code. Yandex's official OAuth glossary explicitly specifies a 16-character
+     * code; an error-code table elsewhere still mentions seven digits.
+     * Both are accepted locally;
+     * the OAuth server remains authoritative when exchanging the code.
+     * Never normalize case or include these values in logs.
+     */
+    fun validCode(code: String): Boolean =
+        code.matches(Regex("(?:[0-9]{7}|[A-Za-z0-9]{16})"))
 
     fun tokenRequestBody(code: String, codeVerifier: String): String {
         require(validCode(code))
