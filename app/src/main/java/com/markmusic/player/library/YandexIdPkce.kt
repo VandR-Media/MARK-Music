@@ -50,7 +50,7 @@ internal object YandexIdPkce {
                 return CallbackResult.Rejected(CallbackError.EXPIRED)
             }
             val callback = runCatching { URI(url) }.getOrNull()
-                ?: return CallbackResult.Rejected(CallbackError.WRONG_REDIRECT)
+                ?: return CallbackResult.Rejected(CallbackError.BAD_RESPONSE)
             val allowed = URI(redirectUri)
             if (callback.scheme != allowed.scheme ||
                 callback.rawAuthority != allowed.rawAuthority ||
