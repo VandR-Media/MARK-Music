@@ -22,6 +22,31 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!--
+          LoginSDK 3.2+ supports a runtime client ID. The original LoginSDK
+          return filters from its library manifest remain registered for the
+          original ID; the new user-Music OAuth app must also be able to
+          deliver Chrome Tab / WebView callbacks on Huawei.
+        -->
+        <activity
+            android:name="com.yandex.authsdk.internal.ChromeTabDataActivity"
+            android:exported="true">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:host="yxa74b75bb16a04004bed54af5fa52b574.oauth.yandex.ru"
+                    android:path="/auth/finish" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="yxa74b75bb16a04004bed54af5fa52b574"
+                    android:path="/auth/finish" />
+            </intent-filter>
+        </activity>
         <service android:name=".audio.PlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
