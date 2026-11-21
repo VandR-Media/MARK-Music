@@ -15,7 +15,9 @@ internal sealed interface YandexMusicOauthResult {
 }
 
 internal sealed interface YandexMusicTokenCheck {
-    data object Verified : YandexMusicTokenCheck
+    data object VerifiedSameAccount : YandexMusicTokenCheck
+    data object VerifiedWithoutAccountComparison : YandexMusicTokenCheck
+    data object DifferentAccount : YandexMusicTokenCheck
     data object NotConnected : YandexMusicTokenCheck
     data object Rejected : YandexMusicTokenCheck
     data object WrongClient : YandexMusicTokenCheck
@@ -47,7 +49,9 @@ internal class YandexMusicOAuthRepository(context: Context) {
      * Yandex ID endpoint. This is NOT a Yandex Music catalog API check.
      * No client secret, token URL parameter, logs, or personal user data in UI.
      */
-    suspend fun verifyStoredToken(): YandexMusicTokenCheck = withContext(Dispatchers.IO) {
+    suspend fun verifyStoredToken(
+        expectedYandexIdUserId: String?
+    ): YandexMusicTokenCheck = withContext(Dispatchers.IO) {
         val raw = vault.read("token") ?: return@withContext YandexMusicTokenCheck.NotConnected
         val token = runCatching { JSONObject(raw) }.getOrNull()
             ?: return@withContext YandexMusicTokenCheck.NotConnected
@@ -82,10 +86,20 @@ internal class YandexMusicOAuthRepository(context: Context) {
             when {
                 status == 200 -> {
                     val profile = JSONObject(body)
-                    if (YandexMusicTokenRules.matchesRegisteredMusicClient(
-                        profile.optString("client_id"), profile.optString("id")
-                    )) YandexMusicTokenCheck.Verified
-                    else YandexMusicTokenCheck.WrongClient
+                    when (YandexMusicTokenRules.classify(
+                        clientId = profile.optString("client_id"),
+                        tokenUserId = profile.optString("id"),
+                        signedInYandexUserId = expectedYandexIdUserId
+                    )) {
+                        YandexMusicIdentity.SAME_ACCOUNT ->
+                            YandexMusicTokenCheck.VerifiedSameAccount
+                        YandexMusicIdentity.ACCOUNT_NOT_COMPARED ->
+                            YandexMusicTokenCheck.VerifiedWithoutAccountComparison
+                        YandexMusicIdentity.DIFFERENT_ACCOUNT ->
+                            YandexMusicTokenCheck.DifferentAccount
+                        YandexMusicIdentity.INVALID_CLIENT_OR_PROFILE ->
+                            YandexMusicTokenCheck.WrongClient
+                    }
                 }
                 status == 401 || status == 403 -> YandexMusicTokenCheck.Rejected
                 else -> YandexMusicTokenCheck.TemporarilyUnavailable
