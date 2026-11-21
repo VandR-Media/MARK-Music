@@ -11,7 +11,8 @@ internal enum class YandexMusicProbeStatus {
     ACCOUNT_ENDPOINT_RESPONDED,
     ACCESS_REJECTED,
     INVALID_RESPONSE,
-    NOT_AVAILABLE
+    NOT_AVAILABLE,
+    NOT_CONNECTED
 }
 
 internal object YandexMusicProbeRules {
