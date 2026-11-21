@@ -227,6 +227,18 @@ internal fun MarkLibraryScreen(
 ) {
     val labels = listOf("Треки", "Альбомы", "Исполнители", "Папки")
     var openedGroup by remember(category) { mutableStateOf<String?>(null) }
+    // Grouping/sorting can traverse thousands of local tracks. Compute it once
+    // per library/category change, never inside the LazyColumn content lambda.
+    val groups: List<Pair<String, List<Track>>> = remember(songs, category) {
+        when (category) {
+            1 -> songs.groupBy { "${it.albumId}|${it.album}" }.values
+                .map { it.first().album to it }.sortedBy { it.first.lowercase() }
+            2 -> songs.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }
+            3 -> songs.groupBy { it.folder }.toList().sortedBy { it.first.lowercase() }
+            else -> emptyList()
+        }
+    }
+    val groupRows = remember(groups) { groups.chunked(2) }
     androidx.activity.compose.BackHandler(enabled = openedGroup != null) {
         openedGroup = null
     }
@@ -313,12 +325,6 @@ internal fun MarkLibraryScreen(
                         LibraryTrackRow(track, palette, { onPlay(songs, track) }, { onLongPress(track) })
                     }
                 } else {
-                    val groups: List<Pair<String, List<Track>>> = when (category) {
-                        1 -> songs.groupBy { "${it.albumId}|${it.album}" }.values
-                            .map { it.first().album to it }.sortedBy { it.first.lowercase() }
-                        2 -> songs.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }
-                        else -> songs.groupBy { it.folder }.toList().sortedBy { it.first.lowercase() }
-                    }
                     val opened = groups.firstOrNull { it.first == openedGroup }
                     if (opened != null) {
                         item {
@@ -331,7 +337,7 @@ internal fun MarkLibraryScreen(
                                 { onLongPress(track) })
                         }
                     } else {
-                        items(groups.chunked(2), key = { row -> row.first().first }) { row ->
+                        items(groupRows, key = { row -> "group-row-${row.first().second.first().id}" }) { row ->
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 row.forEach { (name, tracks) ->
                                     val label = if (category == 3) name.trimEnd('/').substringAfterLast('/')

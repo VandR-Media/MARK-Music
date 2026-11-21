@@ -10,10 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Button
@@ -118,14 +117,21 @@ internal fun MarkYandexMusicScreen(
             showConfirmationCode = false
         }
     }
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(top = 12.dp, bottom = 16.dp),
+    // Compose only the visible section(s). A single verticalScroll Column
+    // eagerly measured both tall translucent panels on every scroll frame.
+    // Stable keys preserve the expanded state and avoid unnecessary work.
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = rememberLazyListState(),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        Text("Яндекс Музыка", color = Color.White, fontSize = 23.sp,
-            fontWeight = FontWeight.ExtraBold)
-        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
+        item(key = "heading") {
+            Text("Яндекс Музыка", color = Color.White, fontSize = 23.sp,
+                fontWeight = FontWeight.ExtraBold)
+        }
+        item(key = "yandex-id") {
+            NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 if (account != null) {
                     Text("Яндекс ID: " + account.login, color = palette.accent,
@@ -168,7 +174,9 @@ internal fun MarkYandexMusicScreen(
                 }
             }
         }
-        NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
+        }
+        item(key = "music-api") {
+            NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 Text(
                     "Доступ к API Яндекс Музыки",
@@ -288,6 +296,7 @@ internal fun MarkYandexMusicScreen(
                     color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
                 )
             }
+        }
         }
     }
 }
