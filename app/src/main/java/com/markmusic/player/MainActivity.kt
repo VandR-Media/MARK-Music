@@ -589,9 +589,17 @@ private fun MarkApp(
                                                     YandexMusicProbeStatus.ACCOUNT_ENDPOINT_RESPONDED ->
                                                         "Экспериментальный Music API ответил данными аккаунта. " +
                                                             "Это НЕ подтверждает доступ к библиотеке или потокам."
-                                                    YandexMusicProbeStatus.ACCESS_REJECTED ->
-                                                        "Music API отклонил токен (401/403). " +
-                                                            "OAuth Яндекс ID при этом может оставаться действующим."
+                                                    YandexMusicProbeStatus.UNAUTHORIZED_401 ->
+                                                        "Music API: HTTP 401 — запрос не авторизован " +
+                                                            "этим токеном. При этом проверка Yandex ID " +
+                                                            "может оставаться успешной."
+                                                    YandexMusicProbeStatus.FORBIDDEN_403 ->
+                                                        "Music API: HTTP 403 — доступ к этому методу " +
+                                                            "запрещён для текущего токена или клиента. " +
+                                                            "Повторная авторизация сама по себе может не помочь."
+                                                    YandexMusicProbeStatus.RATE_LIMITED_429 ->
+                                                        "Music API: HTTP 429 — слишком много запросов. " +
+                                                            "Не повторяй проверку многократно."
                                                     YandexMusicProbeStatus.INVALID_RESPONSE ->
                                                         "Music API ответил, но структура ответа не совпала с " +
                                                             "ожидаемой. Доступ к каталогу не подтверждён."
