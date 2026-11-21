@@ -552,11 +552,21 @@ private fun MarkApp(
                                         musicApiScope.launch {
                                             try {
                                                 musicApiVerification = when (
-                                                    musicApiRepo.verifyStoredToken()
+                                                    musicApiRepo.verifyStoredToken(
+                                                        expectedYandexIdUserId = yandexAccount?.userId
+                                                    )
                                                 ) {
-                                                    YandexMusicTokenCheck.Verified ->
-                                                        "Яндекс подтвердил токен этого Music API-клиента. " +
-                                                            "Доступ к каталогу и потокам этим не проверяется."
+                                                    YandexMusicTokenCheck.VerifiedSameAccount ->
+                                                        "Оба OAuth-подключения принадлежат одному " +
+                                                            "аккаунту Яндекса. Music API-клиент подтверждён. " +
+                                                            "Доступ к каталогу этим не проверяется."
+                                                    YandexMusicTokenCheck.VerifiedWithoutAccountComparison ->
+                                                        "Music OAuth-токен подтверждён Яндексом, но " +
+                                                            "сравнить аккаунты нельзя: нет входа через Яндекс ID."
+                                                    YandexMusicTokenCheck.DifferentAccount ->
+                                                        "Обнаружены разные аккаунты: Music API OAuth и " +
+                                                            "Яндекс ID авторизованы для разных пользователей. " +
+                                                            "Проверь выбранный аккаунт при входе в браузере."
                                                     YandexMusicTokenCheck.NotConnected ->
                                                         "Токен отсутствует или истёк. " +
                                                             "Для повторного подключения получи новый код."
