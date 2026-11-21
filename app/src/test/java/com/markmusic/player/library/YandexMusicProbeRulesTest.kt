@@ -20,14 +20,20 @@ class YandexMusicProbeRulesTest {
         )
     }
 
-    @Test fun accessErrorsNeverMasqueradeAsSuccessfulMusicCatalogAccess() {
-        for (code in listOf(401, 403)) {
-            assertEquals(
-                YandexMusicProbeStatus.ACCESS_REJECTED,
-                YandexMusicProbeRules.classify(code, hasAccountUid = false)
-            )
-        }
-        for (code in listOf(302, 404, 429, 500, 503)) {
+    @Test fun eachAccessFailureIsReportedWithoutExposingBodyOrMarkingSuccess() {
+        assertEquals(
+            YandexMusicProbeStatus.UNAUTHORIZED_401,
+            YandexMusicProbeRules.classify(401, hasAccountUid = true)
+        )
+        assertEquals(
+            YandexMusicProbeStatus.FORBIDDEN_403,
+            YandexMusicProbeRules.classify(403, hasAccountUid = true)
+        )
+        assertEquals(
+            YandexMusicProbeStatus.RATE_LIMITED_429,
+            YandexMusicProbeRules.classify(429, hasAccountUid = true)
+        )
+        for (code in listOf(302, 404, 500, 503)) {
             assertEquals(
                 YandexMusicProbeStatus.NOT_AVAILABLE,
                 YandexMusicProbeRules.classify(code, hasAccountUid = false)

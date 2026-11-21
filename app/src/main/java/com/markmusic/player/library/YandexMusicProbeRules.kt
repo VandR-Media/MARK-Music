@@ -9,7 +9,9 @@ package com.markmusic.player.library
  */
 internal enum class YandexMusicProbeStatus {
     ACCOUNT_ENDPOINT_RESPONDED,
-    ACCESS_REJECTED,
+    UNAUTHORIZED_401,
+    FORBIDDEN_403,
+    RATE_LIMITED_429,
     INVALID_RESPONSE,
     NOT_AVAILABLE,
     NOT_CONNECTED
@@ -22,7 +24,9 @@ internal object YandexMusicProbeRules {
     fun classify(httpCode: Int, hasAccountUid: Boolean): YandexMusicProbeStatus = when {
         httpCode == 200 && hasAccountUid -> YandexMusicProbeStatus.ACCOUNT_ENDPOINT_RESPONDED
         httpCode == 200 -> YandexMusicProbeStatus.INVALID_RESPONSE
-        httpCode == 401 || httpCode == 403 -> YandexMusicProbeStatus.ACCESS_REJECTED
+        httpCode == 401 -> YandexMusicProbeStatus.UNAUTHORIZED_401
+        httpCode == 403 -> YandexMusicProbeStatus.FORBIDDEN_403
+        httpCode == 429 -> YandexMusicProbeStatus.RATE_LIMITED_429
         else -> YandexMusicProbeStatus.NOT_AVAILABLE
     }
 }
