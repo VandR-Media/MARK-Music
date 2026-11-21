@@ -92,9 +92,11 @@ internal fun MarkYandexMusicScreen(
     musicApiConnected: Boolean,
     musicApiPending: Boolean,
     musicApiBusy: Boolean,
+    musicApiVerification: String?,
     musicApiError: String?,
     onBeginMusicApi: () -> Unit,
     onCompleteMusicCode: (String) -> Unit,
+    onVerifyMusicApi: () -> Unit,
     onDisconnectMusicApi: () -> Unit
 ) {
     val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
@@ -176,7 +178,24 @@ internal fun MarkYandexMusicScreen(
                             "Каталог и воспроизведение ещё требуют проверки доступного API.",
                         color = Color.White, fontSize = 13.sp, lineHeight = 19.sp
                     )
-                    androidx.compose.material3.TextButton(onClick = onDisconnectMusicApi) {
+                    androidx.compose.material3.TextButton(
+                        onClick = onVerifyMusicApi,
+                        enabled = !musicApiBusy
+                    ) {
+                        Text(
+                            if (musicApiBusy) "Проверка токена…" else "Проверить OAuth-токен",
+                            color = palette.accent
+                        )
+                    }
+                    if (musicApiVerification != null) {
+                        Text(
+                            musicApiVerification, color = Color.White,
+                            fontSize = 12.sp, lineHeight = 18.sp
+                        )
+                    }
+                    androidx.compose.material3.TextButton(
+                        onClick = onDisconnectMusicApi, enabled = !musicApiBusy
+                    ) {
                         Text("Отключить Music API", color = palette.accent)
                     }
                 } else {
