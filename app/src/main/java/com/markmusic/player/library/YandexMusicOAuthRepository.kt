@@ -97,6 +97,75 @@ internal class YandexMusicOAuthRepository(context: Context) {
         }
     }
 
+    /**
+     * EXPERIMENTAL / opt-in only: checks one community-documented read-only
+     * Yandex Music endpoint directly. This endpoint is NOT an official
+     * third-party API contract, and a response does not grant streaming rights.
+     *
+     * Only sends the existing Music OAuth token to api.music.yandex.net.
+     * Never logs, caches, exposes or persists the response's personal fields.
+     */
+    suspend fun probeMusicServiceAccount(): YandexMusicProbeStatus =
+        withContext(Dispatchers.IO) {
+            val raw = vault.read("token")
+                ?: return@withContext YandexMusicProbeStatus.NOT_CONNECTED
+            val stored = runCatching { JSONObject(raw) }.getOrNull()
+                ?: return@withContext YandexMusicProbeStatus.NOT_CONNECTED
+            if (stored.optString("client_id") != YandexMusicOAuthRules.CLIENT_ID ||
+                stored.optString("access_token").isBlank() ||
+                System.currentTimeMillis() >= stored.optLong("expires_at")) {
+                return@withContext YandexMusicProbeStatus.NOT_CONNECTED
+            }
+
+            try {
+                val url = URL(
+                    "https://" + YandexMusicProbeRules.HOST + YandexMusicProbeRules.PATH
+                )
+                val connection = url.openConnection() as HttpsURLConnection
+                val (status, accountFound) = try {
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 12_000
+                    connection.readTimeout = 12_000
+                    connection.instanceFollowRedirects = false
+                    connection.setRequestProperty("Accept", "application/json")
+                    connection.setRequestProperty("Cache-Control", "no-store")
+                    connection.setRequestProperty(
+                        "Authorization", "OAuth " + stored.optString("access_token")
+                    )
+                    val code = connection.responseCode
+                    if (code != 200) {
+                        code to false
+                    } else {
+                        val content = connection.inputStream.bufferedReader(Charsets.UTF_8)
+                            .use { reader ->
+                                // Account metadata can include personal information.
+                                // Limit in-memory read and do not retain it anywhere.
+                                val out = StringBuilder()
+                                val chars = CharArray(8192)
+                                while (out.length <= 131_072) {
+                                    val length = reader.read(chars)
+                                    if (length <= 0) break
+                                    out.append(chars, 0, length)
+                                }
+                                if (out.length > 131_072) "" else out.toString()
+                            }
+                        val account = runCatching {
+                            JSONObject(content).optJSONObject("result")
+                                ?.optJSONObject("account")
+                        }.getOrNull()
+                        code to (account?.optLong("uid", 0L) ?: 0L > 0L)
+                    }
+                } finally {
+                    connection.disconnect()
+                }
+                YandexMusicProbeRules.classify(status, accountFound)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                YandexMusicProbeStatus.NOT_AVAILABLE
+            }
+        }
+
     fun isPending(): Boolean = pending() != null
 
     private fun pending(): JSONObject? = runCatching {
