@@ -70,6 +70,7 @@ import com.markmusic.player.library.SunoImportedLibrary
 import com.markmusic.player.library.YandexIdAccountRepository
 import com.markmusic.player.library.YandexMusicOAuthRepository
 import com.markmusic.player.library.YandexMusicOauthResult
+import com.markmusic.player.library.YandexMusicTokenCheck
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -166,6 +167,7 @@ private fun MarkApp(
     var musicApiConnected by remember { mutableStateOf(musicApiRepo.isConnected()) }
     var musicApiPending by remember { mutableStateOf(musicApiRepo.isPending()) }
     var musicApiBusy by remember { mutableStateOf(false) }
+    var musicApiVerification by remember { mutableStateOf<String?>(null) }
     var musicApiError by remember { mutableStateOf<String?>(null) }
     val musicApiScope = rememberCoroutineScope()
     val permission = remember {
@@ -496,11 +498,13 @@ private fun MarkApp(
                                 musicApiConnected = musicApiConnected,
                                 musicApiPending = musicApiPending,
                                 musicApiBusy = musicApiBusy,
+                                musicApiVerification = musicApiVerification,
                                 musicApiError = musicApiError,
                                 onBeginMusicApi = {
                                     runCatching {
                                         val url = musicApiRepo.beginAuthorization()
                                         musicApiPending = true
+                                        musicApiVerification = null
                                         musicApiError = null
                                         openOfficialMusicService(url)
                                     }.onFailure {
@@ -517,6 +521,7 @@ private fun MarkApp(
                                                     is YandexMusicOauthResult.Connected -> {
                                                         musicApiConnected = true
                                                         musicApiPending = false
+                                                        musicApiVerification = null
                                                         Toast.makeText(
                                                             ctx, "Music API подключён. " +
                                                                 "Воспроизведение пока не поддерживается.",
@@ -534,10 +539,43 @@ private fun MarkApp(
                                         }
                                     }
                                 },
+                                onVerifyMusicApi = {
+                                    if (!musicApiBusy) {
+                                        musicApiBusy = true
+                                        musicApiVerification = null
+                                        musicApiError = null
+                                        musicApiScope.launch {
+                                            try {
+                                                musicApiVerification = when (
+                                                    musicApiRepo.verifyStoredToken()
+                                                ) {
+                                                    YandexMusicTokenCheck.Verified ->
+                                                        "Яндекс подтвердил токен этого Music API-клиента. " +
+                                                            "Доступ к каталогу и потокам этим не проверяется."
+                                                    YandexMusicTokenCheck.NotConnected ->
+                                                        "Токен отсутствует или истёк. " +
+                                                            "Для повторного подключения получи новый код."
+                                                    YandexMusicTokenCheck.Rejected ->
+                                                        "Яндекс отклонил токен. " +
+                                                            "Для повторного подключения получи новый код."
+                                                    YandexMusicTokenCheck.WrongClient ->
+                                                        "Яндекс не подтвердил принадлежность токена " +
+                                                            "нашему Music API-приложению."
+                                                    YandexMusicTokenCheck.TemporarilyUnavailable ->
+                                                        "Не удалось проверить токен. " +
+                                                            "Проверь интернет и повтори попытку."
+                                                }
+                                            } finally {
+                                                musicApiBusy = false
+                                            }
+                                        }
+                                    }
+                                },
                                 onDisconnectMusicApi = {
                                     musicApiRepo.disconnect()
                                     musicApiConnected = false
                                     musicApiPending = false
+                                    musicApiVerification = null
                                     musicApiError = null
                                 }
                             )
