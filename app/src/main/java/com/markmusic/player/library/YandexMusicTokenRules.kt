@@ -1,11 +1,34 @@
 package com.markmusic.player.library
 
 /**
- * The documented Yandex ID /info response contains client_id and id even
- * when the OAuth token was issued for another Yandex service.
- * This checks token ownership, NOT access to Yandex Music catalog or streams.
+ * API Yandex ID /info returns client_id and id for Yandex OAuth tokens
+ * issued to any Yandex service. Compare BOTH client and account identity.
+ *
+ * This is not a Yandex Music playback or catalog authorization check.
  */
+internal enum class YandexMusicIdentity {
+    SAME_ACCOUNT,
+    ACCOUNT_NOT_COMPARED,
+    DIFFERENT_ACCOUNT,
+    INVALID_CLIENT_OR_PROFILE
+}
+
 internal object YandexMusicTokenRules {
-    fun matchesRegisteredMusicClient(clientId: String, userId: String): Boolean =
-        clientId == YandexMusicOAuthRules.CLIENT_ID && userId.isNotBlank()
+    fun classify(
+        clientId: String,
+        tokenUserId: String,
+        signedInYandexUserId: String?
+    ): YandexMusicIdentity {
+        if (clientId != YandexMusicOAuthRules.CLIENT_ID || tokenUserId.isBlank()) {
+            return YandexMusicIdentity.INVALID_CLIENT_OR_PROFILE
+        }
+        if (signedInYandexUserId.isNullOrBlank()) {
+            return YandexMusicIdentity.ACCOUNT_NOT_COMPARED
+        }
+        return if (tokenUserId == signedInYandexUserId) {
+            YandexMusicIdentity.SAME_ACCOUNT
+        } else {
+            YandexMusicIdentity.DIFFERENT_ACCOUNT
+        }
+    }
 }
