@@ -153,7 +153,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
                             JSONObject(content).optJSONObject("result")
                                 ?.optJSONObject("account")
                         }.getOrNull()
-                        code to (account?.optLong("uid", 0L) ?: 0L > 0L)
+                        code to ((account?.optLong("uid", 0L) ?: 0L) > 0L)
                     }
                 } finally {
                     connection.disconnect()
