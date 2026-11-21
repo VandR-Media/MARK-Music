@@ -71,6 +71,7 @@ import com.markmusic.player.library.YandexIdAccountRepository
 import com.markmusic.player.library.YandexMusicOAuthRepository
 import com.markmusic.player.library.YandexMusicOauthResult
 import com.markmusic.player.library.YandexMusicTokenCheck
+import com.markmusic.player.library.YandexMusicProbeStatus
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -168,6 +169,7 @@ private fun MarkApp(
     var musicApiPending by remember { mutableStateOf(musicApiRepo.isPending()) }
     var musicApiBusy by remember { mutableStateOf(false) }
     var musicApiVerification by remember { mutableStateOf<String?>(null) }
+    var musicApiServiceProbe by remember { mutableStateOf<String?>(null) }
     var musicApiError by remember { mutableStateOf<String?>(null) }
     val musicApiScope = rememberCoroutineScope()
     val permission = remember {
@@ -499,12 +501,14 @@ private fun MarkApp(
                                 musicApiPending = musicApiPending,
                                 musicApiBusy = musicApiBusy,
                                 musicApiVerification = musicApiVerification,
+                                musicApiServiceProbe = musicApiServiceProbe,
                                 musicApiError = musicApiError,
                                 onBeginMusicApi = {
                                     runCatching {
                                         val url = musicApiRepo.beginAuthorization()
                                         musicApiPending = true
                                         musicApiVerification = null
+                                        musicApiServiceProbe = null
                                         musicApiError = null
                                         openOfficialMusicService(url)
                                     }.onFailure {
@@ -522,6 +526,7 @@ private fun MarkApp(
                                                         musicApiConnected = true
                                                         musicApiPending = false
                                                         musicApiVerification = null
+                                                        musicApiServiceProbe = null
                                                         Toast.makeText(
                                                             ctx, "Music API подключён. " +
                                                                 "Воспроизведение пока не поддерживается.",
@@ -571,11 +576,43 @@ private fun MarkApp(
                                         }
                                     }
                                 },
+                                onProbeMusicApi = {
+                                    if (!musicApiBusy) {
+                                        musicApiBusy = true
+                                        musicApiServiceProbe = null
+                                        musicApiError = null
+                                        musicApiScope.launch {
+                                            try {
+                                                musicApiServiceProbe = when (
+                                                    musicApiRepo.probeMusicServiceAccount()
+                                                ) {
+                                                    YandexMusicProbeStatus.ACCOUNT_ENDPOINT_RESPONDED ->
+                                                        "Экспериментальный Music API ответил данными аккаунта. " +
+                                                            "Это НЕ подтверждает доступ к библиотеке или потокам."
+                                                    YandexMusicProbeStatus.ACCESS_REJECTED ->
+                                                        "Music API отклонил токен (401/403). " +
+                                                            "OAuth Яндекс ID при этом может оставаться действующим."
+                                                    YandexMusicProbeStatus.INVALID_RESPONSE ->
+                                                        "Music API ответил, но структура ответа не совпала с " +
+                                                            "ожидаемой. Доступ к каталогу не подтверждён."
+                                                    YandexMusicProbeStatus.NOT_AVAILABLE ->
+                                                        "Не удалось получить ответ Music API. " +
+                                                            "Проверь соединение или повтори позднее."
+                                                    YandexMusicProbeStatus.NOT_CONNECTED ->
+                                                        "Music API-токен отсутствует или устарел."
+                                                }
+                                            } finally {
+                                                musicApiBusy = false
+                                            }
+                                        }
+                                    }
+                                },
                                 onDisconnectMusicApi = {
                                     musicApiRepo.disconnect()
                                     musicApiConnected = false
                                     musicApiPending = false
                                     musicApiVerification = null
+                                    musicApiServiceProbe = null
                                     musicApiError = null
                                 }
                             )
