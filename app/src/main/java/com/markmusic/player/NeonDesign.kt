@@ -73,13 +73,14 @@ internal fun NeonGlass(
     // large scrolling panel had its own graphicsLayer and reacted to 25 Hz
     // gravity samples, even when it could not be pressed. This forced costly
     // layer compositing during vertical scroll on Huawei.
-    val motion = if (onClick == null) Modifier else Modifier.floatingGlassMotion(
-        pressed, palette.accent, depth = 1f
-    )
+    val hasClickAction = onClick != null
+    val motion = if (!GlassRenderingPolicy.usesParallax(hasClickAction)) Modifier
+        else Modifier.floatingGlassMotion(pressed, palette.accent, depth = 1f)
     // Keep the rounded glass rim; avoid a deep, continuously composited shadow
     // for long, non-clickable panels. Interactive tiles keep their press depth.
-    val elevation = if (onClick == null) (3f + glassDepth * 2f).dp
-        else if (pressed) 3.dp else (4f + glassDepth * 11f).dp
+    val elevation = GlassRenderingPolicy.elevationDp(
+        hasClickAction, pressed, glassDepth
+    ).dp
 
     val glassBackground = remember {
         Brush.verticalGradient(listOf(
