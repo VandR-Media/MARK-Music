@@ -64,6 +64,6 @@ internal class YandexMusicVault(context: Context) {
 
     private companion object {
         const val KEY_ALIAS = "mark_audio_yandex_music_api_aes_gcm_v1"
-        val KEYS = setOf("pending", "token")
+        val KEYS = setOf("pending", "token", "user_token")
     }
 }

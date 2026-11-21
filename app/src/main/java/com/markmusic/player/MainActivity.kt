@@ -69,6 +69,9 @@ import com.markmusic.player.library.MusicSource
 import com.markmusic.player.library.SunoImportedLibrary
 import com.markmusic.player.library.YandexIdAccountRepository
 import com.markmusic.player.library.YandexMusicOAuthRepository
+import com.markmusic.player.library.YandexMusicUserOAuthRepository
+import com.markmusic.player.library.YandexMusicUserOAuthRules
+import com.markmusic.player.library.YandexUserMusicAuthResult
 import com.markmusic.player.library.YandexMusicOauthResult
 import com.markmusic.player.library.YandexMusicTokenCheck
 import com.markmusic.player.library.YandexMusicProbeStatus
@@ -87,7 +90,9 @@ class MainActivity : ComponentActivity() {
     }
     private val openPlayerRequests = mutableIntStateOf(0)
     private val yandexIdUpdates = mutableIntStateOf(0)
+    private val userMusicUpdates = mutableIntStateOf(0)
     private lateinit var yandexLoginLauncher: ActivityResultLauncher<YandexAuthLoginOptions>
+    private lateinit var userMusicLoginLauncher: ActivityResultLauncher<YandexAuthLoginOptions>
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -122,6 +127,41 @@ class MainActivity : ComponentActivity() {
                 YandexAuthResult.Cancelled -> Unit
             }
         }
+        // Reuse the official LoginSDK with a *runtime* Client ID from the
+        // independently registered user-authorization Android OAuth app.
+        // The primary Yandex ID launcher and manifest Client ID are unchanged.
+        userMusicLoginLauncher = registerForActivityResult(sdk.contract) { result ->
+            when (result) {
+                is YandexAuthResult.Success -> lifecycleScope.launch {
+                    val expectedId = YandexIdAccountRepository(applicationContext)
+                        .current()?.userId
+                    val outcome = YandexMusicUserOAuthRepository(applicationContext)
+                        .acceptSdkToken(
+                            result.token.value, result.token.expiresIn, expectedId
+                        )
+                    when (outcome) {
+                        is YandexUserMusicAuthResult.Connected -> Toast.makeText(
+                            this@MainActivity,
+                            "Новый пользовательский Music OAuth-токен подтверждён. " +
+                                "Доступ к каталогу пока не проверен.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        is YandexUserMusicAuthResult.Failure -> Toast.makeText(
+                            this@MainActivity, outcome.reason, Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    userMusicUpdates.intValue++
+                }
+                is YandexAuthResult.Failure -> {
+                    Toast.makeText(
+                        this, "Не удалось авторизовать новый Music OAuth-клиент.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    userMusicUpdates.intValue++
+                }
+                YandexAuthResult.Cancelled -> userMusicUpdates.intValue++
+            }
+        }
         window.statusBarColor = android.graphics.Color.rgb(11, 23, 48)
         window.navigationBarColor = android.graphics.Color.rgb(11, 23, 48)
         if (intent?.action == ACTION_OPEN_PLAYER) openPlayerRequests.intValue++
@@ -133,6 +173,22 @@ class MainActivity : ComponentActivity() {
                 GlassMotionHost {
                     MarkApp(
                         openPlayerRequests.intValue, yandexIdUpdates.intValue,
+                        userMusicUpdates.intValue,
+                        onUserMusicSignIn = {
+                            runCatching {
+                                userMusicLoginLauncher.launch(
+                                    YandexAuthLoginOptions(
+                                        clientId = YandexMusicUserOAuthRules.CLIENT_ID
+                                    )
+                                )
+                            }.onFailure {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Не удалось открыть авторизацию Music LoginSDK.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        },
                         onYandexSignIn = {
                             runCatching { yandexLoginLauncher.launch(YandexAuthLoginOptions()) }
                                 .onFailure {
@@ -154,6 +210,8 @@ class MainActivity : ComponentActivity() {
 private fun MarkApp(
     openPlayerRequests: Int,
     yandexIdUpdates: Int,
+    userMusicUpdates: Int,
+    onUserMusicSignIn: () -> Unit,
     onYandexSignIn: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -164,6 +222,15 @@ private fun MarkApp(
         yandexAccount = yandexRepo.current()
     }
     // Distinct, owner-registered Music API client: not the Yandex ID LoginSDK token.
+    val userMusicRepo = remember { YandexMusicUserOAuthRepository(ctx) }
+    var userMusicConnected by remember { mutableStateOf(userMusicRepo.isConnected()) }
+    var userMusicBusy by remember { mutableStateOf(false) }
+    var userMusicResult by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(userMusicUpdates) {
+        userMusicConnected = userMusicRepo.isConnected()
+        if (userMusicConnected) userMusicResult = null
+    }
+
     val musicApiRepo = remember { YandexMusicOAuthRepository(ctx) }
     var musicApiConnected by remember { mutableStateOf(musicApiRepo.isConnected()) }
     var musicApiPending by remember { mutableStateOf(musicApiRepo.isPending()) }
@@ -496,6 +563,54 @@ private fun MarkApp(
                                 },
                                 onOpenOfficialService = {
                                     openOfficialMusicService("https://music.yandex.ru/")
+                                },
+                                userMusicConnected = userMusicConnected,
+                                userMusicBusy = userMusicBusy,
+                                userMusicResult = userMusicResult,
+                                onBeginUserMusic = onUserMusicSignIn,
+                                onProbeUserMusic = {
+                                    if (!userMusicBusy) {
+                                        userMusicBusy = true
+                                        userMusicResult = null
+                                        musicApiScope.launch {
+                                            try {
+                                                userMusicResult = when (
+                                                    userMusicRepo.probeMusicAccount()
+                                                ) {
+                                                    YandexMusicProbeStatus.ACCOUNT_ENDPOINT_RESPONDED ->
+                                                        "Новый пользовательский OAuth: метод Music API " +
+                                                            "вернул данные аккаунта. Это не даёт доступа " +
+                                                            "к аудиопотокам или всему каталогу."
+                                                    YandexMusicProbeStatus.UNAUTHORIZED_401 ->
+                                                        "Новый пользовательский OAuth: HTTP 401 — " +
+                                                            "Music API не авторизовал этот запрос."
+                                                    YandexMusicProbeStatus.FORBIDDEN_403 ->
+                                                        "Новый пользовательский OAuth: HTTP 403 — " +
+                                                            "Music API запретил доступ к этому методу. " +
+                                                            "Не повторяй запрос многократно."
+                                                    YandexMusicProbeStatus.RATE_LIMITED_429 ->
+                                                        "Новый пользовательский OAuth: HTTP 429 — " +
+                                                            "временное ограничение частоты запросов."
+                                                    YandexMusicProbeStatus.INVALID_RESPONSE ->
+                                                        "Новый пользовательский OAuth: ответ Music API " +
+                                                            "не соответствует ожидаемой схеме."
+                                                    YandexMusicProbeStatus.NOT_AVAILABLE ->
+                                                        "Новый пользовательский OAuth: Music API " +
+                                                            "недоступен или ответил иначе."
+                                                    YandexMusicProbeStatus.NOT_CONNECTED ->
+                                                        "Новый пользовательский OAuth: токен отсутствует " +
+                                                            "или истёк."
+                                                }
+                                            } finally {
+                                                userMusicBusy = false
+                                            }
+                                        }
+                                    }
+                                },
+                                onDisconnectUserMusic = {
+                                    userMusicRepo.disconnect()
+                                    userMusicConnected = false
+                                    userMusicResult = null
                                 },
                                 musicApiConnected = musicApiConnected,
                                 musicApiPending = musicApiPending,

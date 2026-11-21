@@ -88,6 +88,12 @@ internal fun MarkYandexMusicScreen(
     onBeginSignIn: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenOfficialService: () -> Unit,
+    userMusicConnected: Boolean,
+    userMusicBusy: Boolean,
+    userMusicResult: String?,
+    onBeginUserMusic: () -> Unit,
+    onProbeUserMusic: () -> Unit,
+    onDisconnectUserMusic: () -> Unit,
     musicApiConnected: Boolean,
     musicApiPending: Boolean,
     musicApiBusy: Boolean,
@@ -174,6 +180,82 @@ internal fun MarkYandexMusicScreen(
                 }
             }
         }
+        }
+        item(key = "music-user-oauth") {
+            NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    Text(
+                        "Новый пользовательский OAuth Яндекс Музыки",
+                        color = palette.accent,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Тест отдельного Android OAuth-приложения с разрешением " +
+                            "music:api-public. Используется официальный LoginSDK Яндекса, " +
+                            "без ввода кодов и Client secret. Старые подключения не меняются.",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    )
+                    if (!userMusicConnected) {
+                        androidx.compose.material3.TextButton(
+                            onClick = onBeginUserMusic,
+                            enabled = account != null && !userMusicBusy
+                        ) {
+                            Text(
+                                "Подключить новый Music OAuth через Яндекс ID",
+                                color = palette.accent
+                            )
+                        }
+                        if (account == null) {
+                            Text(
+                                "Сначала войди в основной Яндекс ID.",
+                                color = NeonSubtle, fontSize = 12.sp
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Токен нового пользовательского OAuth-клиента подтверждён " +
+                                "для того же Яндекс ID и сохранён отдельно. " +
+                                "Это ещё не доступ к музыкальному каталогу.",
+                            color = Color.White, fontSize = 13.sp,
+                            lineHeight = 19.sp
+                        )
+                        Text(
+                            "Эксперимент: один запрос к Music API /account/status. " +
+                                "Метод описан сообществом, не является официальным " +
+                                "контрактом стороннего стриминга. Отправляется только " +
+                                "токен нового клиента серверу Яндекса, без получения треков.",
+                            color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
+                        )
+                        androidx.compose.material3.TextButton(
+                            onClick = onProbeUserMusic, enabled = !userMusicBusy
+                        ) {
+                            Text(
+                                if (userMusicBusy) "Проверка…" else
+                                    "Однократно проверить новый Music API-клиент",
+                                color = palette.accent
+                            )
+                        }
+                        androidx.compose.material3.TextButton(
+                            onClick = onDisconnectUserMusic,
+                            enabled = !userMusicBusy
+                        ) {
+                            Text("Отключить новый Music OAuth", color = palette.accent)
+                        }
+                    }
+                    if (userMusicResult != null) {
+                        Text(
+                            userMusicResult, color = Color.White,
+                            fontSize = 12.sp, lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
         }
         item(key = "music-api") {
             NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
