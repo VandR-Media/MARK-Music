@@ -28,7 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -61,36 +61,66 @@ internal fun NeonGlass(
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(radius)
+    val shape = remember(radius) { RoundedCornerShape(radius) }
     val glassDepth = LocalGlassDepth.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val tap = if (onClick == null) Modifier else Modifier.clickable(
         interactionSource = interaction, indication = LocalIndication.current, onClick = onClick
     )
-    val motion = Modifier.floatingGlassMotion(pressed, palette.accent, depth = if (onClick == null) .55f else 1f)
+
+    // A static informational card is NOT a 3-D touch target. Previously every
+    // large scrolling panel had its own graphicsLayer and reacted to 25 Hz
+    // gravity samples, even when it could not be pressed. This forced costly
+    // layer compositing during vertical scroll on Huawei.
+    val motion = if (onClick == null) Modifier else Modifier.floatingGlassMotion(
+        pressed, palette.accent, depth = 1f
+    )
+    // Keep the rounded glass rim; avoid a deep, continuously composited shadow
+    // for long, non-clickable panels. Interactive tiles keep their press depth.
+    val elevation = if (onClick == null) (3f + glassDepth * 2f).dp
+        else if (pressed) 3.dp else (4f + glassDepth * 11f).dp
+
+    val glassBackground = remember {
+        Brush.verticalGradient(listOf(
+            Color(0xAB526B9C), Color(0x9C243E6E), Color(0xA309153A)
+        ))
+    }
+    val borderBrush = remember(palette.accent, palette.secondary, glassDepth) {
+        Brush.linearGradient(listOf(
+            Color.White.copy(alpha = .33f + glassDepth * .27f),
+            palette.accent.copy(alpha = .24f + glassDepth * .32f),
+            palette.secondary.copy(alpha = .13f + glassDepth * .18f)
+        ))
+    }
+    val highlightColors = remember(palette.secondary, glassDepth) {
+        listOf(
+            Color.White.copy(alpha = .07f + glassDepth * .12f),
+            Color.Transparent,
+            palette.secondary.copy(alpha = .02f + glassDepth * .04f)
+        )
+    }
+
     Box(
         modifier.then(motion)
-            .shadow(if (pressed) 3.dp else (4f + glassDepth * 11f).dp, shape,
+            .shadow(elevation, shape,
                 ambientColor = palette.accent.copy(alpha = .12f + glassDepth * .18f),
                 spotColor = palette.secondary.copy(alpha = .27f))
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(
-                Color(0xAB526B9C), Color(0x9C243E6E), Color(0xA309153A)
-            )))
-            .drawWithContent {
-                drawContent()
-                drawRect(Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = .07f + glassDepth * .12f), Color.Transparent,
-                        palette.secondary.copy(alpha = .02f + glassDepth * .04f)),
-                    start = Offset.Zero, end = Offset(size.width, size.height)
-                ))
+            .background(glassBackground)
+            .drawWithCache {
+                // Cache the size-dependent shader instead of reallocating it
+                // on each draw or every animated background frame.
+                val highlight = Brush.linearGradient(
+                    highlightColors, start = Offset.Zero,
+                    end = Offset(size.width, size.height)
+                )
+                onDrawWithContent {
+                    drawContent()
+                    drawRect(highlight)
+                }
             }
-            .border(1.dp, Brush.linearGradient(listOf(
-                Color.White.copy(alpha = .33f + glassDepth * .27f),
-                palette.accent.copy(alpha = .24f + glassDepth * .32f),
-                palette.secondary.copy(alpha = .13f + glassDepth * .18f)
-            )), shape)
+            .border(1.dp, borderBrush, shape)
             .then(tap)
     ) {
         content()
