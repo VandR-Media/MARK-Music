@@ -14,6 +14,14 @@ internal sealed interface YandexMusicOauthResult {
     data class Failure(val message: String) : YandexMusicOauthResult
 }
 
+internal sealed interface YandexMusicTokenCheck {
+    data object Verified : YandexMusicTokenCheck
+    data object NotConnected : YandexMusicTokenCheck
+    data object Rejected : YandexMusicTokenCheck
+    data object WrongClient : YandexMusicTokenCheck
+    data object TemporarilyUnavailable : YandexMusicTokenCheck
+}
+
 /**
  * Owner's second OAuth client: requested music:api-public is independent
  * of login:info from official Yandex LoginSDK.
@@ -33,6 +41,61 @@ internal class YandexMusicOAuthRepository(context: Context) {
         if (!valid) vault.remove("token")
         valid
     }.getOrDefault(false)
+
+    /**
+     * Verify the *already stored* Music OAuth token against documented
+     * Yandex ID endpoint. This is NOT a Yandex Music catalog API check.
+     * No client secret, token URL parameter, logs, or personal user data in UI.
+     */
+    suspend fun verifyStoredToken(): YandexMusicTokenCheck = withContext(Dispatchers.IO) {
+        val raw = vault.read("token") ?: return@withContext YandexMusicTokenCheck.NotConnected
+        val token = runCatching { JSONObject(raw) }.getOrNull()
+            ?: return@withContext YandexMusicTokenCheck.NotConnected
+        if (token.optString("client_id") != YandexMusicOAuthRules.CLIENT_ID ||
+            System.currentTimeMillis() >= token.optLong("expires_at")) {
+            return@withContext YandexMusicTokenCheck.NotConnected
+        }
+        val accessToken = token.optString("access_token")
+        if (accessToken.isBlank()) return@withContext YandexMusicTokenCheck.NotConnected
+
+        try {
+            val connection = URL("https://login.yandex.ru/info?format=json")
+                .openConnection() as HttpsURLConnection
+            val (status, body) = try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 12_000
+                connection.readTimeout = 12_000
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Authorization", "OAuth " + accessToken)
+                connection.setRequestProperty("Cache-Control", "no-store")
+                val status = connection.responseCode
+                val body = if (status == 200) {
+                    connection.inputStream.bufferedReader(Charsets.UTF_8).use {
+                        it.readText().take(16_384)
+                    }
+                } else ""
+                status to body
+            } finally {
+                connection.disconnect()
+            }
+            when {
+                status == 200 -> {
+                    val profile = JSONObject(body)
+                    if (YandexMusicTokenRules.matchesRegisteredMusicClient(
+                        profile.optString("client_id"), profile.optString("id")
+                    )) YandexMusicTokenCheck.Verified
+                    else YandexMusicTokenCheck.WrongClient
+                }
+                status == 401 || status == 403 -> YandexMusicTokenCheck.Rejected
+                else -> YandexMusicTokenCheck.TemporarilyUnavailable
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            YandexMusicTokenCheck.TemporarilyUnavailable
+        }
+    }
 
     fun isPending(): Boolean = pending() != null
 
