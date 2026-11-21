@@ -93,10 +93,12 @@ internal fun MarkYandexMusicScreen(
     musicApiPending: Boolean,
     musicApiBusy: Boolean,
     musicApiVerification: String?,
+    musicApiServiceProbe: String?,
     musicApiError: String?,
     onBeginMusicApi: () -> Unit,
     onCompleteMusicCode: (String) -> Unit,
     onVerifyMusicApi: () -> Unit,
+    onProbeMusicApi: () -> Unit,
     onDisconnectMusicApi: () -> Unit
 ) {
     val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
@@ -190,6 +192,29 @@ internal fun MarkYandexMusicScreen(
                     if (musicApiVerification != null) {
                         Text(
                             musicApiVerification, color = Color.White,
+                            fontSize = 12.sp, lineHeight = 18.sp
+                        )
+                    }
+                    Text(
+                        "Эксперимент: запрос статуса аккаунта к Music API. " +
+                            "Этот метод описан сообществом, но не подтверждён " +
+                            "официальной спецификацией для сторонних плееров. " +
+                            "Нажатие отправляет Music API-токен только серверу Яндекса. " +
+                            "Треки, плейлисты и аудиопотоки не загружаются.",
+                        color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                    androidx.compose.material3.TextButton(
+                        onClick = onProbeMusicApi, enabled = !musicApiBusy
+                    ) {
+                        Text(
+                            if (musicApiBusy) "Проверка…" else
+                                "Экспериментально проверить Music API",
+                            color = palette.accent
+                        )
+                    }
+                    if (musicApiServiceProbe != null) {
+                        Text(
+                            musicApiServiceProbe, color = Color.White,
                             fontSize = 12.sp, lineHeight = 18.sp
                         )
                     }
