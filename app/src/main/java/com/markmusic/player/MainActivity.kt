@@ -561,9 +561,6 @@ private fun MarkApp(
                                     yandexRepo.disconnect()
                                     yandexAccount = null
                                 },
-                                onOpenOfficialService = {
-                                    openOfficialMusicService("https://music.yandex.ru/")
-                                },
                                 userMusicConnected = userMusicConnected,
                                 userMusicBusy = userMusicBusy,
                                 userMusicResult = userMusicResult,
