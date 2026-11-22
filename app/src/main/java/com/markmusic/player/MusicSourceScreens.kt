@@ -87,7 +87,6 @@ internal fun MarkYandexMusicScreen(
     account: com.markmusic.player.library.YandexAccount?,
     onBeginSignIn: () -> Unit,
     onDisconnect: () -> Unit,
-    onOpenOfficialService: () -> Unit,
     userMusicConnected: Boolean,
     userMusicBusy: Boolean,
     userMusicResult: String?,
@@ -165,8 +164,6 @@ internal fun MarkYandexMusicScreen(
                         onClick = onBeginSignIn, icon = "music"
                     )
                 }
-                NeonPill("Открыть Яндекс Музыку", palette,
-                    onClick = onOpenOfficialService, icon = "music")
                 androidx.compose.material3.TextButton(onClick = { showDetails = !showDetails }) {
                     Text(if (showDetails) "Скрыть пояснение" else "О доступе к каталогу",
                         color = palette.accent, fontSize = 13.sp)
