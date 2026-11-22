@@ -22,10 +22,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".YandexWebMusicActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
         <!--
           LoginSDK 3.2+ supports a runtime client ID. The original LoginSDK
           return filters from its library manifest remain registered for the
