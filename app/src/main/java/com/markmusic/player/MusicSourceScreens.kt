@@ -257,6 +257,9 @@ internal fun MarkYandexMusicScreen(
                 }
             }
         }
+        item(key = "music-major") {
+            MusicMajorDiagnosticPanel(palette, account?.userId)
+        }
         item(key = "music-api") {
             NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {

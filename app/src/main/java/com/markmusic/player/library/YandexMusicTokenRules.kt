@@ -17,9 +17,10 @@ internal object YandexMusicTokenRules {
     fun classify(
         clientId: String,
         tokenUserId: String,
-        signedInYandexUserId: String?
+        signedInYandexUserId: String?,
+        expectedClientId: String = YandexMusicOAuthRules.CLIENT_ID
     ): YandexMusicIdentity {
-        if (clientId != YandexMusicOAuthRules.CLIENT_ID || tokenUserId.isBlank()) {
+        if (clientId != expectedClientId || tokenUserId.isBlank()) {
             return YandexMusicIdentity.INVALID_CLIENT_OR_PROFILE
         }
         if (signedInYandexUserId.isNullOrBlank()) {

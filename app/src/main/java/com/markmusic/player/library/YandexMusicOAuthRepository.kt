@@ -31,16 +31,23 @@ internal sealed interface YandexMusicTokenCheck {
  * Only documented oauth.yandex.ru endpoints are called. No Music catalog,
  * stream URL resolution or hidden Yandex Music HTTP endpoints are used.
  */
-internal class YandexMusicOAuthRepository(context: Context) {
+internal class YandexMusicOAuthRepository(
+    context: Context,
+    private val clientId: String = YandexMusicOAuthRules.CLIENT_ID,
+    private val requestedScope: String = YandexMusicOAuthRules.SCOPE,
+    private val tokenSlot: String = "token",
+    private val pendingSlot: String = "pending"
+) {
+    private val requiredScopes = requestedScope.split(" ").filter { it.isNotBlank() }.toSet()
     private val vault = YandexMusicVault(context.applicationContext)
 
     fun isConnected(): Boolean = runCatching {
-        val raw = vault.read("token") ?: return@runCatching false
+        val raw = vault.read(tokenSlot) ?: return@runCatching false
         val stored = JSONObject(raw)
-        val valid = stored.optString("client_id") == YandexMusicOAuthRules.CLIENT_ID &&
+        val valid = stored.optString("client_id") == clientId &&
             stored.optString("access_token").isNotBlank() &&
             System.currentTimeMillis() < stored.optLong("expires_at")
-        if (!valid) vault.remove("token")
+        if (!valid) vault.remove(tokenSlot)
         valid
     }.getOrDefault(false)
 
@@ -52,10 +59,10 @@ internal class YandexMusicOAuthRepository(context: Context) {
     suspend fun verifyStoredToken(
         expectedYandexIdUserId: String?
     ): YandexMusicTokenCheck = withContext(Dispatchers.IO) {
-        val raw = vault.read("token") ?: return@withContext YandexMusicTokenCheck.NotConnected
+        val raw = vault.read(tokenSlot) ?: return@withContext YandexMusicTokenCheck.NotConnected
         val token = runCatching { JSONObject(raw) }.getOrNull()
             ?: return@withContext YandexMusicTokenCheck.NotConnected
-        if (token.optString("client_id") != YandexMusicOAuthRules.CLIENT_ID ||
+        if (token.optString("client_id") != clientId ||
             System.currentTimeMillis() >= token.optLong("expires_at")) {
             return@withContext YandexMusicTokenCheck.NotConnected
         }
@@ -89,7 +96,8 @@ internal class YandexMusicOAuthRepository(context: Context) {
                     when (YandexMusicTokenRules.classify(
                         clientId = profile.optString("client_id"),
                         tokenUserId = profile.optString("id"),
-                        signedInYandexUserId = expectedYandexIdUserId
+                        signedInYandexUserId = expectedYandexIdUserId,
+                        expectedClientId = clientId
                     )) {
                         YandexMusicIdentity.SAME_ACCOUNT ->
                             YandexMusicTokenCheck.VerifiedSameAccount
@@ -121,11 +129,11 @@ internal class YandexMusicOAuthRepository(context: Context) {
      */
     suspend fun probeMusicServiceAccount(): YandexMusicProbeStatus =
         withContext(Dispatchers.IO) {
-            val raw = vault.read("token")
+            val raw = vault.read(tokenSlot)
                 ?: return@withContext YandexMusicProbeStatus.NOT_CONNECTED
             val stored = runCatching { JSONObject(raw) }.getOrNull()
                 ?: return@withContext YandexMusicProbeStatus.NOT_CONNECTED
-            if (stored.optString("client_id") != YandexMusicOAuthRules.CLIENT_ID ||
+            if (stored.optString("client_id") != clientId ||
                 stored.optString("access_token").isBlank() ||
                 System.currentTimeMillis() >= stored.optLong("expires_at")) {
                 return@withContext YandexMusicProbeStatus.NOT_CONNECTED
@@ -183,15 +191,15 @@ internal class YandexMusicOAuthRepository(context: Context) {
     fun isPending(): Boolean = pending() != null
 
     private fun pending(): JSONObject? = runCatching {
-        val raw = vault.read("pending") ?: return@runCatching null
+        val raw = vault.read(pendingSlot) ?: return@runCatching null
         val data = JSONObject(raw)
         val expiresAt = data.optLong("expires_at")
         val valid = YandexMusicOAuthRules.pendingNotExpired(
             System.currentTimeMillis(), expiresAt
-        ) && data.optString("client_id") == YandexMusicOAuthRules.CLIENT_ID &&
+        ) && data.optString("client_id") == clientId &&
             data.optString("code_verifier").isNotBlank()
         if (!valid) {
-            vault.remove("pending")
+            vault.remove(pendingSlot)
             return@runCatching null
         }
         data
@@ -202,12 +210,12 @@ internal class YandexMusicOAuthRepository(context: Context) {
         val entropy = ByteArray(32).also { SecureRandom().nextBytes(it) }
         val verifier = YandexMusicOAuthRules.verifier(entropy)
         val expiresAt = System.currentTimeMillis() + YandexMusicOAuthRules.PENDING_TTL_MILLIS
-        vault.save("pending", JSONObject()
-            .put("client_id", YandexMusicOAuthRules.CLIENT_ID)
+        vault.save(pendingSlot, JSONObject()
+            .put("client_id", clientId)
             .put("code_verifier", verifier)
             .put("expires_at", expiresAt)
             .toString())
-        return YandexMusicOAuthRules.authorizationUrl(verifier)
+        return YandexMusicOAuthRules.authorizationUrl(verifier, clientId, requestedScope)
     }
 
     /**
@@ -227,7 +235,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
             )
             val verifier = pending.optString("code_verifier")
             try {
-                val body = YandexMusicOAuthRules.tokenRequestBody(code, verifier)
+                val body = YandexMusicOAuthRules.tokenRequestBody(code, verifier, clientId)
                 val connection = URL("https://oauth.yandex.ru/token").openConnection()
                     as HttpsURLConnection
                 val (status, response) = try {
@@ -263,7 +271,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
                         "invalid_grant" ->
                             "Неверный или просроченный код. Проверьте его или запросите новый."
                         "invalid_scope" ->
-                            "Яндекс отклонил разрешение music:api-public. Проверьте настройки OAuth."
+                            "Яндекс отклонил запрошенные разрешения Music API. Проверьте настройки OAuth."
                         "invalid_client", "unauthorized_client" ->
                             "Яндекс не разрешил доступ второму OAuth-приложению."
                         else -> "Яндекс не выдал токен (HTTP $status). Повторите попытку."
@@ -279,19 +287,19 @@ internal class YandexMusicOAuthRepository(context: Context) {
                     System.currentTimeMillis(), expiresIn
                 )
                 if (accessToken.isBlank() || expiresAt == null ||
-                    !YandexMusicOAuthRules.acceptsReturnedScope(scope)) {
+                    !YandexMusicOAuthRules.acceptsReturnedScope(scope, requiredScopes)) {
                     return@withContext YandexMusicOauthResult.Failure(
                         "Яндекс не подтвердил токен с нужным разрешением Music API."
                     )
                 }
 
                 // Refresh token is intentionally not retained until renewal support is implemented.
-                vault.save("token", JSONObject()
-                    .put("client_id", YandexMusicOAuthRules.CLIENT_ID)
+                vault.save(tokenSlot, JSONObject()
+                    .put("client_id", clientId)
                     .put("access_token", accessToken)
                     .put("expires_at", expiresAt)
                     .toString())
-                vault.remove("pending")
+                vault.remove(pendingSlot)
                 YandexMusicOauthResult.Connected
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -304,7 +312,7 @@ internal class YandexMusicOAuthRepository(context: Context) {
 
     /** Local disconnect only. The user may revoke remote authorization in Yandex OAuth. */
     fun disconnect() {
-        vault.remove("pending")
-        vault.remove("token")
+        vault.remove(pendingSlot)
+        vault.remove(tokenSlot)
     }
 }
