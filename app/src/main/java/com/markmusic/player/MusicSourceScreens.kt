@@ -87,8 +87,6 @@ internal fun MarkYandexMusicScreen(
     account: com.markmusic.player.library.YandexAccount?,
     onBeginSignIn: () -> Unit,
     onDisconnect: () -> Unit,
-    onOpenOfficialService: () -> Unit,
-    onOpenWebMode: () -> Unit,
     userMusicConnected: Boolean,
     userMusicBusy: Boolean,
     userMusicResult: String?,
@@ -108,6 +106,7 @@ internal fun MarkYandexMusicScreen(
     onDisconnectMusicApi: () -> Unit
 ) {
     val access = MarkMusicApiV1.capabilities(MusicSource.YANDEX_MUSIC)
+    var showDiagnostics by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var showDetails by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(false)
     }
@@ -165,15 +164,6 @@ internal fun MarkYandexMusicScreen(
                         onClick = onBeginSignIn, icon = "music"
                     )
                 }
-                NeonPill("Открыть Яндекс Музыку", palette,
-                    onClick = onOpenOfficialService, icon = "music")
-                androidx.compose.material3.TextButton(onClick = onOpenWebMode) {
-                    Text("Эксперимент: открыть веб-плеер внутри MARK Audio",
-                        color = palette.accent, fontSize = 13.sp)
-                }
-                Text("Веб-режим использует официальный сайт и отдельную сессию. " +
-                    "Доступность каталога, входа и фонового звука проверяется на Huawei.",
-                    color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
                 androidx.compose.material3.TextButton(onClick = { showDetails = !showDetails }) {
                     Text(if (showDetails) "Скрыть пояснение" else "О доступе к каталогу",
                         color = palette.accent, fontSize = 13.sp)
@@ -189,6 +179,17 @@ internal fun MarkYandexMusicScreen(
             }
         }
         }
+        item(key = "native-yandex-catalog") {
+            NativeYandexCatalogPanel(palette, account?.userId)
+        }
+        item(key = "diagnostics-toggle") {
+            androidx.compose.material3.TextButton(onClick = { showDiagnostics = !showDiagnostics }) {
+                Text(if (showDiagnostics) "Скрыть техническую диагностику"
+                    else "Техническая диагностика OAuth",
+                    color = palette.accent, fontSize = 13.sp)
+            }
+        }
+        if (showDiagnostics) {
         item(key = "music-user-oauth") {
             NeonGlass(palette, Modifier.fillMaxWidth(), radius = 24.dp) {
                 Column(
@@ -391,6 +392,7 @@ internal fun MarkYandexMusicScreen(
             }
         }
         }
+        } // Optional OAuth diagnostics: native catalog is the default screen.
     }
 }
 

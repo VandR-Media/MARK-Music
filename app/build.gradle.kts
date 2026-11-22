@@ -10,8 +10,8 @@ android {
         applicationId = "com.markmusic.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 48
-        versionName = "0.7.29"
+        versionCode = 49
+        versionName = "0.7.30"
         // Public OAuth app ID registered for signed MARK Audio com.markmusic.player.
         manifestPlaceholders["YANDEX_CLIENT_ID"] = "cfaacee8ff6d4941a5966d00c53a61de"
         manifestPlaceholders["YANDEX_OAUTH_HOST"] = "oauth.yandex.ru"
@@ -54,6 +54,7 @@ dependencies {
     implementation("androidx.media3:media3-session:$media3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
     
 // The Mayak image is a real public-domain photograph, downloaded only when
