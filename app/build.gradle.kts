@@ -54,6 +54,7 @@ dependencies {
     implementation("androidx.media3:media3-session:$media3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
     
 // The Mayak image is a real public-domain photograph, downloaded only when
