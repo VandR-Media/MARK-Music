@@ -59,6 +59,30 @@ class YandexMusicOAuthRulesTest {
         assertTrue(mixedBody.contains("code_verifier=" + verifier))
     }
 
+    @Test fun musicMajorUsesOwnClientAndRequiresBothReturnedScopes() {
+        val client = "017187c1377846eb80cedcd93cf3fd38"
+        val requested = "music:api-public music:major-public-api"
+        val verifier = YandexMusicOAuthRules.verifier(ByteArray(32) { 17 })
+        val url = URI(YandexMusicOAuthRules.authorizationUrl(verifier, client, requested))
+        val params = url.rawQuery.split("&").associate {
+            val pair = it.split("=", limit = 2)
+            pair[0] to URLDecoder.decode(pair[1], "UTF-8")
+        }
+        assertEquals(client, params["client_id"])
+        assertEquals(requested, params["scope"])
+        assertEquals(YandexMusicOAuthRules.REDIRECT_URI, params["redirect_uri"])
+        val body = YandexMusicOAuthRules.tokenRequestBody("0123456", verifier, client)
+        assertTrue(body.contains("client_id=" + client))
+        assertFalse(body.contains(YandexMusicOAuthRules.CLIENT_ID))
+        assertFalse(body.contains("client_secret"))
+        val required = setOf("music:api-public", "music:major-public-api")
+        assertTrue(YandexMusicOAuthRules.acceptsReturnedScope(requested, required))
+        assertTrue(YandexMusicOAuthRules.acceptsReturnedScope(null, required))
+        assertFalse(YandexMusicOAuthRules.acceptsReturnedScope("music:api-public", required))
+        assertFalse(YandexMusicOAuthRules.acceptsReturnedScope("music:major-public-api", required))
+        assertFalse(YandexMusicOAuthRules.acceptsReturnedScope("login:info", required))
+    }
+
     @Test fun rejectsInvalidCodesReducedScopesAndExpiredPendingSessions() {
         assertTrue(YandexMusicOAuthRules.validCode("0123456"))
         assertTrue(YandexMusicOAuthRules.validCode("aB3cD5eF7gH9jK2m"))
