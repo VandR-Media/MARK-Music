@@ -29,11 +29,11 @@ internal object YandexMusicOAuthRules {
 
     private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
 
-    fun authorizationUrl(codeVerifier: String): String =
+    fun authorizationUrl(codeVerifier: String, clientId: String = CLIENT_ID, requestedScope: String = SCOPE): String =
         "https://oauth.yandex.ru/authorize?" +
             "response_type=code" +
-            "&client_id=" + encode(CLIENT_ID) +
-            "&scope=" + encode(SCOPE) +
+            "&client_id=" + encode(clientId) +
+            "&scope=" + encode(requestedScope) +
             "&redirect_uri=" + encode(REDIRECT_URI) +
             "&code_challenge=" + encode(challenge(codeVerifier)) +
             "&code_challenge_method=S256"
@@ -49,12 +49,12 @@ internal object YandexMusicOAuthRules {
     fun validCode(code: String): Boolean =
         code.matches(Regex("(?:[0-9]{7}|[A-Za-z0-9]{16})"))
 
-    fun tokenRequestBody(code: String, codeVerifier: String): String {
+    fun tokenRequestBody(code: String, codeVerifier: String, clientId: String = CLIENT_ID): String {
         require(validCode(code))
         challenge(codeVerifier) // Validate format before sending verifier to OAuth.
         return "grant_type=authorization_code" +
             "&code=" + encode(code) +
-            "&client_id=" + encode(CLIENT_ID) +
+            "&client_id=" + encode(clientId) +
             "&code_verifier=" + encode(codeVerifier)
     }
 
@@ -62,8 +62,8 @@ internal object YandexMusicOAuthRules {
      * Yandex omits the scope property if all registered/requested rights were granted.
      * A present scope property means reduced rights and must contain the Music scope.
      */
-    fun acceptsReturnedScope(scope: String?): Boolean =
-        scope == null || scope.split(Regex("\\s+")).contains(SCOPE)
+    fun acceptsReturnedScope(scope: String?, requiredScopes: Set<String> = setOf(SCOPE)): Boolean =
+        scope == null || scope.split(Regex("\\s+")).toSet().containsAll(requiredScopes)
 
     fun pendingNotExpired(nowMillis: Long, expiresAt: Long): Boolean =
         nowMillis >= 0L && expiresAt > nowMillis && expiresAt - nowMillis <= PENDING_TTL_MILLIS
