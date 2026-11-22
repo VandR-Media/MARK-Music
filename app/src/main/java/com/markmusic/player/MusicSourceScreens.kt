@@ -88,6 +88,7 @@ internal fun MarkYandexMusicScreen(
     onBeginSignIn: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenOfficialService: () -> Unit,
+    onOpenWebMode: () -> Unit,
     userMusicConnected: Boolean,
     userMusicBusy: Boolean,
     userMusicResult: String?,
@@ -166,6 +167,13 @@ internal fun MarkYandexMusicScreen(
                 }
                 NeonPill("Открыть Яндекс Музыку", palette,
                     onClick = onOpenOfficialService, icon = "music")
+                androidx.compose.material3.TextButton(onClick = onOpenWebMode) {
+                    Text("Эксперимент: открыть веб-плеер внутри MARK Audio",
+                        color = palette.accent, fontSize = 13.sp)
+                }
+                Text("Веб-режим использует официальный сайт и отдельную сессию. " +
+                    "Доступность каталога, входа и фонового звука проверяется на Huawei.",
+                    color = NeonSubtle, fontSize = 12.sp, lineHeight = 18.sp)
                 androidx.compose.material3.TextButton(onClick = { showDetails = !showDetails }) {
                     Text(if (showDetails) "Скрыть пояснение" else "О доступе к каталогу",
                         color = palette.accent, fontSize = 13.sp)
