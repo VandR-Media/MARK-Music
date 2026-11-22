@@ -96,7 +96,8 @@ internal class YandexMusicOAuthRepository(
                     when (YandexMusicTokenRules.classify(
                         clientId = profile.optString("client_id"),
                         tokenUserId = profile.optString("id"),
-                        signedInYandexUserId = expectedYandexIdUserId
+                        signedInYandexUserId = expectedYandexIdUserId,
+                        expectedClientId = clientId
                     )) {
                         YandexMusicIdentity.SAME_ACCOUNT ->
                             YandexMusicTokenCheck.VerifiedSameAccount
