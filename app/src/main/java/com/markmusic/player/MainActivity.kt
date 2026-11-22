@@ -565,7 +565,7 @@ private fun MarkApp(
                                     openOfficialMusicService("https://music.yandex.ru/")
                                 },
                                 onOpenWebMode = {
-                                    startActivity(Intent(ctx, YandexWebMusicActivity::class.java))
+                                    ctx.startActivity(Intent(ctx, YandexWebMusicActivity::class.java))
                                 },
                                 userMusicConnected = userMusicConnected,
                                 userMusicBusy = userMusicBusy,
